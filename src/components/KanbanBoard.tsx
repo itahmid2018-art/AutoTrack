@@ -16,7 +16,8 @@ import {
   ChevronRight,
   UserX,
   CheckCircle2,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -28,6 +29,7 @@ interface KanbanBoardProps {
   onPrintJobCard: (job: JobCard) => void;
   onSendPdfToCustomer: (job: JobCard) => void;
   onOpenWhatsApp: (job: JobCard) => void;
+  onOpenAiDiagnosis?: (job: JobCard) => void;
 }
 
 const KANBAN_COLUMNS: { status: JobStatus; title: string; subtitle: string; badgeClass: string }[] = [
@@ -47,6 +49,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onPrintJobCard,
   onSendPdfToCustomer,
   onOpenWhatsApp,
+  onOpenAiDiagnosis,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTechFilter, setSelectedTechFilter] = useState<string>('All');
@@ -356,6 +359,16 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                           </div>
 
                           <div className="flex items-center gap-1">
+                            {onOpenAiDiagnosis && (
+                              <button
+                                onClick={() => onOpenAiDiagnosis(job)}
+                                title="Run Gemini AI Fault Diagnosis"
+                                className="p-1 rounded bg-zinc-900 text-white border border-zinc-700 hover:bg-zinc-800 text-[10px]"
+                              >
+                                <Sparkles className="w-3 h-3 text-white" />
+                              </button>
+                            )}
+
                             <button
                               onClick={() => onSendPdfToCustomer(job)}
                               title="Send PDF"

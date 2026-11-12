@@ -17,6 +17,7 @@ import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { TechnicianTimeTracker } from './components/TechnicianTimeTracker';
 import { TransitionView } from './components/TransitionView';
 import { RecurringMaintenanceView } from './components/RecurringMaintenanceView';
+import { AiDiagnosis } from './components/AiDiagnosis';
 import { NewJobModal } from './components/NewJobModal';
 import { AddInventoryModal } from './components/AddInventoryModal';
 import { PrintableJobCardModal } from './components/PrintableJobCardModal';
@@ -32,9 +33,10 @@ export default function App() {
   const [customFields, setCustomFields] = useState<CustomField[]>(() => TransactionalDb.loadCustomFields(INITIAL_CUSTOM_FIELDS));
   const [selectedJob, setSelectedJob] = useState<JobCard | null>(null);
   
-  // Modals for PDF & Printing
+  // Modals for PDF, Printing & AI Diagnosis
   const [printableJob, setPrintableJob] = useState<JobCard | null>(null);
   const [pdfModalJob, setPdfModalJob] = useState<JobCard | null>(null);
+  const [aiDiagnosisJob, setAiDiagnosisJob] = useState<JobCard | null>(null);
 
   // Business Settings
   const [settings, setSettings] = useState<BusinessSettings>(() => TransactionalDb.loadSettings({
@@ -287,6 +289,7 @@ export default function App() {
                 onOpenWhatsApp={handleOpenWhatsAppForJob}
                 onPrintJobCard={(jobToPrint) => setPrintableJob(jobToPrint)}
                 onSendPdfToCustomer={(jobForPdf) => setPdfModalJob(jobForPdf)}
+                onOpenAiDiagnosis={(jobForAi) => setAiDiagnosisJob(jobForAi)}
               />
             )}
 
@@ -302,6 +305,7 @@ export default function App() {
                 onPrintJobCard={(jobToPrint) => setPrintableJob(jobToPrint)}
                 onSendPdfToCustomer={(jobForPdf) => setPdfModalJob(jobForPdf)}
                 onOpenWhatsApp={handleOpenWhatsAppForJob}
+                onOpenAiDiagnosis={(jobForAi) => setAiDiagnosisJob(jobForAi)}
               />
             )}
 
@@ -381,6 +385,23 @@ export default function App() {
       </main>
 
       {/* Modals */}
+      {aiDiagnosisJob && (
+        <div className="fixed inset-0 z-50 bg-zinc-950/85 backdrop-blur flex items-center justify-center p-4 overflow-y-auto">
+          <div className="max-w-4xl w-full my-8">
+            <AiDiagnosis
+              jobCards={jobCards}
+              selectedJobId={aiDiagnosisJob.id}
+              inventory={inventory}
+              onUpdateJobCard={(updatedJob) => {
+                handleUpdateJobCard(updatedJob);
+                setAiDiagnosisJob(updatedJob);
+              }}
+              onClose={() => setAiDiagnosisJob(null)}
+            />
+          </div>
+        </div>
+      )}
+
       {pdfModalJob && (
         <PdfViewModal
           job={pdfModalJob}

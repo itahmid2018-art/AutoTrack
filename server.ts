@@ -23,24 +23,30 @@ const ai = new GoogleGenAI({
 // Server-side Gemini Power Tool Fault Diagnosis Endpoint
 app.post('/api/ai/diagnose', async (req, res) => {
   try {
-    const { issueDescription, vehicleOrDevice, category, availableParts } = req.body;
+    const { issueDescription, vehicleOrDevice, category, availableParts, jobCard } = req.body;
 
-    if (!issueDescription) {
-      return res.status(400).json({ error: 'Issue description is required' });
-    }
+    const deviceModel = jobCard ? `${jobCard.tool?.brand || ''} ${jobCard.tool?.modelNumber || ''}` : (vehicleOrDevice || 'Bosch Power Tool');
+    const deviceCategory = jobCard ? (jobCard.tool?.category || 'Power Tool') : (category || 'General Tool');
+    const grievanceCategory = jobCard ? (jobCard.serviceReq?.grievanceCategory || 'Issue') : '';
+    const grievanceComplaint = jobCard ? (jobCard.serviceReq?.detailedComplaint || issueDescription) : (issueDescription || 'Needs inspection');
+    const voltagePower = jobCard ? (jobCard.tool?.voltageRating || '230V') : '';
 
-    const prompt = `You are a Senior Bosch Power Tools Master Certified Diagnostic Technician.
-Tool/Device: ${vehicleOrDevice || 'Bosch Power Tool'} (Category: ${category || 'General Tool'})
-Customer Grievance & Complaint: "${issueDescription}"
+    const prompt = `You are a Senior Master Certified Bosch & Power Tools Master Diagnostic Engineer.
 
-Available Genuine Spare Parts Sample Catalog (ID, SKU, Name, UnitPrice):
-${JSON.stringify((availableParts || []).slice(0, 40), null, 2)}
+Device Model: ${deviceModel}
+Category: ${deviceCategory}
+Voltage/Power: ${voltagePower}
+Customer Grievance Category: "${grievanceCategory}"
+Customer Detailed Complaint: "${grievanceComplaint}"
+
+Available Genuine Spare Parts Sample Catalog (${(availableParts || []).length} items):
+${JSON.stringify((availableParts || []).slice(0, 50), null, 2)}
 
 Diagnose the fault and return structured JSON:
-1. Probable Root Cause Analysis
-2. Recommended Action Steps (array of strings)
+1. Probable Root Cause Analysis (explain mechanical or electrical failure mechanisms)
+2. Common Repair Procedures & Action Steps (numbered step-by-step workshop workbench repair steps)
 3. Estimated Repair Labor Hours (numeric, e.g. 1.5)
-4. Recommended Replacement Parts from the catalog sample (list partId, sku, name, quantity, and reason)
+4. Recommended Replacement Parts needed from the catalog sample (list partId, sku, name, quantity, and specific reason)
 5. Technical Notes for Service Ticket`;
 
     const response = await ai.models.generateContent({

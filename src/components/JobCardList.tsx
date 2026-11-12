@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { JobCard, JobStatus } from '../types';
-import { Search, Wrench, MessageSquare, ChevronRight, User, Plus, Printer, FileText, X, Filter } from 'lucide-react';
+import { Search, Wrench, MessageSquare, ChevronRight, User, Plus, Printer, FileText, X, Filter, Sparkles } from 'lucide-react';
 
 interface JobCardListProps {
   jobCards: JobCard[];
@@ -10,6 +10,7 @@ interface JobCardListProps {
   onOpenWhatsApp: (job: JobCard) => void;
   onPrintJobCard: (job: JobCard) => void;
   onSendPdfToCustomer: (job: JobCard) => void;
+  onOpenAiDiagnosis?: (job: JobCard) => void;
 }
 
 export const JobCardList: React.FC<JobCardListProps> = ({
@@ -20,6 +21,7 @@ export const JobCardList: React.FC<JobCardListProps> = ({
   onOpenWhatsApp,
   onPrintJobCard,
   onSendPdfToCustomer,
+  onOpenAiDiagnosis,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
@@ -235,6 +237,17 @@ export const JobCardList: React.FC<JobCardListProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1.5">
+                  {onOpenAiDiagnosis && (
+                    <button
+                      onClick={() => onOpenAiDiagnosis(job)}
+                      title="Run Gemini AI Fault Diagnosis for this device"
+                      className="px-2 py-1.5 rounded-lg bg-zinc-950 text-white hover:bg-zinc-800 border border-zinc-700 transition-colors flex items-center gap-1 text-[11px] font-bold font-mono"
+                    >
+                      <Sparkles className="w-3 h-3 text-white" />
+                      <span>Diagnose</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => onSendPdfToCustomer(job)}
                     title="Generate & Send PDF to Customer Number"

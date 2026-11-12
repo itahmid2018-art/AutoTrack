@@ -49,7 +49,7 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
   onRestoreDatabase,
   onProceedToJobs,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'fields' | 'backups' | 'rules'>('backups');
+  const [activeSubTab, setActiveSubTab] = useState<'fields' | 'backups' | 'rules' | 'manual'>('backups');
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
@@ -181,6 +181,18 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
           >
             <Settings className="w-4 h-4" />
             <span>3. Business Rules &amp; Operational Policies</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('manual')}
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 ${
+              activeSubTab === 'manual'
+                ? 'bg-white text-zinc-950 shadow'
+                : 'bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800'
+            }`}
+          >
+            <HelpCircle className="w-4 h-4" />
+            <span>4. 📖 User Manual &amp; Vendor Training Guide</span>
           </button>
         </div>
       </div>
@@ -647,6 +659,105 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                 <span>Save System Rules</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUB-TAB 4: END-USER OPERATING MANUAL & TRAINING GUIDE */}
+      {activeSubTab === 'manual' && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-6 font-mono shadow-xl">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-white text-zinc-950 font-bold">
+                  <HelpCircle className="w-5 h-5" />
+                </span>
+                <h2 className="text-base font-bold text-white uppercase tracking-tight">
+                  End-User Operating Manual, System Specifications &amp; Training Guide
+                </h2>
+              </div>
+              <p className="text-xs text-zinc-400 mt-1 font-sans">
+                Official documentation, technical stack specs, operational walkthroughs, system limitations, and staff onboarding checklists.
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                const manualText = `# BOSCH AUTHORISED SERVICE CENTER & POWER TOOLS HUB\n## End-User Operating Manual, System Specifications & Training Guide\nVersion 2.5 (2026 Edition)\n\nFile stored in /docs/USER_MANUAL_AND_TRAINING_GUIDE.md`;
+                const blob = new Blob([manualText], { type: 'text/markdown;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', 'USER_MANUAL_AND_TRAINING_GUIDE.md');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                showNotice('Downloaded USER_MANUAL_AND_TRAINING_GUIDE.md');
+              }}
+              className="px-4 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow transition-all flex items-center gap-1.5 active:scale-95 shrink-0"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download Manual (.md)</span>
+            </button>
+          </div>
+
+          {/* Rendered Manual Summary Sections */}
+          <div className="space-y-4 font-sans text-xs text-zinc-300">
+            
+            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2">
+              <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider flex items-center gap-2">
+                <span>1. System Architecture &amp; Tech Stack Specifications</span>
+              </h3>
+              <ul className="list-disc list-inside space-y-1 text-zinc-300 text-[11px] font-mono">
+                <li><strong className="text-white">Frontend SPA</strong>: React 18, Vite, Tailwind CSS, Framer Motion</li>
+                <li><strong className="text-white">Backend Server</strong>: Express Node.js (`server.ts`) listening on Port 3000</li>
+                <li><strong className="text-white">Artificial Intelligence</strong>: `@google/genai` SDK (`gemini-3.8-flash`)</li>
+                <li><strong className="text-white">Database Engine</strong>: `TransactionalDb` module over `localStorage` + Deployable MySQL `.sql` DDL/DML Script</li>
+              </ul>
+            </div>
+
+            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2 font-mono">
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                2. Key Operational Modules
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
+                <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 space-y-1">
+                  <div className="font-bold text-white">Tool Intake &amp; Job Cards</div>
+                  <div className="text-zinc-400 font-sans">Digital check-in, signature pad, WhatsApp/SMS triggers, status tracking.</div>
+                </div>
+                <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 space-y-1">
+                  <div className="font-bold text-white">Gemini AI Diagnosis &amp; Chatbot</div>
+                  <div className="text-zinc-400 font-sans">Analyzes grievances, steps teardown, links catalog spare parts SKUs.</div>
+                </div>
+                <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 space-y-1">
+                  <div className="font-bold text-white">AI Predictive Reorder Engine</div>
+                  <div className="text-zinc-400 font-sans">Predicts failure burn rates, generates supplier PO sheets, 1-click restock.</div>
+                </div>
+                <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 space-y-1">
+                  <div className="font-bold text-white">Technician Bench Time Clock</div>
+                  <div className="text-zinc-400 font-sans">Real-time clock-in/out timers, labor hour auto-sync, turnaround speed.</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2">
+              <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">
+                3. System Boundaries &amp; Limitations
+              </h3>
+              <p className="text-[11px] text-zinc-400 leading-relaxed font-sans">
+                The application operates offline for standard job card tracking, search, and inventory management using LocalStorage. Gemini AI diagnostic and reorder analysis features require active internet access to communicate with server API proxies. Barcode scanners run in standard HID USB/Bluetooth keyboard emulation mode.
+              </p>
+            </div>
+
+            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2">
+              <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">
+                4. Full Training Manual File Path
+              </h3>
+              <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 text-xs font-mono text-zinc-300">
+                Full documentation file created at: <code className="text-white font-bold">/docs/USER_MANUAL_AND_TRAINING_GUIDE.md</code>
+              </div>
+            </div>
+
           </div>
         </div>
       )}
