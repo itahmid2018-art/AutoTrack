@@ -119,6 +119,158 @@ Keep under 220 characters. Include clear call to action.`;
   }
 });
 
+// Server-side AI Interactive Diagnostic Chatbot Endpoint
+app.post('/api/ai/repair-chat', async (req, res) => {
+  try {
+    const { messages, jobCardContext, availableParts } = req.body;
+
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'Messages array is required' });
+    }
+
+    const tool = jobCardContext?.tool || {};
+    const serviceReq = jobCardContext?.serviceReq || {};
+
+    const systemInstruction = `You are a Senior Master Certified Bosch & Vendor Power Tool Diagnostic Specialist Assistant.
+You are assisting a service technician on the workshop workbench.
+
+Job Ticket Context:
+- Ticket ID: ${jobCardContext?.id || 'N/A'}
+- Tool Brand & Model: ${tool.brand || 'Bosch'} ${tool.modelNumber || 'Power Tool'}
+- Serial Number: ${tool.serialNumber || 'N/A'} (${tool.voltageRating || '230V'})
+- Physical Condition: ${tool.physicalCondition || 'Used'}
+- Customer Grievance Category: "${serviceReq.grievanceCategory || 'General Issue'}"
+- Detailed Complaint: "${serviceReq.detailedComplaint || 'Needs inspection'}"
+- Diagnostic Log: "${jobCardContext?.diagnosticNotes || 'None'}"
+
+Parts Catalog Sample (SKU, Name, UnitPrice):
+${JSON.stringify((availableParts || []).slice(0, 35), null, 2)}
+
+Instructions:
+1. Provide concise, expert workshop guidance specific to this tool model and complaint.
+2. Detail precise multimeter tests, mechanical teardown steps, commutator/brush wear checks, or gearbox grease requirements.
+3. If spare parts are needed, cite exact SKUs (e.g. BRSH-1002, ARM-1009) from the catalog sample so the technician can link them.
+4. Keep advice clear, direct, and actionable for bench technicians.`;
+
+    const contents = messages.map((m: any) => ({
+      role: m.role === 'user' ? 'user' : 'model',
+      parts: [{ text: m.text }],
+    }));
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: [
+        { role: 'user', parts: [{ text: `[SYSTEM CONTEXT]: Tool Model: ${tool.brand} ${tool.modelNumber}. Grievance: ${serviceReq.grievanceCategory} - ${serviceReq.detailedComplaint}` }] },
+        ...contents,
+      ],
+      config: {
+        systemInstruction,
+      },
+    });
+
+    const reply = response.text || 'Unable to generate diagnostic response.';
+    return res.json({ reply });
+  } catch (error: any) {
+    console.error('Gemini Repair Chat Error:', error);
+    return res.status(500).json({ error: 'Failed to generate repair chat response', details: error.message });
+  }
+});
+
+// Server-side AI Inventory Reorder Recommendation Endpoint
+app.post('/api/ai/recommend-reorders', async (req, res) => {
+  try {
+    const { jobCards = [], inventory = [] } = req.body;
+
+    const sampleJobs = jobCards.slice(0, 50).map((j: any) => ({
+      tool: `${j.tool?.brand || ''} ${j.tool?.modelNumber || ''}`,
+      category: j.tool?.category || '',
+      grievance: j.serviceReq?.grievanceCategory || '',
+      complaint: j.serviceReq?.detailedComplaint || '',
+      partsUsed: j.parts ? j.parts.map((p: any) => `${p.sku} (${p.name}) x${p.quantity}`) : []
+    }));
+
+    const sampleInventory = inventory.slice(0, 70).map((i: any) => ({
+      id: i.id,
+      sku: i.sku,
+      name: i.name,
+      category: i.category,
+      stockQty: i.stockQty,
+      minStockThreshold: i.minStockThreshold,
+      costPrice: i.costPrice,
+      brand: i.brand,
+      compatibleModels: i.compatibleModels
+    }));
+
+    const prompt = `Analyze the following power tool service center repair history and current spare parts inventory to generate an AI predictive reorder recommendation.
+
+Repair History Sample (${sampleJobs.length} recent job cards):
+${JSON.stringify(sampleJobs, null, 2)}
+
+Inventory Stock Sample (${sampleInventory.length} key parts):
+${JSON.stringify(sampleInventory, null, 2)}
+
+Task & Failure Pattern Analysis Rules:
+1. Detect common tool failure patterns (e.g. Motor Sparking -> carbon brushes / armatures, Lost Impact -> SDS seals & impact grease, Dead Switch -> paddle switch & cordsets, Gearbox Noise -> planetary gear sets & bearings).
+2. Cross-reference repair ticket grievances with current stock levels. Identify parts that are low OR expected to run out soon based on predicted failure velocity.
+3. Recommend exact reorder quantities, urgency levels (CRITICAL, HIGH, MEDIUM, LOW), reasoning based on tool symptoms, and estimated PO cost.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        systemInstruction: 'You are a Senior Bosch Master Service Inventory Specialist. Respond ONLY with valid structured JSON matching the declared schema.',
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            summaryInsight: { type: Type.STRING },
+            failurePatternsDetected: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  symptom: { type: Type.STRING },
+                  typicalToolModels: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  associatedParts: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  riskLevel: { type: Type.STRING },
+                  explanation: { type: Type.STRING }
+                }
+              }
+            },
+            reorderRecommendations: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  partId: { type: Type.STRING },
+                  sku: { type: Type.STRING },
+                  name: { type: Type.STRING },
+                  currentStock: { type: Type.INTEGER },
+                  minStockThreshold: { type: Type.INTEGER },
+                  suggestedReorderQty: { type: Type.INTEGER },
+                  urgency: { type: Type.STRING },
+                  predictedDefectPattern: { type: Type.STRING },
+                  reasoning: { type: Type.STRING },
+                  costPrice: { type: Type.NUMBER },
+                  estimatedTotalCost: { type: Type.NUMBER },
+                  suggestedSupplier: { type: Type.STRING }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const text = response.text || '{}';
+    const parsed = JSON.parse(text);
+    return res.json(parsed);
+  } catch (error: any) {
+    console.error('AI Reorder Recommendation Error:', error);
+    return res.status(500).json({ error: 'Failed to generate AI reorder recommendations', details: error.message });
+  }
+});
+
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

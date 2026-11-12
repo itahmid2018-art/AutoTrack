@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { JobCard, InventoryItem, BusinessSettings, CriticalQuestionnaire, MessageLog, JobStatus, RecurringMaintenance } from './types';
+import { JobCard, InventoryItem, BusinessSettings, CriticalQuestionnaire, MessageLog, JobStatus, RecurringMaintenance, CustomField } from './types';
 import { INITIAL_JOB_CARDS } from './data/initialJobCards';
 import { INITIAL_INVENTORY } from './data/mockInventory';
 import { INITIAL_RECURRING_MAINTENANCE } from './data/initialRecurringMaintenance';
+import { INITIAL_CUSTOM_FIELDS } from './data/initialCustomFields';
 import { TransactionalDb } from './utils/localStorageDb';
 
 import { Header } from './components/Header';
 import { BoschIntakeForm } from './components/BoschIntakeForm';
 import { JobCardList } from './components/JobCardList';
+import { KanbanBoard } from './components/KanbanBoard';
 import { JobCardDetail } from './components/JobCardDetail';
 import { InventoryManager } from './components/InventoryManager';
 import { MessagingCenter } from './components/MessagingCenter';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
+import { TechnicianTimeTracker } from './components/TechnicianTimeTracker';
 import { TransitionView } from './components/TransitionView';
 import { RecurringMaintenanceView } from './components/RecurringMaintenanceView';
 import { NewJobModal } from './components/NewJobModal';
@@ -20,12 +23,13 @@ import { PrintableJobCardModal } from './components/PrintableJobCardModal';
 import { PdfViewModal } from './components/PdfViewModal';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'intake' | 'jobs' | 'maintenance' | 'inventory' | 'messaging' | 'analytics' | 'transition'>('intake');
+  const [activeTab, setActiveTab] = useState<'intake' | 'jobs' | 'kanban' | 'maintenance' | 'inventory' | 'messaging' | 'analytics' | 'timetracking' | 'transition'>('intake');
   
   // Core Persistent Transactional State
   const [jobCards, setJobCards] = useState<JobCard[]>(() => TransactionalDb.loadJobCards(INITIAL_JOB_CARDS));
   const [inventory, setInventory] = useState<InventoryItem[]>(() => TransactionalDb.loadInventory(INITIAL_INVENTORY));
   const [schedules, setSchedules] = useState<RecurringMaintenance[]>(INITIAL_RECURRING_MAINTENANCE);
+  const [customFields, setCustomFields] = useState<CustomField[]>(() => TransactionalDb.loadCustomFields(INITIAL_CUSTOM_FIELDS));
   const [selectedJob, setSelectedJob] = useState<JobCard | null>(null);
   
   // Modals for PDF & Printing
@@ -75,6 +79,24 @@ export default function App() {
     TransactionalDb.saveSettings(settings);
   }, [settings]);
 
+  useEffect(() => {
+    TransactionalDb.saveCustomFields(customFields);
+  }, [customFields]);
+
+  // Check and run automatic daily backup on startup
+  useEffect(() => {
+    if (settings.autoDailyBackupEnabled) {
+      TransactionalDb.checkAndRunDailyAutoBackup(
+        jobCards,
+        inventory,
+        settings,
+        customFields,
+        schedules,
+        (newSettings) => setSettings(newSettings)
+      );
+    }
+  }, []);
+
   // Handlers
   const handleAddJobCard = (newJob: JobCard) => {
     const updated = [newJob, ...jobCards];
@@ -86,6 +108,9 @@ export default function App() {
 
   const handleUpdateJobCard = (updatedJob: JobCard) => {
     setJobCards(jobCards.map(j => j.id === updatedJob.id ? updatedJob : j));
+    if (selectedJob && selectedJob.id === updatedJob.id) {
+      setSelectedJob(updatedJob);
+    }
   };
 
   const handleQuickStatusChange = (jobId: string, newStatus: JobStatus) => {
@@ -96,6 +121,9 @@ export default function App() {
       return j;
     });
     setJobCards(updated);
+    if (selectedJob && selectedJob.id === jobId) {
+      setSelectedJob({ ...selectedJob, status: newStatus, updatedAt: new Date().toISOString() });
+    }
   };
 
   const handleDeductInventoryStock = (partId: string, qty: number) => {
@@ -179,7 +207,7 @@ export default function App() {
       promisedCompletion: new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 16).replace('T', ' '),
       status: 'Intake',
       priority: 'Routine',
-      technician: 'David Miller (Bosch Tech)',
+      technician: 'David Miller (Bosch Master Certified)',
       laborHours: 1.0,
       laborRate: settings.laborRate,
       discount: 0,
@@ -211,12 +239,15 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={(tab) => {
           setActiveTab(tab);
-          if (tab !== 'jobs') setSelectedJob(null);
+          if (tab !== 'jobs' && tab !== 'kanban') setSelectedJob(null);
         }}
         onOpenNewJobModal={() => setIsNewJobModalOpen(true)}
         activeJobCount={activeJobCount}
         lowStockCount={lowStockCount}
         dueMaintenanceCount={dueMaintenanceCount}
+        jobCards={jobCards}
+        inventory={inventory}
+        onSelectJob={(job) => setSelectedJob(job)}
       />
 
       {/* Main View Area */}
@@ -243,6 +274,7 @@ export default function App() {
                 settings={settings}
                 existingCount={jobCards.length}
                 onOpenWhatsApp={handleOpenWhatsAppForJob}
+                customFields={customFields}
               />
             )}
 
@@ -255,6 +287,21 @@ export default function App() {
                 onOpenWhatsApp={handleOpenWhatsAppForJob}
                 onPrintJobCard={(jobToPrint) => setPrintableJob(jobToPrint)}
                 onSendPdfToCustomer={(jobForPdf) => setPdfModalJob(jobForPdf)}
+              />
+            )}
+
+            {activeTab === 'kanban' && (
+              <KanbanBoard
+                jobCards={jobCards}
+                onQuickStatusChange={handleQuickStatusChange}
+                onUpdateJobCard={handleUpdateJobCard}
+                onSelectJob={(job) => {
+                  setSelectedJob(job);
+                  setActiveTab('jobs');
+                }}
+                onPrintJobCard={(jobToPrint) => setPrintableJob(jobToPrint)}
+                onSendPdfToCustomer={(jobForPdf) => setPdfModalJob(jobForPdf)}
+                onOpenWhatsApp={handleOpenWhatsAppForJob}
               />
             )}
 
@@ -292,6 +339,18 @@ export default function App() {
               <AnalyticsDashboard
                 jobCards={jobCards}
                 inventory={inventory}
+                onUpdateInventory={(newInv) => setInventory(newInv)}
+              />
+            )}
+
+            {activeTab === 'timetracking' && (
+              <TechnicianTimeTracker
+                jobCards={jobCards}
+                onUpdateJobCard={handleUpdateJobCard}
+                onSelectJobCard={(job) => {
+                  setSelectedJob(job);
+                  setActiveTab('jobs');
+                }}
               />
             )}
 
@@ -301,6 +360,18 @@ export default function App() {
                 onUpdateSettings={(newSettings) => setSettings(newSettings)}
                 questionnaire={questionnaire}
                 onUpdateQuestionnaire={(newQ) => setQuestionnaire(newQ)}
+                customFields={customFields}
+                onUpdateCustomFields={(newFields) => setCustomFields(newFields)}
+                jobCards={jobCards}
+                inventory={inventory}
+                schedules={schedules}
+                onRestoreDatabase={(backupData) => {
+                  if (backupData.jobCards) setJobCards(backupData.jobCards);
+                  if (backupData.inventory) setInventory(backupData.inventory);
+                  if (backupData.settings) setSettings(backupData.settings);
+                  if (backupData.customFields) setCustomFields(backupData.customFields);
+                  if (backupData.schedules) setSchedules(backupData.schedules);
+                }}
                 onProceedToJobs={() => setActiveTab('intake')}
               />
             )}
@@ -345,7 +416,7 @@ export default function App() {
       {/* Monochrome Footer */}
       <footer className="border-t border-zinc-900 py-4 text-center text-xs text-zinc-500 font-mono no-print">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>BOSCH &amp; Vendor Power Tools Service Hub · Recurring Servicing &amp; Automated Message Queue</span>
+          <span>BOSCH &amp; Vendor Power Tools Service Hub · Technician Efficiency &amp; Kanban Workflow</span>
           <button
             onClick={() => setActiveTab('transition')}
             className="text-zinc-400 hover:text-white underline font-semibold"

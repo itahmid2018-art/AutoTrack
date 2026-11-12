@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { JobCard, ToolBrand, ToolCategory, GrievanceCategory, InventoryItem, JobPart, BusinessSettings } from '../types';
-import { Wrench, User, Phone, ShieldCheck, FileText, Sparkles, Printer, MessageSquare, Plus, PenTool, CheckCircle2, AlertCircle } from 'lucide-react';
+import { JobCard, ToolBrand, ToolCategory, GrievanceCategory, InventoryItem, JobPart, BusinessSettings, CustomField } from '../types';
+import { Wrench, User, Phone, ShieldCheck, FileText, Sparkles, Printer, MessageSquare, Plus, PenTool, CheckCircle2, AlertCircle, Sliders } from 'lucide-react';
 
 interface BoschIntakeFormProps {
   onAddJob: (job: JobCard) => void;
@@ -8,6 +8,7 @@ interface BoschIntakeFormProps {
   settings: BusinessSettings;
   existingCount: number;
   onOpenWhatsApp: (job: JobCard) => void;
+  customFields?: CustomField[];
 }
 
 export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
@@ -16,6 +17,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
   settings,
   existingCount,
   onOpenWhatsApp,
+  customFields = [],
 }) => {
   const generatedId = `${settings.jobCardPrefix}${(existingCount + 45).toString().padStart(4, '0')}`;
 
@@ -37,7 +39,8 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
   const [physicalCondition, setPhysicalCondition] = useState('Heavy Jobsite Dust / Wear');
   const [selectedAccessories, setSelectedAccessories] = useState<string[]>(['Auxiliary Handle', 'Depth Stop Rod']);
 
-  // Grievances State
+  // Grievances & Custom Field Values State
+  const [customValues, setCustomValues] = useState<Record<string, any>>({});
   const [grievanceCategory, setGrievanceCategory] = useState<GrievanceCategory>('Motor Sparking / Excessive Smoke');
   const [detailedComplaint, setDetailedComplaint] = useState('');
   const [serviceType, setServiceType] = useState<'Diagnostic & Repair' | 'Standard Overhaul' | 'Carbon Brush & Maintenance' | 'Armature Replacement' | 'Warranty Claim'>('Diagnostic & Repair');
@@ -552,6 +555,58 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
             </div>
           )}
         </div>
+
+        {/* Custom Form Fields Section */}
+        {customFields.filter(f => !f.isSystem && f.enabled).length > 0 && (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
+            <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2 border-b border-zinc-800 pb-3 font-mono">
+              <Sliders className="w-4 h-4 text-white" />
+              <span>Custom Service Intake Properties ({customFields.filter(f => !f.isSystem && f.enabled).length} Custom Fields)</span>
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs font-mono">
+              {customFields.filter(f => !f.isSystem && f.enabled).map((field) => (
+                <div key={field.id} className="space-y-1">
+                  <label className="block text-zinc-400 font-medium">
+                    {field.label} {field.required && <span className="text-white">*</span>}
+                  </label>
+
+                  {field.dataType === 'select' ? (
+                    <select
+                      value={customValues[field.key] || ''}
+                      onChange={(e) => setCustomValues({ ...customValues, [field.key]: e.target.value })}
+                      required={field.required}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none"
+                    >
+                      <option value="">Select option...</option>
+                      {(field.options || []).map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  ) : field.dataType === 'textarea' ? (
+                    <textarea
+                      rows={2}
+                      value={customValues[field.key] || ''}
+                      onChange={(e) => setCustomValues({ ...customValues, [field.key]: e.target.value })}
+                      required={field.required}
+                      placeholder={field.placeholder || ''}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-white font-mono focus:outline-none"
+                    />
+                  ) : (
+                    <input
+                      type={field.dataType === 'number' ? 'number' : field.dataType === 'date' ? 'date' : 'text'}
+                      value={customValues[field.key] || ''}
+                      onChange={(e) => setCustomValues({ ...customValues, [field.key]: e.target.value })}
+                      required={field.required}
+                      placeholder={field.placeholder || ''}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono focus:outline-none"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Section 4: Customer Touch Signature */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3">

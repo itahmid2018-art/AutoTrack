@@ -80,6 +80,19 @@ export interface MessageLog {
   status: 'Sent' | 'Delivered' | 'Pending';
 }
 
+export interface TimeLog {
+  id: string;
+  jobCardId: string;
+  technicianId: string;
+  technicianName: string;
+  clockInTime: string; // ISO string timestamp
+  clockOutTime?: string; // ISO string timestamp
+  durationMinutes?: number;
+  durationHours?: number;
+  notes?: string;
+  status: 'ACTIVE' | 'COMPLETED';
+}
+
 export interface JobCard {
   id: string;
   customerName: string;
@@ -110,6 +123,7 @@ export interface JobCard {
 
   customerSignature?: string;
   messageLogs: MessageLog[];
+  timeLogs?: TimeLog[];
 
   createdAt: string;
   updatedAt: string;
@@ -170,6 +184,9 @@ export interface BusinessSettings {
   WhatsAppTemplateEstimate: string;
   deductStockOn: 'Approval' | 'InService' | 'Completion';
   requireSignature: boolean;
+  autoDailyBackupEnabled?: boolean;
+  autoDailyBackupDestination?: 'localStorage' | 'downloadJson' | 'both';
+  lastAutoBackupDate?: string;
 }
 
 export interface CriticalQuestionnaire {
@@ -180,4 +197,20 @@ export interface CriticalQuestionnaire {
   laborPricingModel: string;
   signatureMandate: string;
   notes: string;
+}
+
+export type FieldDataType = 'text' | 'number' | 'select' | 'date' | 'boolean' | 'textarea';
+export type FieldCategory = 'Customer Information' | 'Tool & Device Details' | 'Grievances & Service' | 'Workshop & Billing';
+
+export interface CustomField {
+  id: string;
+  label: string;
+  key: string;
+  dataType: FieldDataType;
+  category: FieldCategory;
+  required: boolean;
+  placeholder?: string;
+  options?: string[];
+  isSystem?: boolean;
+  enabled: boolean;
 }

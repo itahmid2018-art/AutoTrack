@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { InventoryItem, JobCard, BusinessSettings } from '../types';
 import { generateMySqlDump } from '../utils/mysqlExport';
+import { AiReorderRecommendations } from './AiReorderRecommendations';
 import { 
   Search, Plus, Package, AlertTriangle, Download, Barcode, 
-  RefreshCw, Database, FileCode, CheckCircle2, ShoppingCart, ShieldAlert 
+  RefreshCw, Database, FileCode, CheckCircle2, ShoppingCart, ShieldAlert, Sparkles, BrainCircuit
 } from 'lucide-react';
 
 interface InventoryManagerProps {
@@ -39,6 +40,7 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [stockFilter, setStockFilter] = useState<'All' | 'LowStock' | 'InStock'>('All');
   const [showReorderPanel, setShowReorderPanel] = useState(false);
+  const [showAiReorders, setShowAiReorders] = useState(true);
   const [showSqlModal, setShowSqlModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
@@ -149,11 +151,19 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
 
           <div className="flex items-center gap-2 flex-wrap shrink-0">
             <button
+              onClick={() => setShowAiReorders(!showAiReorders)}
+              className="px-3.5 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl transition-all shadow flex items-center gap-1.5 active:scale-95"
+            >
+              <BrainCircuit className="w-4 h-4 text-zinc-950" />
+              <span>{showAiReorders ? 'Hide AI Reorder Analysis' : '✨ AI Reorder Recommendations'}</span>
+            </button>
+
+            <button
               onClick={() => setShowSqlModal(true)}
-              className="px-3 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl transition-all shadow flex items-center gap-1.5"
+              className="px-3 py-2 text-xs font-bold text-zinc-200 bg-zinc-950 hover:bg-zinc-800 rounded-xl transition-all border border-zinc-800 flex items-center gap-1.5"
             >
               <Database className="w-4 h-4" />
-              <span>Export Local MySQL DB (.sql)</span>
+              <span>Export MySQL DB</span>
             </button>
 
             <button
@@ -188,7 +198,7 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
-                {lowStockItems.length} items have fallen below their safety reorder threshold. Reorder planning recommended.
+                {lowStockItems.length} items have fallen below their safety reorder threshold. Proactive AI reorder forecasting recommended.
               </p>
             </div>
           </div>
@@ -196,13 +206,23 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => {
+                setShowAiReorders(true);
+              }}
+              className="px-3.5 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl flex items-center gap-1.5 transition-all active:scale-95"
+            >
+              <Sparkles className="w-4 h-4 text-zinc-950" />
+              <span>AI Predictive Reorder Engine</span>
+            </button>
+
+            <button
+              onClick={() => {
                 setStockFilter('LowStock');
                 setShowReorderPanel(true);
               }}
-              className="px-4 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl flex items-center gap-1.5 transition-all active:scale-95"
+              className="px-3 py-2 text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-xl flex items-center gap-1.5 transition-all"
             >
               <ShoppingCart className="w-4 h-4" />
-              <span>Quick Reorder Planning</span>
+              <span>Manual PO Sheet</span>
             </button>
           </div>
         </div>
@@ -255,6 +275,15 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
           </div>
         </div>
       </div>
+
+      {/* AI PREDICTIVE REORDER ENGINE PANEL */}
+      {showAiReorders && (
+        <AiReorderRecommendations
+          inventory={inventory}
+          jobCards={jobCards}
+          onUpdateInventory={onUpdateInventory}
+        />
+      )}
 
       {/* REORDER PLANNING PANEL (If open) */}
       {showReorderPanel && (
