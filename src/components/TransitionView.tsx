@@ -493,8 +493,8 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
 
               <div className="space-y-2">
                 {[
-                  { id: 'WhatsApp & SMS Direct', label: '1-Click WhatsApp Web & SMS Trigger (Recommended)', desc: 'Launches native WhatsApp Web / SMS app with prefilled status message' },
-                  { id: 'WhatsApp Direct Only', label: 'WhatsApp Only (Instant Chat)', desc: 'Opens WhatsApp conversation with customer phone number' },
+                  { id: 'WhatsApp & SMS Direct', label: '1-Click WhatsApp Web & Server API Trigger (Recommended)', desc: 'Automated Twilio SMS / WhatsApp API dispatch when credentials are set in .env; native deep link fallback otherwise' },
+                  { id: 'WhatsApp Direct Only', label: 'WhatsApp Only (Instant Chat & API)', desc: 'Dispatches via Meta Cloud API / Twilio WhatsApp or opens instant WhatsApp Web chat' },
                   { id: 'Copy-Paste SMS', label: 'Copy-to-Clipboard Manual Messaging', desc: 'Allows copy-pasting into any third-party SMS gateway' },
                 ].map((opt) => (
                   <label
@@ -519,6 +519,24 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                     </div>
                   </label>
                 ))}
+              </div>
+
+              {/* API Credentials Setup Instructions Box */}
+              <div className="mt-3 p-3 bg-zinc-950 rounded-lg border border-zinc-800 font-mono text-[11px] space-y-1 text-zinc-400">
+                <div className="text-white font-bold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span>Twilio SMS &amp; WhatsApp API (.env Integration)</span>
+                </div>
+                <p className="text-[10px] text-zinc-500 font-sans">
+                  To enable direct REST API dispatch without launching native apps, add the following variables to your environment:
+                </p>
+                <div className="p-2 bg-zinc-900 rounded border border-zinc-800 text-emerald-400 text-[10px] font-mono overflow-x-auto">
+                  TWILIO_ACCOUNT_SID="ACxxx..."<br />
+                  TWILIO_AUTH_TOKEN="your_token..."<br />
+                  TWILIO_PHONE_NUMBER="+18005550199"<br />
+                  TWILIO_WHATSAPP_NUMBER="+14155238886"<br />
+                  WHATSAPP_CLOUD_API_TOKEN="EAAGxxx..." (Optional Meta API)
+                </div>
               </div>
             </div>
 
@@ -663,7 +681,7 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
         </div>
       )}
 
-      {/* SUB-TAB 4: END-USER OPERATING MANUAL & TRAINING GUIDE */}
+      {/* SUB-TAB 4: END-USER OPERATING MANUAL & SETUP MAINTENANCE GUIDE */}
       {activeSubTab === 'manual' && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-6 font-mono shadow-xl">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
@@ -673,32 +691,53 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                   <HelpCircle className="w-5 h-5" />
                 </span>
                 <h2 className="text-base font-bold text-white uppercase tracking-tight">
-                  End-User Operating Manual, System Specifications &amp; Training Guide
+                  System Operating Manual &amp; Technical Setup Maintenance Documentation
                 </h2>
               </div>
               <p className="text-xs text-zinc-400 mt-1 font-sans">
-                Official documentation, technical stack specs, operational walkthroughs, system limitations, and staff onboarding checklists.
+                Official end-user manual, staff training checklists, deployment instructions, MySQL schema import, API setup, and maintenance protocols.
               </p>
             </div>
 
-            <button
-              onClick={() => {
-                const manualText = `# BOSCH AUTHORISED SERVICE CENTER & POWER TOOLS HUB\n## End-User Operating Manual, System Specifications & Training Guide\nVersion 2.5 (2026 Edition)\n\nFile stored in /docs/USER_MANUAL_AND_TRAINING_GUIDE.md`;
-                const blob = new Blob([manualText], { type: 'text/markdown;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.setAttribute('href', url);
-                link.setAttribute('download', 'USER_MANUAL_AND_TRAINING_GUIDE.md');
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                showNotice('Downloaded USER_MANUAL_AND_TRAINING_GUIDE.md');
-              }}
-              className="px-4 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow transition-all flex items-center gap-1.5 active:scale-95 shrink-0"
-            >
-              <Download className="w-4 h-4" />
-              <span>Download Manual (.md)</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                onClick={() => {
+                  const manualText = `# BOSCH AUTHORISED SERVICE CENTER & POWER TOOLS HUB\n## End-User Operating Manual, System Specifications & Training Guide\nVersion 2.6 (2026 Enterprise Edition)\n\nFile stored in /docs/USER_MANUAL_AND_TRAINING_GUIDE.md`;
+                  const blob = new Blob([manualText], { type: 'text/markdown;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.setAttribute('href', url);
+                  link.setAttribute('download', 'USER_MANUAL_AND_TRAINING_GUIDE.md');
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  showNotice('Downloaded USER_MANUAL_AND_TRAINING_GUIDE.md');
+                }}
+                className="px-3.5 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow transition-all flex items-center gap-1.5 active:scale-95"
+              >
+                <Download className="w-4 h-4" />
+                <span>User Manual (.md)</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  const setupText = `# BOSCH AUTHORISED SERVICE CENTER & POWER TOOLS HUB\n## System Setup, Deployment, Database & Maintenance Guide\nVersion 2.6 (2026 Enterprise Edition)\n\nFile stored in /docs/SETUP_AND_MAINTENANCE_GUIDE.md`;
+                  const blob = new Blob([setupText], { type: 'text/markdown;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.setAttribute('href', url);
+                  link.setAttribute('download', 'SETUP_AND_MAINTENANCE_GUIDE.md');
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  showNotice('Downloaded SETUP_AND_MAINTENANCE_GUIDE.md');
+                }}
+                className="px-3.5 py-2 text-xs font-bold text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
+              >
+                <Download className="w-4 h-4" />
+                <span>Setup &amp; Maintenance (.md)</span>
+              </button>
+            </div>
           </div>
 
           {/* Rendered Manual Summary Sections */}
@@ -706,55 +745,57 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
             
             <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2">
               <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider flex items-center gap-2">
-                <span>1. System Architecture &amp; Tech Stack Specifications</span>
+                <span>1. System Architecture &amp; Technology Stack</span>
               </h3>
               <ul className="list-disc list-inside space-y-1 text-zinc-300 text-[11px] font-mono">
                 <li><strong className="text-white">Frontend SPA</strong>: React 18, Vite, Tailwind CSS, Framer Motion</li>
-                <li><strong className="text-white">Backend Server</strong>: Express Node.js (`server.ts`) listening on Port 3000</li>
+                <li><strong className="text-white">Backend Server</strong>: Express Node.js (`server.ts`) running on Port 3000</li>
                 <li><strong className="text-white">Artificial Intelligence</strong>: `@google/genai` SDK (`gemini-3.8-flash`)</li>
-                <li><strong className="text-white">Database Engine</strong>: `TransactionalDb` module over `localStorage` + Deployable MySQL `.sql` DDL/DML Script</li>
+                <li><strong className="text-white">Messaging API Proxies</strong>: Twilio REST API &amp; Meta WhatsApp Cloud API Proxies</li>
+                <li><strong className="text-white">Database Engine</strong>: Synchronous `TransactionalDb` over `localStorage` + Deployable MySQL 8.0+ `database.sql`</li>
               </ul>
             </div>
 
             <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2 font-mono">
               <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                2. Key Operational Modules
+                2. Operational Modules &amp; API Capabilities
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
                 <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 space-y-1">
                   <div className="font-bold text-white">Tool Intake &amp; Job Cards</div>
-                  <div className="text-zinc-400 font-sans">Digital check-in, signature pad, WhatsApp/SMS triggers, status tracking.</div>
+                  <div className="text-zinc-400 font-sans">Digital check-in under 60 seconds, touch signature pad, auto Job Card IDs.</div>
                 </div>
                 <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 space-y-1">
                   <div className="font-bold text-white">Gemini AI Diagnosis &amp; Chatbot</div>
-                  <div className="text-zinc-400 font-sans">Analyzes grievances, steps teardown, links catalog spare parts SKUs.</div>
+                  <div className="text-zinc-400 font-sans">Teardown steps, failure analysis, bench chatbot, direct SKU linking.</div>
                 </div>
                 <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 space-y-1">
                   <div className="font-bold text-white">AI Predictive Reorder Engine</div>
-                  <div className="text-zinc-400 font-sans">Predicts failure burn rates, generates supplier PO sheets, 1-click restock.</div>
+                  <div className="text-zinc-400 font-sans">Correlates grievance velocity with stock to generate supplier PO sheets.</div>
                 </div>
                 <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 space-y-1">
-                  <div className="font-bold text-white">Technician Bench Time Clock</div>
-                  <div className="text-zinc-400 font-sans">Real-time clock-in/out timers, labor hour auto-sync, turnaround speed.</div>
+                  <div className="font-bold text-white">Twilio SMS &amp; WhatsApp API</div>
+                  <div className="text-zinc-400 font-sans">Server API dispatch for notifications with native deep link fallbacks.</div>
                 </div>
               </div>
             </div>
 
             <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2">
               <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">
-                3. System Boundaries &amp; Limitations
+                3. Database Schemas &amp; Admin Credentials
               </h3>
               <p className="text-[11px] text-zinc-400 leading-relaxed font-sans">
-                The application operates offline for standard job card tracking, search, and inventory management using LocalStorage. Gemini AI diagnostic and reorder analysis features require active internet access to communicate with server API proxies. Barcode scanners run in standard HID USB/Bluetooth keyboard emulation mode.
+                Full DDL/DML script stored in <code className="text-white font-mono font-bold">/database.sql</code> (10 tables: `user_roles`, `users`, `business_settings`, `custom_fields`, `inventory_items`, `job_cards`, `job_card_parts`, `technician_time_logs`, `recurring_maintenance`, `message_logs`). Default Administrator login: <code className="text-white font-mono font-bold">admin</code> / <code className="text-white font-mono font-bold">123456</code>.
               </p>
             </div>
 
             <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2">
               <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">
-                4. Full Training Manual File Path
+                4. Documentation Files Location
               </h3>
-              <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 text-xs font-mono text-zinc-300">
-                Full documentation file created at: <code className="text-white font-bold">/docs/USER_MANUAL_AND_TRAINING_GUIDE.md</code>
+              <div className="space-y-1.5 p-3 bg-zinc-900 rounded-lg border border-zinc-800 text-xs font-mono text-zinc-300">
+                <div>User Manual &amp; Training Guide: <code className="text-white font-bold">/docs/USER_MANUAL_AND_TRAINING_GUIDE.md</code></div>
+                <div>Setup &amp; Maintenance Guide: <code className="text-white font-bold">/docs/SETUP_AND_MAINTENANCE_GUIDE.md</code></div>
               </div>
             </div>
 

@@ -25,6 +25,31 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
   const [copied, setCopied] = useState(false);
   const [aiLanguage, setAiLanguage] = useState('English');
   const [aiTone, setAiTone] = useState('Professional & Direct');
+  const [isSending, setIsSending] = useState(false);
+  const [sendFeedback, setSendFeedback] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  const [apiStatus, setApiStatus] = useState<{
+    twilioSmsConfigured: boolean;
+    twilioWhatsAppConfigured: boolean;
+    metaWhatsAppConfigured: boolean;
+    twilioPhoneNumber: string | null;
+    twilioWhatsAppNumber: string | null;
+    activeMode: string;
+  }>({
+    twilioSmsConfigured: false,
+    twilioWhatsAppConfigured: false,
+    metaWhatsAppConfigured: false,
+    twilioPhoneNumber: null,
+    twilioWhatsAppNumber: null,
+    activeMode: 'Checking credentials...',
+  });
+
+  React.useEffect(() => {
+    fetch('/api/messaging/status')
+      .then((res) => res.json())
+      .then((data) => setApiStatus(data))
+      .catch((err) => console.error('Failed to fetch messaging API status:', err));
+  }, []);
 
   const getDefaultMessage = (type: string, job: JobCard | null) => {
     if (!job) return '';
@@ -79,43 +104,107 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSendWhatsApp = () => {
+  const handleSendWhatsApp = async () => {
     if (!activeJob) return;
+    setIsSending(true);
+    setSendFeedback(null);
+
     const cleanPhone = activeJob.customerPhone.replace(/[^0-9]/g, '');
     const encoded = encodeURIComponent(messageText);
     const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encoded}`;
-    
-    const log: MessageLog = {
-      id: `msg-${Date.now()}`,
-      timestamp: new Date().toLocaleString(),
-      type: templateType,
-      recipientPhone: activeJob.customerPhone,
-      text: messageText,
-      channel: 'WhatsApp',
-      status: 'Sent',
-    };
-    onLogMessageSent(activeJob.id, log);
 
-    window.open(whatsappUrl, '_blank');
+    try {
+      const res = await fetch('/api/messaging/send-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: activeJob.customerPhone,
+          message: messageText,
+          jobId: activeJob.id,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setSendFeedback({
+          type: 'success',
+          text: `WhatsApp Sent via ${data.provider}! ${data.sid ? `(SID: ${data.sid})` : ''}`,
+        });
+      } else {
+        setSendFeedback({
+          type: 'info',
+          text: `Opening 1-click WhatsApp Web deep link (${data.message || 'API fallback'})`,
+        });
+        window.open(data.fallbackUrl || whatsappUrl, '_blank');
+      }
+
+      const log: MessageLog = {
+        id: `msg-${Date.now()}`,
+        timestamp: new Date().toLocaleString(),
+        type: templateType,
+        recipientPhone: activeJob.customerPhone,
+        text: messageText,
+        channel: 'WhatsApp',
+        status: data.success ? 'Sent' : 'Sent',
+      };
+      onLogMessageSent(activeJob.id, log);
+    } catch (err: any) {
+      console.error(err);
+      window.open(whatsappUrl, '_blank');
+    } finally {
+      setIsSending(false);
+    }
   };
 
-  const handleSendSMS = () => {
+  const handleSendSMS = async () => {
     if (!activeJob) return;
+    setIsSending(true);
+    setSendFeedback(null);
+
     const encoded = encodeURIComponent(messageText);
     const smsUrl = `sms:${activeJob.customerPhone}?body=${encoded}`;
-    
-    const log: MessageLog = {
-      id: `msg-${Date.now()}`,
-      timestamp: new Date().toLocaleString(),
-      type: templateType,
-      recipientPhone: activeJob.customerPhone,
-      text: messageText,
-      channel: 'SMS',
-      status: 'Sent',
-    };
-    onLogMessageSent(activeJob.id, log);
 
-    window.location.href = smsUrl;
+    try {
+      const res = await fetch('/api/messaging/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: activeJob.customerPhone,
+          message: messageText,
+          jobId: activeJob.id,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setSendFeedback({
+          type: 'success',
+          text: `Twilio SMS Dispatched! SID: ${data.sid}`,
+        });
+      } else {
+        setSendFeedback({
+          type: 'info',
+          text: `Opening native device SMS app (${data.message || 'API credentials optional'})`,
+        });
+        window.location.href = data.fallbackUrl || smsUrl;
+      }
+
+      const log: MessageLog = {
+        id: `msg-${Date.now()}`,
+        timestamp: new Date().toLocaleString(),
+        type: templateType,
+        recipientPhone: activeJob.customerPhone,
+        text: messageText,
+        channel: 'SMS',
+        status: data.success ? 'Sent' : 'Sent',
+      };
+      onLogMessageSent(activeJob.id, log);
+    } catch (err: any) {
+      console.error(err);
+      window.location.href = smsUrl;
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -131,11 +220,33 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
               </h1>
             </div>
             <p className="text-xs text-zinc-400 mt-1">
-              Direct 1-click WhatsApp web dispatch for power tool intake, estimates &amp; pickup notices.
+              Automated API delivery &amp; 1-click WhatsApp web dispatch for power tool intake, estimates &amp; pickup notices.
             </p>
+          </div>
+
+          {/* API Credentials Integration Badges */}
+          <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
+            <div className={`px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${
+              apiStatus.twilioSmsConfigured 
+                ? 'bg-emerald-950/60 border-emerald-700 text-emerald-300' 
+                : 'bg-zinc-950 border-zinc-800 text-zinc-400'
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${apiStatus.twilioSmsConfigured ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-600'}`} />
+              <span>Twilio SMS API: {apiStatus.twilioSmsConfigured ? 'Configured' : 'Optional (.env)'}</span>
+            </div>
+
+            <div className={`px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${
+              apiStatus.twilioWhatsAppConfigured || apiStatus.metaWhatsAppConfigured
+                ? 'bg-emerald-950/60 border-emerald-700 text-emerald-300' 
+                : 'bg-zinc-950 border-zinc-800 text-zinc-400'
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${apiStatus.twilioWhatsAppConfigured || apiStatus.metaWhatsAppConfigured ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-600'}`} />
+              <span>WhatsApp API: {apiStatus.twilioWhatsAppConfigured || apiStatus.metaWhatsAppConfigured ? 'Configured' : 'Optional (.env)'}</span>
+            </div>
           </div>
         </div>
       </div>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -255,6 +366,21 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                 />
               </div>
 
+              {sendFeedback && (
+                <div className={`p-3 rounded-xl border text-xs font-mono flex items-center gap-2 ${
+                  sendFeedback.type === 'success' 
+                    ? 'bg-emerald-950/60 border-emerald-700 text-emerald-300' 
+                    : sendFeedback.type === 'error'
+                    ? 'bg-red-950/60 border-red-700 text-red-300'
+                    : 'bg-zinc-950 border-zinc-800 text-zinc-300'
+                }`}>
+                  <span className="font-bold uppercase font-mono text-[10px] px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-700">
+                    {sendFeedback.type}
+                  </span>
+                  <span>{sendFeedback.text}</span>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-zinc-800">
                 <button
                   onClick={handleCopy}
@@ -267,17 +393,19 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleSendSMS}
-                    className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl transition-all"
+                    disabled={isSending}
+                    className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl transition-all disabled:opacity-50"
                   >
-                    <span>Send SMS</span>
+                    <span>{isSending ? 'Sending...' : (apiStatus.twilioSmsConfigured ? 'Send Twilio SMS API' : 'Send SMS')}</span>
                   </button>
 
                   <button
                     onClick={handleSendWhatsApp}
-                    className="flex-1 sm:flex-none px-5 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95"
+                    disabled={isSending}
+                    className="flex-1 sm:flex-none px-5 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
                   >
                     <MessageSquare className="w-4 h-4" />
-                    <span>Open WhatsApp Web</span>
+                    <span>{isSending ? 'Sending...' : (apiStatus.twilioWhatsAppConfigured || apiStatus.metaWhatsAppConfigured ? 'Send WhatsApp API' : 'Open WhatsApp Web')}</span>
                     <ArrowUpRight className="w-3.5 h-3.5" />
                   </button>
                 </div>

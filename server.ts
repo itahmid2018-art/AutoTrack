@@ -277,6 +277,211 @@ Task & Failure Pattern Analysis Rules:
   }
 });
 
+// Server-side Messaging API Credentials Status Check Endpoint
+app.get('/api/messaging/status', (req, res) => {
+  const twilioSmsConfigured = Boolean(
+    process.env.TWILIO_ACCOUNT_SID &&
+    process.env.TWILIO_AUTH_TOKEN &&
+    process.env.TWILIO_PHONE_NUMBER
+  );
+
+  const twilioWhatsAppConfigured = Boolean(
+    process.env.TWILIO_ACCOUNT_SID &&
+    process.env.TWILIO_AUTH_TOKEN &&
+    process.env.TWILIO_WHATSAPP_NUMBER
+  );
+
+  const metaWhatsAppConfigured = Boolean(
+    process.env.WHATSAPP_CLOUD_API_TOKEN &&
+    process.env.WHATSAPP_PHONE_NUMBER_ID
+  );
+
+  return res.json({
+    twilioSmsConfigured,
+    twilioWhatsAppConfigured,
+    metaWhatsAppConfigured,
+    twilioPhoneNumber: process.env.TWILIO_PHONE_NUMBER || null,
+    twilioWhatsAppNumber: process.env.TWILIO_WHATSAPP_NUMBER || null,
+    whatsappCloudConfigured: metaWhatsAppConfigured,
+    activeMode: (twilioSmsConfigured || twilioWhatsAppConfigured || metaWhatsAppConfigured) 
+      ? 'REST API Direct Dispatch Enabled' 
+      : 'Native Browser Scheme (wa.me / sms:) Fallback Active',
+  });
+});
+
+// Server-side Send SMS via Twilio REST API Endpoint
+app.post('/api/messaging/send-sms', async (req, res) => {
+  try {
+    const { to, message, jobId } = req.body;
+    if (!to || !message) {
+      return res.status(400).json({ error: 'Recipient phone number (to) and message text are required.' });
+    }
+
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+
+    if (!accountSid || !authToken || !fromNumber) {
+      return res.json({
+        success: false,
+        apiConfigured: false,
+        channel: 'SMS',
+        provider: 'Device SMS Native Fallback',
+        message: 'Twilio SMS API credentials (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER) are not present in environment variables. Use client native browser SMS link.',
+        fallbackUrl: `sms:${to}?body=${encodeURIComponent(message)}`,
+      });
+    }
+
+    // Call Twilio REST API via HTTP basic auth
+    const params = new URLSearchParams();
+    params.append('To', to);
+    params.append('From', fromNumber);
+    params.append('Body', message);
+
+    const authHeader = 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+    const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
+    });
+
+    const twilioData: any = await twilioRes.json();
+    if (!twilioRes.ok) {
+      return res.status(twilioRes.status).json({
+        success: false,
+        apiConfigured: true,
+        provider: 'Twilio REST API',
+        error: twilioData.message || 'Twilio SMS Dispatch Failed',
+        code: twilioData.code,
+      });
+    }
+
+    return res.json({
+      success: true,
+      apiConfigured: true,
+      channel: 'SMS',
+      provider: 'Twilio REST API',
+      sid: twilioData.sid,
+      status: twilioData.status,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('Twilio SMS API Error:', error);
+    return res.status(500).json({ error: 'Failed to send SMS via Twilio API', details: error.message });
+  }
+});
+
+// Server-side Send WhatsApp via Twilio or Meta WhatsApp Cloud API Endpoint
+app.post('/api/messaging/send-whatsapp', async (req, res) => {
+  try {
+    const { to, message, jobId } = req.body;
+    if (!to || !message) {
+      return res.status(400).json({ error: 'Recipient phone number (to) and message text are required.' });
+    }
+
+    const cleanPhone = to.replace(/[^0-9]/g, '');
+
+    // 1. Check Twilio WhatsApp
+    const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
+    const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
+    const twilioWhatsAppFrom = process.env.TWILIO_WHATSAPP_NUMBER;
+
+    if (twilioAccountSid && twilioAuthToken && twilioWhatsAppFrom) {
+      const fromFormatted = twilioWhatsAppFrom.startsWith('whatsapp:') ? twilioWhatsAppFrom : `whatsapp:${twilioWhatsAppFrom}`;
+      const toFormatted = `whatsapp:${cleanPhone.startsWith('+') ? cleanPhone : '+' + cleanPhone}`;
+
+      const params = new URLSearchParams();
+      params.append('To', toFormatted);
+      params.append('From', fromFormatted);
+      params.append('Body', message);
+
+      const authHeader = 'Basic ' + Buffer.from(`${twilioAccountSid}:${twilioAuthToken}`).toString('base64');
+      const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString(),
+      });
+
+      const twilioData: any = await twilioRes.json();
+      if (!twilioRes.ok) {
+        return res.status(twilioRes.status).json({
+          success: false,
+          apiConfigured: true,
+          provider: 'Twilio WhatsApp API',
+          error: twilioData.message || 'Twilio WhatsApp API Error',
+        });
+      }
+
+      return res.json({
+        success: true,
+        apiConfigured: true,
+        channel: 'WhatsApp',
+        provider: 'Twilio WhatsApp API',
+        sid: twilioData.sid,
+        status: twilioData.status,
+      });
+    }
+
+    // 2. Check Meta WhatsApp Cloud API
+    const metaToken = process.env.WHATSAPP_CLOUD_API_TOKEN;
+    const metaPhoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+    if (metaToken && metaPhoneId) {
+      const metaRes = await fetch(`https://graph.facebook.com/v18.0/${metaPhoneId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${metaToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: cleanPhone,
+          type: 'text',
+          text: { body: message },
+        }),
+      });
+
+      const metaData: any = await metaRes.json();
+      if (!metaRes.ok) {
+        return res.status(metaRes.status).json({
+          success: false,
+          apiConfigured: true,
+          provider: 'Meta WhatsApp Cloud API',
+          error: metaData.error?.message || 'Meta WhatsApp Cloud API Error',
+        });
+      }
+
+      return res.json({
+        success: true,
+        apiConfigured: true,
+        channel: 'WhatsApp',
+        provider: 'Meta WhatsApp Cloud API',
+        messageId: metaData.messages?.[0]?.id,
+      });
+    }
+
+    // 3. Fallback to 1-Click WhatsApp Web link
+    return res.json({
+      success: false,
+      apiConfigured: false,
+      channel: 'WhatsApp',
+      provider: 'WhatsApp Web 1-Click Link Fallback',
+      message: 'No Twilio or Meta WhatsApp API keys set in environment. Use WhatsApp Web 1-Click deep link.',
+      fallbackUrl: `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`,
+    });
+  } catch (error: any) {
+    console.error('WhatsApp API Error:', error);
+    return res.status(500).json({ error: 'Failed to send WhatsApp message via API', details: error.message });
+  }
+});
+
+
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
