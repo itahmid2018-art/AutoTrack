@@ -1,6 +1,11 @@
 import React from 'react';
 import { JobCard } from '../types';
 import { Printer, X, Wrench, CheckSquare, Tag, Shield, Scissors, User, Phone } from 'lucide-react';
+import {
+  buildCustomerPortalUrl,
+  buildQrMatrix,
+  ensurePublicAccessToken,
+} from '../utils/customerPortalUrl';
 
 interface PrintableJobCardModalProps {
   job: JobCard;
@@ -8,6 +13,14 @@ interface PrintableJobCardModalProps {
 }
 
 export const PrintableJobCardModal: React.FC<PrintableJobCardModalProps> = ({ job, onClose }) => {
+  const accessToken = ensurePublicAccessToken(job);
+  const customerPortalUrl = buildCustomerPortalUrl({
+    id: job.id,
+    createdAt: job.createdAt,
+    publicAccessToken: accessToken,
+  });
+  const qr = buildQrMatrix(customerPortalUrl);
+
   const handlePrint = () => {
     window.print();
   };
@@ -172,10 +185,28 @@ export const PrintableJobCardModal: React.FC<PrintableJobCardModalProps> = ({ jo
 
               {/* Technician Signature Block */}
               <div className="flex justify-between items-end pt-2 border-t border-black text-[10px]">
-                <div>Assigned Tech: <span className="font-bold">{job.technician}</span></div>
-                <div className="flex items-center gap-4 font-mono">
-                  <span>Tech Sign: _____________________</span>
-                  <span>Date: ____________</span>
+                <div>
+                  Assigned Tech: <span className="font-bold">{job.technicianSignOffBy || job.technician}</span>
+                </div>
+                <div className="flex items-end gap-4 font-mono">
+                  <div className="flex items-end gap-2">
+                    <span>Tech Sign:</span>
+                    {job.technicianSignature ? (
+                      <img
+                        src={job.technicianSignature}
+                        alt="Technician Sign-Off"
+                        className="h-8 object-contain border-b border-black px-1"
+                      />
+                    ) : (
+                      <span>_____________________</span>
+                    )}
+                  </div>
+                  <span>
+                    Date:{' '}
+                    {job.technicianSignOffAt
+                      ? job.technicianSignOffAt.slice(0, 10)
+                      : '____________'}
+                  </span>
                 </div>
               </div>
 
@@ -224,15 +255,35 @@ export const PrintableJobCardModal: React.FC<PrintableJobCardModalProps> = ({ jo
                 </div>
               </div>
 
-              {/* Cost Summary */}
-              <div className="flex justify-between items-end border-t border-black pt-3">
-                <div className="text-[10px] text-zinc-600 space-y-0.5 max-w-md">
-                  <p className="font-bold text-black">Terms &amp; Notice:</p>
-                  <p>1. Please present this physical receipt when picking up your repaired power tool.</p>
-                  <p>2. Unclaimed tools after 60 days of completion notice are subject to storage fees.</p>
+              {/* Cost Summary + Customer Portal QR Code */}
+              <div className="flex justify-between items-end gap-4 border-t border-black pt-3">
+                <div className="flex items-center gap-3 border border-zinc-400 bg-zinc-50 p-2 rounded max-w-md">
+                  <div className="bg-white p-1 border border-black shrink-0">
+                    <svg
+                      width="68"
+                      height="68"
+                      viewBox={`0 0 ${qr.size} ${qr.size}`}
+                      shapeRendering="crispEdges"
+                      aria-label={`Customer status QR code for ${job.id}`}
+                    >
+                      <rect width={qr.size} height={qr.size} fill="#ffffff" />
+                      {qr.rows.map((row, rIdx) =>
+                        row.map((dark, cIdx) =>
+                          dark ? (
+                            <rect key={`${rIdx}-${cIdx}`} x={cIdx} y={rIdx} width={1} height={1} fill="#000000" />
+                          ) : null
+                        )
+                      )}
+                    </svg>
+                  </div>
+                  <div className="text-[10px] text-zinc-700 space-y-0.5 leading-snug">
+                    <p className="font-bold text-black uppercase font-mono">Scan to Check Live Status</p>
+                    <p>Point your phone camera here to open your Customer Portal receipt.</p>
+                    <p className="font-mono font-bold text-black">Token: {accessToken}</p>
+                  </div>
                 </div>
 
-                <div className="text-right font-mono text-xs space-y-1">
+                <div className="text-right font-mono text-xs space-y-1 shrink-0">
                   <div>Labor Charge: ${(job.laborHours * job.laborRate).toFixed(2)}</div>
                   <div>Parts Total: ${job.parts.reduce((s, p) => s + p.total, 0).toFixed(2)}</div>
                   <div>Tax ({job.taxRate}%): ${(((job.totalAmount * job.taxRate) / (100 + job.taxRate))).toFixed(2)}</div>

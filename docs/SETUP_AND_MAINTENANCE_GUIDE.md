@@ -1,252 +1,161 @@
 # BOSCH AUTHORISED SERVICE CENTER & POWER TOOLS HUB
-## System Setup, Deployment, Database & Maintenance Guide
-**Version 2.6 (2026 Enterprise Edition) · Administrator & DevOps Technical Operations Manual**
+## System Setup, Security Hardening, Database & Maintenance Guide
+**Version 2.7 (2026 Security & Enterprise Edition) · Administrator & DevOps Operations Manual**
 
 ---
 
 ### TABLE OF CONTENTS
-1. [Overview & Prerequisites](#1-overview--prerequisites)
-2. [Environment Variables & Credentials Setup](#2-environment-variables--credentials-setup)
-   - 2.1 Gemini 3.8 Flash AI Key Setup
-   - 2.2 Twilio SMS API Credentials Setup
-   - 2.3 Twilio WhatsApp & Meta WhatsApp Cloud API Setup
-3. [Local Development & Full-Stack Server Launch](#3-local-development--full-stack-server-launch)
-4. [MySQL Database Provisioning, Schema & Data Import](#4-mysql-database-provisioning-schema--data-import)
-   - 4.1 Database Architecture & DDL Table Inventory
-   - 4.2 Executing `database.sql` Import (MySQL 8.0+, MariaDB & Cloud SQL)
-   - 4.3 Default Administrator Login Credentials
-   - 4.4 Validating SQL Syntax via Parser Script
-5. [Production Build & Server Deployment](#5-production-build--server-deployment)
-6. [System Maintenance, Backups & Disaster Recovery](#6-system-maintenance-backups--disaster-recovery)
-   - 6.1 Automatic Daily Snapshots & JSON Backups
-   - 6.2 1-Click Dynamic MySQL Export Engine
-   - 6.3 Disaster Recovery & Database Restoration Protocol
-7. [System Diagnostics, Health Checks & Troubleshooting](#7-system-diagnostics-health-checks--troubleshooting)
+1. [Executive Overview & System Architecture](#1-executive-overview--system-architecture)
+2. [Security Hardening & PII Protection Standards](#2-security-hardening--pii-protection-standards)
+   - 2.1 Default Credentials & Mandatory Password Rotation
+   - 2.2 Server-Side PII Scrubbing (`stripPII`) Before AI Inference
+   - 2.3 API Rate Limiting & Abuse Prevention
+   - 2.4 Append-Only Audit Ledger (`audit_logs`)
+   - 2.5 Secure Public Customer Status Tokens
+3. [Environment Variables & Credentials Configuration](#3-environment-variables--credentials-configuration)
+4. [Local Development & Full-Stack Server Launch](#4-local-development--full-stack-server-launch)
+5. [MySQL Database Provisioning, Schema & Data Import](#5-mysql-database-provisioning-schema--data-import)
+   - 5.1 Database Table Inventory (11 Relational Tables)
+   - 5.2 Executing `database.sql` Import (MySQL 8.0+, MariaDB & Cloud SQL)
+   - 5.3 Validating SQL Syntax via AST Parser
+6. [Production Build & Server Deployment](#6-production-build--server-deployment)
+7. [System Maintenance, Backups & Disaster Recovery](#7-system-maintenance-backups--disaster-recovery)
 
 ---
 
-### 1. OVERVIEW & PREREQUISITES
+### 1. EXECUTIVE OVERVIEW & SYSTEM ARCHITECTURE
 
-This guide provides technical installation, database initialization, API configuration, production deployment, and maintenance procedures for system administrators, DevOps engineers, and IT leads managing the **Bosch Authorised Service Center & Power Tools Hub**.
+This technical manual details the setup, security policies, database management, and deployment protocols for the **Bosch Authorised Service Center & Power Tools Hub**.
 
-#### Minimum System Prerequisites:
-- **Node.js**: `v18.x` or `v20.x LTS` installed (`node -v`).
-- **Package Manager**: `npm` v9+ or `bun`.
-- **Database Engine** *(Optional for local database hosting)*:
-  - **MySQL 8.0+**
-  - **MariaDB 10.5+**
-  - **GCP Cloud SQL (MySQL Instance)**
-- **Operating System**: Linux (Ubuntu 22.04 LTS / Debian 12 recommended), macOS Sonoma+, or Windows Server 2022.
+#### Multi-Counter Architecture Model:
+- **Client Frontend (React 18 + Vite)**: Provides high-contrast workshop UI for counter intake, bench repair, and inventory management. LocalStorage serves as an offline-first resilient cache.
+- **Express Backend Server (`server.ts`)**: Server-authoritative API proxy listening on Port 3000 handling authentication, AI inference with PII sanitization, API rate limiting, and WhatsApp/SMS messaging.
+- **Host MySQL Database (`database.sql`)**: Central relational store for multi-counter workshop deployments across multiple technicians and storekeepers.
 
 ---
 
-### 2. ENVIRONMENT VARIABLES & CREDENTIALS SETUP
+### 2. SECURITY HARDENING & PII PROTECTION STANDARDS
 
-The system uses environment variables configured in `.env` for API integrations, authentication, and service endpoints.
+#### 2.1 Default Credentials & Mandatory Password Rotation
+- **Default Admin Account**:
+  - **Username**: `admin`
+  - **Password**: `123456`
+  - **Bcrypt Hash**: `$2b$10$32i.0QG3W55o8K6A4GgVMe/2vH98gO.X1Mv1qQe4u6aY0g7l.0q5i` (Cost Factor: 10)
+- **Mandatory Policy**: Upon initial deployment, administrators MUST log into the system and update default credentials. A security banner actively alerts operators in the application header until changed.
 
-Copy `.env.example` to create your active `.env` file:
+#### 2.2 Server-Side PII Scrubbing (`stripPII`) Before AI Inference
+To comply with global data privacy regulations (e.g., DPDP Act, GDPR), all customer complaint descriptions pass through server-side PII scrubbing in `server.ts` before reaching external Gemini API endpoints:
+- Phone numbers (`+1 555-123-4567`) -> Sanitized to `[REDACTED_PHONE]`
+- Email addresses (`user@domain.com`) -> Sanitized to `[REDACTED_EMAIL]`
+- Tax/GST IDs -> Sanitized to `[REDACTED_TAX_ID]`
+
+#### 2.3 API Rate Limiting & Abuse Prevention
+An in-memory sliding window rate limiter (`rateLimiter`) protects all server proxy endpoints (`/api/ai/*` and `/api/messaging/*`):
+- **Rate Limit**: Maximum 50 requests per minute per IP address.
+- **Response**: Returns HTTP 429 (`Too Many Requests`) if threshold is exceeded.
+
+#### 2.4 Append-Only Audit Ledger (`audit_logs`)
+Every state transition, price adjustment, diagnostic application, and stock reservation is recorded in an immutable append-only audit table (`audit_logs`):
+```sql
+CREATE TABLE `audit_logs` (
+  `id` VARCHAR(64) PRIMARY KEY,
+  `job_card_id` VARCHAR(64) NULL,
+  `user_name` VARCHAR(100) NOT NULL,
+  `user_role` VARCHAR(50) NOT NULL,
+  `action` VARCHAR(100) NOT NULL,
+  `previous_state` TEXT NULL,
+  `new_state` TEXT NULL,
+  `timestamp` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`job_card_id`) REFERENCES `job_cards`(`id`) ON DELETE CASCADE
+);
+```
+
+#### 2.5 Secure Public Customer Status Tokens
+Customers can check their tool repair progress via secure, signed token URLs (`/api/jobs/public-status?jobId=BOSCH-2026-0041&token=tok-sec`). Public views return read-only status timelines without exposing PII, internal notes, or password hashes.
+
+---
+
+### 3. ENVIRONMENT VARIABLES & CREDENTIALS CONFIGURATION
+
+Copy `.env.example` to set active environment variables:
 ```bash
 cp .env.example .env
 ```
 
-#### 2.1 Gemini 3.8 Flash AI Key Setup
-Required for server-side AI fault diagnosis, bench chatbot responses, customer message polishing, and inventory reorder recommendations.
-
-1. Obtain a Gemini API Key from Google AI Studio.
-2. Set the key in `.env`:
 ```env
+# GEMINI AI API KEY
 GEMINI_API_KEY="AIzaSyYourSecretGeminiKeyHere"
-```
 
-#### 2.2 Twilio SMS API Credentials Setup
-Optional. Enables direct server-side SMS delivery to customer mobile devices.
-
-1. Create a Twilio Account at [https://console.twilio.com](https://console.twilio.com).
-2. Obtain your **Account SID**, **Auth Token**, and **Twilio Phone Number**.
-3. Add to `.env`:
-```env
+# TWILIO SMS API INTEGRATION (Optional)
 TWILIO_ACCOUNT_SID="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 TWILIO_AUTH_TOKEN="your_twilio_auth_token_here"
 TWILIO_PHONE_NUMBER="+18005550199"
+TWILIO_WHATSAPP_NUMBER="+14155238886"
+
+# META WHATSAPP CLOUD API INTEGRATION (Optional)
+WHATSAPP_CLOUD_API_TOKEN="EAAGxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+WHATSAPP_PHONE_NUMBER_ID="123456789012345"
 ```
-
-#### 2.3 Twilio WhatsApp & Meta WhatsApp Cloud API Setup
-Optional. Enables automated WhatsApp customer dispatch via API.
-
-- **Option A: Twilio WhatsApp API**:
-  ```env
-  TWILIO_WHATSAPP_NUMBER="+14155238886" # Or "whatsapp:+14155238886"
-  ```
-
-- **Option B: Meta WhatsApp Cloud API**:
-  ```env
-  WHATSAPP_CLOUD_API_TOKEN="EAAGxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  WHATSAPP_PHONE_NUMBER_ID="123456789012345"
-  ```
-
-*Note: If messaging keys are omitted, the application automatically falls back to native device SMS links (`sms:`) and 1-click WhatsApp Web deep links (`wa.me/`).*
 
 ---
 
-### 3. LOCAL DEVELOPMENT & FULL-STACK SERVER LAUNCH
+### 4. LOCAL DEVELOPMENT & FULL-STACK SERVER LAUNCH
 
-The project runs an Express backend server (`server.ts`) with Vite SPA middleware mounted in development mode on Port 3000.
-
-#### 1. Install Dependencies:
 ```bash
+# 1. Install dependencies
 npm install
-```
 
-#### 2. Launch Development Server:
-```bash
+# 2. Launch Express + Vite server on Port 3000
 npm run dev
 ```
-- Access the web interface at: `http://localhost:3000`
-- The Express server proxy endpoints (`/api/ai/*` and `/api/messaging/*`) and Vite HMR assets serve concurrently on port 3000.
 
 ---
 
-### 4. MYSQL DATABASE PROVISIONING, SCHEMA & DATA IMPORT
+### 5. MYSQL DATABASE PROVISIONING, SCHEMA & DATA IMPORT
 
-The repository contains a 100% MySQL 8.0+, MariaDB 10.5+, and Cloud SQL compatible database script located at `/database.sql`.
+The `/database.sql` script contains 11 executable MySQL 8.0+ / MariaDB 10.5+ / Cloud SQL statements.
 
-#### 4.1 Database Architecture & DDL Table Inventory
+#### 5.1 Table Inventory (11 Tables):
+1. `user_roles`: System authorization hierarchy.
+2. `users`: Staff credentials, roles, and bcrypt password hashes.
+3. `business_settings`: Shop configuration, tax rates, labor pricing, backup rules.
+4. `custom_fields`: Dynamic form field definitions.
+5. `inventory_items`: 1,000 spare parts catalog with bin locations and reorder thresholds.
+6. `job_cards`: Repair orders, customer info, tool specs, status, and diagnostic summaries.
+7. `job_card_parts`: Parts consumed per ticket with price snapshot.
+8. `technician_time_logs`: Clock-in/out timestamps and labor durations.
+9. `recurring_maintenance`: Scheduled overhaul intervals and due dates.
+10. `message_logs`: Customer SMS/WhatsApp dispatch audit log.
+11. `audit_logs`: Immutable append-only system change ledger.
 
-| Table Name | Description | Primary Key | Foreign Keys & Cascades |
-| :--- | :--- | :--- | :--- |
-| `user_roles` | System authorization tiers (1=Admin to 6=Front Desk) | `role_id` | N/A |
-| `users` | Staff accounts, emails, password hashes, status | `user_id` | `role_id` -> `user_roles(role_id)` |
-| `business_settings` | Global shop configuration, tax, labor rates, backups | `setting_key` | N/A |
-| `custom_fields` | Dynamic form field definitions for Job Cards & Inventory | `field_id` | N/A |
-| `inventory_items` | 1,000 spare parts SKUs, stock levels, bin locations | `item_id` | N/A (Indexed by `sku`) |
-| `job_cards` | Repair tickets, customer details, status, AI summaries | `job_id` | `technician_id` -> `users(user_id)` |
-| `job_card_parts` | Parts consumed per job card with unit prices | `id` | `job_id` -> `job_cards(job_id)` ON DELETE CASCADE |
-| `technician_time_logs` | Clock-in/out timestamps and labor durations | `log_id` | `job_id` -> `job_cards(job_id)` ON DELETE CASCADE |
-| `recurring_maintenance` | Scheduled overhaul intervals and due dates | `schedule_id` | N/A |
-| `message_logs` | Customer SMS/WhatsApp dispatch audit log | `log_id` | `job_id` -> `job_cards(job_id)` ON DELETE CASCADE |
-
-#### 4.2 Executing `database.sql` Import (MySQL 8.0+, MariaDB & Cloud SQL)
-
-To create the database and import schema and seed data on a MySQL server:
-
-##### Method A: MySQL Command Line (CLI)
+#### 5.2 Executing `database.sql` Import
 ```bash
-# 1. Login to MySQL CLI
-mysql -u root -p
-
-# 2. Create the database
-CREATE DATABASE IF NOT EXISTS bosch_service_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-EXIT;
-
-# 3. Import database.sql
 mysql -u root -p bosch_service_db < database.sql
 ```
 
-##### Method B: GCP Cloud SQL MySQL Import
-```bash
-gcloud sql import sql my-cloudsql-instance gs://my-bucket/database.sql --database=bosch_service_db
-```
-
-#### 4.3 Default Administrator Login Credentials
-The seed data includes a pre-configured Administrator account:
-- **Username**: `admin`
-- **Password**: `123456`
-- **Password Hash (Bcrypt)**: `$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW`
-- **Role**: `Administrator` (Full access to all system modules, AI diagnostics, settings, and database backups)
-
-#### 4.4 Validating SQL Syntax via Parser Script
-To verify that `database.sql` contains zero syntax errors prior to importing:
-
+#### 5.3 Validating SQL Syntax via AST Parser
 ```bash
 node scripts/validate_sql.js
 ```
-*Output:*
-```
-Reading database.sql...
-Splitting SQL statements...
-Total SQL statements found: 34
-Validating statements for MySQL 8.0+ / MariaDB syntax compliance...
-SUCCESS: All 34 SQL statements parsed cleanly with 0 syntax errors!
-```
 
 ---
 
-### 5. PRODUCTION BUILD & SERVER DEPLOYMENT
+### 6. PRODUCTION BUILD & SERVER DEPLOYMENT
 
-For production deployment (Docker, GCP Cloud Run, AWS EC2, or Linux VPS):
-
-#### 1. Compile Vite Client Assets:
 ```bash
+# Compile client Vite SPA assets
 npm run build
-```
-Generates production web assets under `/dist`.
 
-#### 2. Start Production Express Server:
-```bash
+# Start production Express server
 npm start
 ```
-Runs `node server.ts` serving static `/dist` client assets alongside backend `/api/*` endpoints on Port 3000.
-
-#### 3. Production `package.json` Scripts Reference:
-```json
-{
-  "scripts": {
-    "dev": "tsx server.ts",
-    "build": "vite build",
-    "start": "node server.ts",
-    "lint": "tsc --noEmit"
-  }
-}
-```
 
 ---
 
-### 6. SYSTEM MAINTENANCE, BACKUPS & DISASTER RECOVERY
+### 7. SYSTEM MAINTENANCE, BACKUPS & DISASTER RECOVERY
 
-#### 6.1 Automatic Daily Snapshots & JSON Backups
-1. Log in as Administrator -> Navigate to **Settings / System Transition** -> **Sub-Tab 3: System Business Rules**.
-2. Enable **Automatic Daily Database Backups**.
-3. Select Backup Destination:
-   - `LocalStorage Snapshot`: Maintains rolling client snapshots.
-   - `Downloadable JSON File`: Triggers an automatic `.json` backup file download on first daily login.
-   - `Both`: Executes both snapshot mechanisms.
-
-#### 6.2 1-Click Dynamic MySQL Export Engine
-At any time, administrators can export the active operational state into a full MySQL `.sql` script:
-- Go to **1,000 SKUs** or **Settings / System Transition** -> **Database Backup & Sync**.
-- Click **`Export Local MySQL DB (.sql)`**.
-- Downloads `bosch_service_db_local_deploy.sql` containing current tables, job cards, inventory stock levels, time logs, and settings.
-
-#### 6.3 Disaster Recovery & Database Restoration Protocol
-In the event of browser storage clearance or database corruption:
-1. Locate the latest `bosch_service_db_local_deploy.sql` or JSON backup.
-2. In MySQL, re-import the `.sql` dump:
-   ```bash
-   mysql -u root -p bosch_service_db < bosch_service_db_local_deploy.sql
-   ```
-3. In the application, click **`Reset to Sample State`** or restore from JSON backup to re-populate client state.
+- **Automatic Daily Backups**: Enabled under **Settings / System Transition**. Supports rolling local snapshots or daily JSON downloads.
+- **Dynamic MySQL Export**: Click **Export Local MySQL DB (.sql)** in Inventory or Transition views to export active state into a full `.sql` dump.
 
 ---
-
-### 7. SYSTEM DIAGNOSTICS, HEALTH CHECKS & TROUBLESHOOTING
-
-#### Health Check Endpoints:
-
-| Endpoint | Method | Purpose | Expected Result |
-| :--- | :--- | :--- | :--- |
-| `/api/messaging/status` | `GET` | Verifies Twilio SMS & WhatsApp API credentials | `{"twilioSmsConfigured": boolean, "twilioWhatsAppConfigured": boolean, ...}` |
-| `/api/ai/diagnose` | `POST` | Validates Gemini API key connection | Returns structured JSON diagnosis object |
-| `/api/ai/repair-chat` | `POST` | Tests interactive bench chatbot connection | Returns `{ "reply": "..." }` |
-
-#### Diagnostic Commands:
-- **Validate TypeScript Code & Imports**:
-  ```bash
-  npm run lint
-  ```
-- **Validate SQL Dump Integrity**:
-  ```bash
-  node scripts/validate_sql.js
-  ```
-
----
-*Setup and Maintenance Manual compiled for Bosch Authorised Service Hub Operations.*
+*Setup and Security Manual compiled for Bosch Authorised Service Hub Operations.*

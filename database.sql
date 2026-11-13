@@ -49,14 +49,14 @@ CREATE TABLE `users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Default Admin Account (Username: admin, Password: 123456)
--- Password '123456' is hashed using bcrypt ($2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW)
+-- Password '123456' is hashed using standard bcrypt ($2b$10$32i.0QG3W55o8K6A4GgVMe/2vH98gO.X1Mv1qQe4u6aY0g7l.0q5i)
 INSERT INTO `users` (`id`, `username`, `email`, `password_hash`, `full_name`, `phone`, `role_id`, `active_status`) VALUES
-(1, 'admin', 'admin@autotrack.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW', 'Master Service Admin', '+1 (555) 019-2831', 1, 'Active'),
-(2, 'manager', 'manager@boschtools.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW', 'Robert Sterling (Service Manager)', '+1 (555) 019-2832', 2, 'Active'),
-(3, 'david.miller', 'david.m@boschtools.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW', 'David Miller (Bosch Master Certified)', '+1 (555) 901-2244', 3, 'Active'),
-(4, 'marcus.vance', 'marcus.v@boschtools.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW', 'Marcus Vance (Electrical Specialist)', '+1 (555) 901-3355', 4, 'Active'),
-(5, 'sarah.connor', 'sarah.c@boschtools.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW', 'Sarah Connor (Pneumatic & SDS Tech)', '+1 (555) 901-4466', 4, 'Active'),
-(6, 'alex.rivera', 'alex.r@boschtools.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW', 'Alex Rivera (Power Tools Tech)', '+1 (555) 901-5577', 4, 'Active');
+(1, 'admin', 'admin@autotrack.com', '$2b$10$32i.0QG3W55o8K6A4GgVMe/2vH98gO.X1Mv1qQe4u6aY0g7l.0q5i', 'Master Service Admin', '+1 (555) 019-2831', 1, 'Active'),
+(2, 'manager', 'manager@boschtools.com', '$2b$10$32i.0QG3W55o8K6A4GgVMe/2vH98gO.X1Mv1qQe4u6aY0g7l.0q5i', 'Robert Sterling (Service Manager)', '+1 (555) 019-2832', 2, 'Active'),
+(3, 'david.miller', 'david.m@boschtools.com', '$2b$10$32i.0QG3W55o8K6A4GgVMe/2vH98gO.X1Mv1qQe4u6aY0g7l.0q5i', 'David Miller (Bosch Master Certified)', '+1 (555) 901-2244', 3, 'Active'),
+(4, 'marcus.vance', 'marcus.v@boschtools.com', '$2b$10$32i.0QG3W55o8K6A4GgVMe/2vH98gO.X1Mv1qQe4u6aY0g7l.0q5i', 'Marcus Vance (Electrical Specialist)', '+1 (555) 901-3355', 4, 'Active'),
+(5, 'sarah.connor', 'sarah.c@boschtools.com', '$2b$10$32i.0QG3W55o8K6A4GgVMe/2vH98gO.X1Mv1qQe4u6aY0g7l.0q5i', 'Sarah Connor (Pneumatic & SDS Tech)', '+1 (555) 901-4466', 4, 'Active'),
+(6, 'alex.rivera', 'alex.r@boschtools.com', '$2b$10$32i.0QG3W55o8K6A4GgVMe/2vH98gO.X1Mv1qQe4u6aY0g7l.0q5i', 'Alex Rivera (Power Tools Tech)', '+1 (555) 901-5577', 4, 'Active');
 
 -- ------------------------------------------------------------
 -- 3. BUSINESS SETTINGS TABLE
@@ -172,7 +172,7 @@ CREATE TABLE `job_cards` (
   -- Status & Technician
   `intake_date` VARCHAR(50) NOT NULL,
   `promised_completion` VARCHAR(50) NOT NULL,
-  `status` ENUM('Intake', 'Diagnosis', 'Awaiting Approval', 'In Service', 'Ready for Pickup', 'Completed', 'Cancelled') NOT NULL DEFAULT 'Intake',
+  `status` ENUM('Intake', 'Diagnosis', 'Awaiting Approval', 'Awaiting Parts', 'In Repair', 'In Service', 'Ready for Pickup', 'Completed', 'Cancelled') NOT NULL DEFAULT 'Intake',
   `priority` ENUM('Routine', 'Urgent', 'Emergency') NOT NULL DEFAULT 'Routine',
   `technician` VARCHAR(100) NOT NULL,
   `diagnostic_notes` TEXT NULL,
@@ -292,6 +292,27 @@ CREATE TABLE `message_logs` (
 INSERT INTO `message_logs` (`id`, `job_card_id`, `timestamp`, `type`, `recipient_phone`, `text`, `channel`, `status`) VALUES
 ('msg-101', 'BOSCH-2026-0041', '2026-11-10 09:20', 'Intake', '+1 (555) 234-5678', 'Apex Industrial: Bosch GBH 2-26 DFR checked in for service under Job Card BOSCH-2026-0041. Bosch Service Hub.', 'WhatsApp', 'Delivered'),
 ('msg-102', 'BOSCH-2026-0042', '2026-11-11 10:15', 'Ready', '+1 (555) 876-5432', 'Marcus Vance: Your Bosch GWS 900 Angle Grinder (BOSCH-2026-0042) is READY FOR PICKUP. Total: $77.55.', 'WhatsApp', 'Sent');
+
+-- ------------------------------------------------------------
+-- 11. AUDIT LOGS TABLE (Append-Only System Ledger)
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `audit_logs`;
+CREATE TABLE `audit_logs` (
+  `id` VARCHAR(64) PRIMARY KEY,
+  `job_card_id` VARCHAR(64) NULL,
+  `user_name` VARCHAR(100) NOT NULL,
+  `user_role` VARCHAR(50) NOT NULL,
+  `action` VARCHAR(100) NOT NULL,
+  `previous_state` TEXT NULL,
+  `new_state` TEXT NULL,
+  `timestamp` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`job_card_id`) REFERENCES `job_cards`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `audit_logs` (`id`, `job_card_id`, `user_name`, `user_role`, `action`, `previous_state`, `new_state`) VALUES
+('aud-001', 'BOSCH-2026-0041', 'Master Service Admin', 'Administrator', 'JOB_CARD_CREATED', 'None', 'Status: Intake, Customer: Apex Industrial'),
+('aud-002', 'BOSCH-2026-0041', 'David Miller', 'Senior Technician', 'STATUS_SHIFT', 'Status: Intake', 'Status: In Service'),
+('aud-003', 'BOSCH-2026-0042', 'Marcus Vance', 'Bench Technician', 'STOCK_RESERVED', 'Part: BRSH-1002 (Qty: 1)', 'Reserved in Workshop Shelf B-04');
 
 -- Re-enable Foreign Key Checks
 SET FOREIGN_KEY_CHECKS = 1;

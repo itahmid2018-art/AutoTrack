@@ -1,22 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { JobCard, TimeLog } from '../types';
-import { SHOP_TECHNICIANS, Technician } from '../data/mockTechnicians';
+import { JobCard, ScheduledJobSlot, TechnicianShift, TimeLog } from '../types';
+import { SHOP_TECHNICIANS } from '../data/mockTechnicians';
+import { calculateJobBilling } from '../utils/billing';
+import { TransactionalDb } from '../utils/localStorageDb';
+import {
+  buildInitialScheduledSlots,
+  buildInitialTechShifts,
+} from '../utils/workshopSchedule';
+import { WeeklyWorkshopCalendar } from './WeeklyWorkshopCalendar';
 import { 
   Clock, 
   Play, 
   Square, 
   UserCheck, 
   FileSpreadsheet, 
-  Download, 
   Plus, 
-  Trash2, 
-  Edit3, 
   CheckCircle2, 
-  AlertCircle, 
-  Wrench, 
-  TrendingUp,
-  Calendar,
-  Zap,
   Timer
 } from 'lucide-react';
 
@@ -37,6 +36,30 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
   const [filterTech, setFilterTech] = useState<string>('All');
   const [filterStatus, setFilterStatus] = useState<'All' | 'ACTIVE' | 'COMPLETED'>('All');
   const [notification, setNotification] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<'all' | 'calendar' | 'timeclock'>('all');
+
+  // Weekly Shift & Job Slot Schedule State
+  const [shifts, setShifts] = useState<TechnicianShift[]>(() =>
+    TransactionalDb.loadTechShifts(() => buildInitialTechShifts(SHOP_TECHNICIANS))
+  );
+  const [scheduledSlots, setScheduledSlots] = useState<ScheduledJobSlot[]>(() =>
+    TransactionalDb.loadScheduledSlots(() => buildInitialScheduledSlots(jobCards, SHOP_TECHNICIANS))
+  );
+
+  const showToast = (msg: string) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  const handleSaveShifts = (nextShifts: TechnicianShift[]) => {
+    setShifts(nextShifts);
+    TransactionalDb.saveTechShifts(nextShifts);
+  };
+
+  const handleSaveSlots = (nextSlots: ScheduledJobSlot[]) => {
+    setScheduledSlots(nextSlots);
+    TransactionalDb.saveScheduledSlots(nextSlots);
+  };
 
   // Manual Log Modal
   const [manualModalOpen, setManualModalOpen] = useState(false);
@@ -179,11 +202,21 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
       .filter((l) => l.status === 'COMPLETED')
       .reduce((sum, l) => sum + (l.durationHours || 0), 0);
 
+    const syncedLaborHours = totalJobCompletedHours > 0 ? totalJobCompletedHours : targetJob.laborHours;
+    const billing = calculateJobBilling(
+      targetJob.parts || [],
+      syncedLaborHours,
+      targetJob.laborRate,
+      targetJob.operationalExpenses || [],
+      targetJob.discount || 0,
+      targetJob.taxRate || 0
+    );
+
     const updatedJob: JobCard = {
       ...targetJob,
       timeLogs: updatedTimeLogs,
-      laborHours: totalJobCompletedHours > 0 ? totalJobCompletedHours : targetJob.laborHours,
-      totalAmount: (totalJobCompletedHours > 0 ? totalJobCompletedHours : targetJob.laborHours) * targetJob.laborRate * (1 + targetJob.taxRate / 100),
+      laborHours: syncedLaborHours,
+      totalAmount: billing.totalAmount,
       updatedAt: new Date().toISOString(),
     };
 
@@ -305,17 +338,47 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap shrink-0">
+            <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setActiveSection('all')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 ${
+                  activeSection === 'all' ? 'bg-white text-zinc-950' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                All Views
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSection('calendar')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 ${
+                  activeSection === 'calendar' ? 'bg-white text-zinc-950' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                Weekly Calendar
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSection('timeclock')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 ${
+                  activeSection === 'timeclock' ? 'bg-white text-zinc-950' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                Time Clock &amp; Logs
+              </button>
+            </div>
+
             <button
               onClick={() => setManualModalOpen(true)}
-              className="px-3.5 py-2 text-xs font-bold text-zinc-200 bg-zinc-950 hover:bg-zinc-800 rounded-xl transition-all border border-zinc-700 flex items-center gap-1.5"
+              className="px-3.5 py-2 text-xs font-bold text-zinc-200 bg-zinc-950 hover:bg-zinc-800 rounded-xl transition-all border border-zinc-700 flex items-center gap-1.5 whitespace-nowrap shrink-0"
             >
               <Plus className="w-4 h-4 text-white" />
-              <span>+ Manual Time Entry</span>
+              <span>Manual Time Entry</span>
             </button>
 
             <button
               onClick={handleExportTimeCsv}
-              className="px-4 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow transition-all flex items-center gap-1.5 active:scale-95"
+              className="px-4 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow transition-all flex items-center gap-1.5 active:scale-95 whitespace-nowrap shrink-0"
             >
               <FileSpreadsheet className="w-4 h-4" />
               <span>Export Time CSV</span>
@@ -324,69 +387,71 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
         </div>
 
         {/* Quick Clock-In Action Box */}
-        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-4">
-          <div className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-            <Play className="w-4 h-4 text-white fill-white" />
-            <span>Clock In Technician to Job Card</span>
+        {activeSection !== 'calendar' && (
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-4">
+            <div className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <Play className="w-4 h-4 text-white fill-white" />
+              <span>Clock In Technician to Job Card</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              {/* Technician Select */}
+              <div>
+                <label className="text-[10px] text-zinc-400 block mb-1 uppercase font-bold">Select Technician</label>
+                <select
+                  value={selectedTechId}
+                  onChange={(e) => setSelectedTechId(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-500 font-mono"
+                >
+                  {SHOP_TECHNICIANS.map((tech) => (
+                    <option key={tech.id} value={tech.id}>
+                      {tech.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Job Card Select */}
+              <div>
+                <label className="text-[10px] text-zinc-400 block mb-1 uppercase font-bold">Target Job Ticket</label>
+                <select
+                  value={selectedJobId}
+                  onChange={(e) => setSelectedJobId(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-500 font-mono"
+                >
+                  {jobCards.map((j) => (
+                    <option key={j.id} value={j.id}>
+                      {j.id} - {j.tool.brand} {j.tool.modelNumber} ({j.customerName})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="text-[10px] text-zinc-400 block mb-1 uppercase font-bold">Task Scope / Notes</label>
+                <input
+                  type="text"
+                  value={logNotes}
+                  onChange={(e) => setLogNotes(e.target.value)}
+                  placeholder="e.g., Motor teardown & armature check..."
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 font-mono"
+                />
+              </div>
+
+              {/* Clock In Button */}
+              <div className="flex items-end">
+                <button
+                  onClick={handleClockIn}
+                  className="w-full py-2 px-4 bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-bold rounded-xl shadow flex items-center justify-center gap-2 transition-all active:scale-95"
+                >
+                  <Play className="w-4 h-4 fill-zinc-950" />
+                  <span>Clock In Now</span>
+                </button>
+              </div>
+            </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            {/* Technician Select */}
-            <div>
-              <label className="text-[10px] text-zinc-400 block mb-1 uppercase font-bold">Select Technician</label>
-              <select
-                value={selectedTechId}
-                onChange={(e) => setSelectedTechId(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-500 font-mono"
-              >
-                {SHOP_TECHNICIANS.map((tech) => (
-                  <option key={tech.id} value={tech.id}>
-                    {tech.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Job Card Select */}
-            <div>
-              <label className="text-[10px] text-zinc-400 block mb-1 uppercase font-bold">Target Job Ticket</label>
-              <select
-                value={selectedJobId}
-                onChange={(e) => setSelectedJobId(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-500 font-mono"
-              >
-                {jobCards.map((j) => (
-                  <option key={j.id} value={j.id}>
-                    {j.id} - {j.tool.brand} {j.tool.modelNumber} ({j.customerName})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="text-[10px] text-zinc-400 block mb-1 uppercase font-bold">Task Scope / Notes</label>
-              <input
-                type="text"
-                value={logNotes}
-                onChange={(e) => setLogNotes(e.target.value)}
-                placeholder="e.g., Motor teardown & armature check..."
-                className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 font-mono"
-              />
-            </div>
-
-            {/* Clock In Button */}
-            <div className="flex items-end">
-              <button
-                onClick={handleClockIn}
-                className="w-full py-2 px-4 bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-bold rounded-xl shadow flex items-center justify-center gap-2 transition-all active:scale-95"
-              >
-                <Play className="w-4 h-4 fill-zinc-950" />
-                <span>Clock In Now</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Notification Toast */}
@@ -396,12 +461,26 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
             <CheckCircle2 className="w-4 h-4 text-white" />
             <span>{notification}</span>
           </div>
-          <span className="text-[10px] text-zinc-400">Time Log Updated</span>
+          <span className="text-[10px] text-zinc-400">Workshop Schedule &amp; Log Updated</span>
         </div>
       )}
 
+      {/* Weekly Workshop Calendar & Capacity Scheduler */}
+      {(activeSection === 'all' || activeSection === 'calendar') && (
+        <WeeklyWorkshopCalendar
+          jobCards={jobCards}
+          shifts={shifts}
+          scheduledSlots={scheduledSlots}
+          onSaveShifts={handleSaveShifts}
+          onSaveSlots={handleSaveSlots}
+          onUpdateJobCard={onUpdateJobCard}
+          onSelectJobCard={onSelectJobCard}
+          onNotify={showToast}
+        />
+      )}
+
       {/* Live Active Clock-Ins Workshop Monitor */}
-      {activeSessions.length > 0 && (
+      {activeSection !== 'calendar' && activeSessions.length > 0 && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3 shadow-xl">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -447,6 +526,8 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
       )}
 
       {/* Technician Total Hours Logged Summary Cards Grid */}
+      {activeSection !== 'calendar' && (
+      <>
       <div className="space-y-3">
         <div className="flex items-center justify-between text-xs font-bold text-white uppercase tracking-wider">
           <span className="flex items-center gap-2">
@@ -656,6 +737,8 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
           </table>
         </div>
       </div>
+      </>
+      )}
 
       {/* Manual Time Entry Modal */}
       {manualModalOpen && (

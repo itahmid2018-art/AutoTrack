@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { JobCard, InventoryItem } from '../types';
 import { SHOP_TECHNICIANS } from '../data/mockTechnicians';
+import { getEffectiveJobBilling } from '../utils/billing';
+import { calculateTechnicianPerformance, TechnicianPerformanceSummary } from '../utils/technicianPerformance';
 import { AiReorderRecommendations } from './AiReorderRecommendations';
 import { 
   Wrench, 
@@ -27,6 +29,91 @@ import {
   HelpCircle,
   Flame
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend
+} from 'recharts';
+
+interface MonthlyStatPoint {
+  label: string;
+  yearMonth: string;
+  totalRevenue: number;
+  laborRevenue: number;
+  partsRevenue: number;
+  operationalExpenses: number;
+  jobCount: number;
+  completedCount: number;
+}
+
+interface ChartTooltipPayloadItem {
+  name?: string;
+  value?: number;
+  color?: string;
+  dataKey?: string;
+  payload?: MonthlyStatPoint;
+}
+
+interface CustomChartTooltipProps {
+  active?: boolean;
+  payload?: ChartTooltipPayloadItem[];
+  label?: string;
+}
+
+const RevenueChartTooltip: React.FC<CustomChartTooltipProps> = ({ active, payload, label }) => {
+  if (!active || !payload || payload.length === 0) return null;
+  const point = payload[0]?.payload;
+  return (
+    <div className="bg-zinc-950 border border-zinc-700 rounded-xl p-3 shadow-2xl font-mono text-xs space-y-1.5">
+      <div className="text-white font-bold border-b border-zinc-800 pb-1">{label}</div>
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-zinc-400">Service Revenue:</span>
+        <span className="text-white font-bold">${(point?.totalRevenue ?? 0).toFixed(2)}</span>
+      </div>
+      <div className="flex items-center justify-between gap-4 text-[11px]">
+        <span className="text-zinc-400">Labor:</span>
+        <span className="text-emerald-400 font-semibold">${(point?.laborRevenue ?? 0).toFixed(2)}</span>
+      </div>
+      <div className="flex items-center justify-between gap-4 text-[11px]">
+        <span className="text-zinc-400">Spare Parts:</span>
+        <span className="text-zinc-300 font-semibold">${(point?.partsRevenue ?? 0).toFixed(2)}</span>
+      </div>
+      <div className="flex items-center justify-between gap-4 text-[11px]">
+        <span className="text-zinc-400">Op. Expenses:</span>
+        <span className="text-amber-400 font-semibold">${(point?.operationalExpenses ?? 0).toFixed(2)}</span>
+      </div>
+      <div className="flex items-center justify-between gap-4 text-[11px] border-t border-zinc-800/80 pt-1">
+        <span className="text-zinc-500">Tickets:</span>
+        <span className="text-zinc-200">{point?.jobCount ?? 0} logged</span>
+      </div>
+    </div>
+  );
+};
+
+const VolumeTrendTooltip: React.FC<CustomChartTooltipProps> = ({ active, payload, label }) => {
+  if (!active || !payload || payload.length === 0) return null;
+  const point = payload[0]?.payload;
+  return (
+    <div className="bg-zinc-950 border border-zinc-700 rounded-xl p-3 shadow-2xl font-mono text-xs space-y-1.5">
+      <div className="text-white font-bold border-b border-zinc-800 pb-1">{label}</div>
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-emerald-400">Completed Jobs:</span>
+        <span className="text-white font-bold">{point?.completedCount ?? 0}</span>
+      </div>
+      <div className="flex items-center justify-between gap-4 text-[11px]">
+        <span className="text-zinc-400">Total Intakes:</span>
+        <span className="text-zinc-300 font-semibold">{point?.jobCount ?? 0}</span>
+      </div>
+    </div>
+  );
+};
 
 interface AnalyticsDashboardProps {
   jobCards: JobCard[];
@@ -36,12 +123,17 @@ interface AnalyticsDashboardProps {
 
 export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ jobCards, inventory, onUpdateInventory = () => {} }) => {
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
+  const [techSortBy, setTechSortBy] = useState<'completed' | 'turnaround' | 'audit'>('completed');
 
   const activeJobs = jobCards.filter(j => j.status !== 'Completed' && j.status !== 'Cancelled');
   const readyForPickup = jobCards.filter(j => j.status === 'Ready for Pickup');
   const completedJobs = jobCards.filter(j => j.status === 'Completed');
   
-  const totalRevenue = jobCards.reduce((sum, j) => sum + j.totalAmount, 0);
+  const totalRevenue = jobCards.reduce((sum, j) => sum + getEffectiveJobBilling(j).totalAmount, 0);
+  const totalOperationalExpenses = jobCards.reduce(
+    (sum, j) => sum + getEffectiveJobBilling(j).operationalExpensesSubtotal,
+    0
+  );
   const totalInventoryValuation = inventory.reduce((sum, i) => sum + (i.stockQty * i.costPrice), 0);
   const lowStockCount = inventory.filter(i => i.stockQty <= i.minStockThreshold).length;
 
@@ -87,7 +179,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ jobCards
       grievanceMap[g] = { count: 0, totalRev: 0, sampleTools: new Set() };
     }
     grievanceMap[g].count += 1;
-    grievanceMap[g].totalRev += j.totalAmount || 0;
+    grievanceMap[g].totalRev += getEffectiveJobBilling(j).totalAmount;
     if (j.tool?.modelNumber) {
       grievanceMap[g].sampleTools.add(`${j.tool.brand} ${j.tool.modelNumber}`);
     }
@@ -106,33 +198,122 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ jobCards
 
   const topGrievance = sortedGrievances[0] || { grievance: 'Motor Sparking / Excessive Smoke', count: 0, percentage: 0 };
 
-  // KPI 3: MONTHLY REVENUE BREAKDOWN
-  const monthlyMap: Record<string, { label: string; yearMonth: string; totalRevenue: number; laborRevenue: number; partsRevenue: number; jobCount: number }> = {};
+  // KPI 3: MONTHLY REVENUE & COMPLETED VOLUME AGGREGATION
+  const monthlyMap: Record<string, MonthlyStatPoint> = {};
 
-  jobCards.forEach((j) => {
-    const dateObj = parseJobDate(j.intakeDate) || parseJobDate(j.createdAt) || new Date();
+  const ensureMonthBucket = (dateObj: Date) => {
     const year = dateObj.getFullYear();
     const monthIdx = dateObj.getMonth();
     const monthName = dateObj.toLocaleString('en-US', { month: 'short' });
     const key = `${year}-${String(monthIdx + 1).padStart(2, '0')}`;
     const label = `${monthName} ${year}`;
-
     if (!monthlyMap[key]) {
-      monthlyMap[key] = { label, yearMonth: key, totalRevenue: 0, laborRevenue: 0, partsRevenue: 0, jobCount: 0 };
+      monthlyMap[key] = {
+        label,
+        yearMonth: key,
+        totalRevenue: 0,
+        laborRevenue: 0,
+        partsRevenue: 0,
+        operationalExpenses: 0,
+        jobCount: 0,
+        completedCount: 0,
+      };
     }
+    return monthlyMap[key];
+  };
 
-    const laborRev = (j.laborHours || 0) * (j.laborRate || 85);
-    const partsRev = j.parts ? j.parts.reduce((sum, p) => sum + p.total, 0) : 0;
-    const totalRev = j.totalAmount || (laborRev + partsRev);
+  jobCards.forEach((j) => {
+    const dateObj = parseJobDate(j.intakeDate) || parseJobDate(j.createdAt) || new Date();
+    const bucket = ensureMonthBucket(dateObj);
 
-    monthlyMap[key].totalRevenue += totalRev;
-    monthlyMap[key].laborRevenue += laborRev;
-    monthlyMap[key].partsRevenue += partsRev;
-    monthlyMap[key].jobCount += 1;
+    const billing = getEffectiveJobBilling(j);
+
+    bucket.totalRevenue += billing.totalAmount;
+    bucket.laborRevenue += billing.laborSubtotal;
+    bucket.partsRevenue += billing.partsSubtotal;
+    bucket.operationalExpenses += billing.operationalExpensesSubtotal;
+    bucket.jobCount += 1;
+
+    if (j.status === 'Completed') {
+      const completedDate = parseJobDate(j.updatedAt) || dateObj;
+      const completedBucket = ensureMonthBucket(completedDate);
+      completedBucket.completedCount += 1;
+    }
   });
 
-  const monthlyStats = Object.values(monthlyMap).sort((a, b) => b.yearMonth.localeCompare(a.yearMonth));
-  const currentMonthStat = monthlyStats[0] || { label: 'Current Month', totalRevenue: totalRevenue, jobCount: jobCards.length, laborRevenue: totalRevenue * 0.4, partsRevenue: totalRevenue * 0.6 };
+  const monthlyStats = Object.values(monthlyMap)
+    .map((m) => ({
+      ...m,
+      totalRevenue: Math.round(m.totalRevenue * 100) / 100,
+      laborRevenue: Math.round(m.laborRevenue * 100) / 100,
+      partsRevenue: Math.round(m.partsRevenue * 100) / 100,
+      operationalExpenses: Math.round(m.operationalExpenses * 100) / 100,
+    }))
+    .sort((a, b) => b.yearMonth.localeCompare(a.yearMonth));
+
+  // Build chronological 6-month continuous chart series ending at the latest active month
+  const anchorDate = (() => {
+    if (monthlyStats.length > 0) {
+      const [y, m] = monthlyStats[0].yearMonth.split('-').map(Number);
+      if (y && m) return new Date(y, m - 1, 1);
+    }
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  })();
+
+  const chartTimelineMap: Record<string, MonthlyStatPoint> = {};
+  for (let offset = 5; offset >= 0; offset--) {
+    const d = new Date(anchorDate.getFullYear(), anchorDate.getMonth() - offset, 1);
+    const year = d.getFullYear();
+    const monthIdx = d.getMonth();
+    const key = `${year}-${String(monthIdx + 1).padStart(2, '0')}`;
+    const label = `${d.toLocaleString('en-US', { month: 'short' })} ${year}`;
+    const existing = monthlyMap[key];
+    chartTimelineMap[key] = existing
+      ? {
+          ...existing,
+          totalRevenue: Math.round(existing.totalRevenue * 100) / 100,
+          laborRevenue: Math.round(existing.laborRevenue * 100) / 100,
+          partsRevenue: Math.round(existing.partsRevenue * 100) / 100,
+          operationalExpenses: Math.round(existing.operationalExpenses * 100) / 100,
+        }
+      : {
+          label,
+          yearMonth: key,
+          totalRevenue: 0,
+          laborRevenue: 0,
+          partsRevenue: 0,
+          operationalExpenses: 0,
+          jobCount: 0,
+          completedCount: 0,
+        };
+  }
+
+  Object.values(monthlyMap).forEach((m) => {
+    if (!chartTimelineMap[m.yearMonth]) {
+      chartTimelineMap[m.yearMonth] = {
+        ...m,
+        totalRevenue: Math.round(m.totalRevenue * 100) / 100,
+        laborRevenue: Math.round(m.laborRevenue * 100) / 100,
+        partsRevenue: Math.round(m.partsRevenue * 100) / 100,
+        operationalExpenses: Math.round(m.operationalExpenses * 100) / 100,
+      };
+    }
+  });
+
+  const monthlyChartData = Object.values(chartTimelineMap).sort((a, b) =>
+    a.yearMonth.localeCompare(b.yearMonth)
+  );
+
+  const currentMonthStat = monthlyStats[0] || {
+    label: 'Current Month',
+    totalRevenue: totalRevenue,
+    jobCount: jobCards.length,
+    laborRevenue: totalRevenue * 0.4,
+    partsRevenue: totalRevenue * 0.6,
+    operationalExpenses: totalOperationalExpenses,
+    completedCount: completedJobs.length,
+  };
   const prevMonthStat = monthlyStats[1] || { totalRevenue: currentMonthStat.totalRevenue * 0.85, jobCount: Math.max(1, currentMonthStat.jobCount - 2) };
   
   const revenueGrowthPct = prevMonthStat.totalRevenue > 0
@@ -145,51 +326,46 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ jobCards
     return acc;
   }, {} as Record<string, number>);
 
-  // Compute Technician Performance Metrics
-  const techStats = SHOP_TECHNICIANS.map(tech => {
-    const techJobs = jobCards.filter(j => j.technician && j.technician.toLowerCase().includes(tech.name.split(' ')[0].toLowerCase()));
-    
-    const assignedActive = techJobs.filter(j => j.status !== 'Completed' && j.status !== 'Cancelled').length;
-    const completedCount = techJobs.filter(j => j.status === 'Completed' || j.status === 'Ready for Pickup').length;
-    
-    const totalLaborHours = techJobs.reduce((sum, j) => sum + (j.laborHours || 1.0), 0);
-    const totalRevenueGenerated = techJobs.reduce((sum, j) => sum + j.totalAmount, 0);
+  // Compute Technician Performance Metrics directly from Audit Logs
+  const techStats: TechnicianPerformanceSummary[] = calculateTechnicianPerformance(jobCards, SHOP_TECHNICIANS);
 
-    let totalTurnaroundHours = 0;
-    let completedTurnaroundSampleCount = 0;
-
-    techJobs.forEach(j => {
-      try {
-        const intake = new Date(j.intakeDate.replace(' ', 'T')).getTime();
-        const end = new Date(j.updatedAt || j.promisedCompletion.replace(' ', 'T')).getTime();
-        const diffHours = Math.max(1, (end - intake) / (1000 * 60 * 60));
-        totalTurnaroundHours += diffHours;
-        completedTurnaroundSampleCount += 1;
-      } catch {
-        totalTurnaroundHours += 24;
-        completedTurnaroundSampleCount += 1;
+  const sortedTechStats = [...techStats].sort((a, b) => {
+    if (techSortBy === 'turnaround') {
+      const aVal = a.avgTurnaroundHours ?? Number.POSITIVE_INFINITY;
+      const bVal = b.avgTurnaroundHours ?? Number.POSITIVE_INFINITY;
+      if (aVal !== bVal) return aVal - bVal;
+      return b.totalJobsCompleted - a.totalJobsCompleted;
+    }
+    if (techSortBy === 'audit') {
+      if (b.auditEventsLogged !== a.auditEventsLogged) {
+        return b.auditEventsLogged - a.auditEventsLogged;
       }
-    });
-
-    const avgTurnaroundHours = completedTurnaroundSampleCount > 0 
-      ? Math.round((totalTurnaroundHours / completedTurnaroundSampleCount) * 10) / 10 
-      : 18.0;
-
-    const efficiencyRating = totalLaborHours > 0 
-      ? Math.min(100, Math.round(((completedCount * 3.5) / Math.max(1, totalLaborHours)) * 100))
-      : 85;
-
-    return {
-      tech,
-      assignedActive,
-      completedCount,
-      totalLaborHours,
-      totalRevenueGenerated,
-      avgTurnaroundHours,
-      efficiencyRating,
-      totalJobs: techJobs.length,
-    };
+      return b.totalJobsCompleted - a.totalJobsCompleted;
+    }
+    if (b.totalJobsCompleted !== a.totalJobsCompleted) {
+      return b.totalJobsCompleted - a.totalJobsCompleted;
+    }
+    return (a.avgTurnaroundHours ?? Number.POSITIVE_INFINITY) - (b.avgTurnaroundHours ?? Number.POSITIVE_INFINITY);
   });
+
+  const techPerformanceChartData = sortedTechStats.map((entry) => ({
+    name: entry.tech.name.split('(')[0].trim(),
+    jobsCompleted: entry.totalJobsCompleted,
+    avgTurnaroundHours: entry.avgTurnaroundHours ?? 0,
+    auditEventsLogged: entry.auditEventsLogged,
+  }));
+
+  const totalTechCompleted = techStats.reduce((sum, t) => sum + t.totalJobsCompleted, 0);
+  const totalTechAuditEvents = techStats.reduce((sum, t) => sum + t.auditEventsLogged, 0);
+  const completedTurnaroundValues = techStats
+    .map((t) => t.avgTurnaroundHours)
+    .filter((v): v is number => v !== null);
+  const workshopAuditAvgTurnaroundHours =
+    completedTurnaroundValues.length > 0
+      ? Math.round(
+          (completedTurnaroundValues.reduce((s, h) => s + h, 0) / completedTurnaroundValues.length) * 10
+        ) / 10
+      : null;
 
   const totalWorkshopLaborHours = techStats.reduce((acc, t) => acc + t.totalLaborHours, 0);
 
@@ -224,6 +400,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ jobCards
       'Labor Rate ($)',
       'Parts Count',
       'Parts Subtotal ($)',
+      'Operational Expenses ($)',
       'Tax Rate (%)',
       'Total Amount ($)',
       'Created At',
@@ -231,7 +408,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ jobCards
     ];
 
     const rows = jobCards.map((j) => {
-      const partsSubtotal = j.parts ? j.parts.reduce((sum, p) => sum + p.total, 0) : 0;
+      const billing = getEffectiveJobBilling(j);
       return [
         escapeCsv(j.id),
         escapeCsv(j.intakeDate),
@@ -253,9 +430,10 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ jobCards
         escapeCsv(j.laborHours),
         escapeCsv(j.laborRate),
         escapeCsv(j.parts ? j.parts.length : 0),
-        escapeCsv(partsSubtotal.toFixed(2)),
+        escapeCsv(billing.partsSubtotal.toFixed(2)),
+        escapeCsv(billing.operationalExpensesSubtotal.toFixed(2)),
         escapeCsv(j.taxRate),
-        escapeCsv(j.totalAmount.toFixed(2)),
+        escapeCsv(billing.totalAmount.toFixed(2)),
         escapeCsv(j.createdAt),
         escapeCsv(j.updatedAt),
       ].join(',');
@@ -495,6 +673,139 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ jobCards
           </div>
         </div>
 
+        {/* Visual Analytics Charts Grid: Monthly Service Revenue BarChart & Completed Job Volume Trend Line */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Bar Chart: Monthly Service Revenue */}
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 font-mono">
+              <div>
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <BarChart3 className="w-4 h-4 text-white" />
+                  <span>Monthly Service Revenue</span>
+                </h4>
+                <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
+                  Total billed workshop revenue across labor and spare parts
+                </p>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300">
+                USD ($)
+              </span>
+            </div>
+
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyChartData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    stroke="#a1a1aa"
+                    tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'monospace' }}
+                    axisLine={{ stroke: '#3f3f46' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    stroke="#a1a1aa"
+                    tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'monospace' }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(val: number) => `$${val}`}
+                    width={60}
+                  />
+                  <Tooltip content={<RevenueChartTooltip />} cursor={{ fill: 'rgba(255, 255, 255, 0.04)' }} />
+                  <Legend
+                    wrapperStyle={{ fontSize: '11px', fontFamily: 'monospace', paddingTop: '8px' }}
+                  />
+                  <Bar
+                    dataKey="totalRevenue"
+                    name="Total Service Revenue"
+                    fill="#f4f4f5"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={40}
+                  />
+                  <Bar
+                    dataKey="laborRevenue"
+                    name="Labor Revenue"
+                    fill="#34d399"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={30}
+                  />
+                  <Bar
+                    dataKey="operationalExpenses"
+                    name="Op. Expenses"
+                    fill="#f59e0b"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={28}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Trend Line Chart: Completed Job Cards Volume */}
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 font-mono">
+              <div>
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <TrendingUp className="w-4 h-4 text-emerald-400" />
+                  <span>Completed Job Cards Volume</span>
+                </h4>
+                <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
+                  Monthly trend of completed service tickets vs. total workshop intakes
+                </p>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-emerald-400 font-bold">
+                {completedJobs.length} Completed
+              </span>
+            </div>
+
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={monthlyChartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    stroke="#a1a1aa"
+                    tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'monospace' }}
+                    axisLine={{ stroke: '#3f3f46' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    stroke="#a1a1aa"
+                    allowDecimals={false}
+                    tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'monospace' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={40}
+                  />
+                  <Tooltip content={<VolumeTrendTooltip />} />
+                  <Legend
+                    wrapperStyle={{ fontSize: '11px', fontFamily: 'monospace', paddingTop: '8px' }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="completedCount"
+                    name="Completed Job Cards"
+                    stroke="#34d399"
+                    strokeWidth={3}
+                    dot={{ r: 4, fill: '#34d399', stroke: '#09090b', strokeWidth: 2 }}
+                    activeDot={{ r: 6, fill: '#ffffff', stroke: '#34d399', strokeWidth: 2 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="jobCount"
+                    name="Total Intake Volume"
+                    stroke="#a1a1aa"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                    dot={{ r: 3, fill: '#a1a1aa', stroke: '#09090b', strokeWidth: 1.5 }}
+                    activeDot={{ r: 5, fill: '#ffffff', stroke: '#a1a1aa', strokeWidth: 2 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
         {/* Monthly Revenue Chart / Table View */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           
@@ -507,6 +818,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ jobCards
                   <th className="py-2.5 px-3 text-center">Jobs Serviced</th>
                   <th className="py-2.5 px-3 text-right">Labor Revenue</th>
                   <th className="py-2.5 px-3 text-right">Spare Parts Revenue</th>
+                  <th className="py-2.5 px-3 text-right">Op. Expenses</th>
                   <th className="py-2.5 px-3 text-right">Total Revenue</th>
                 </tr>
               </thead>
@@ -526,6 +838,9 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ jobCards
                     <td className="py-3 px-3 text-right text-zinc-300">
                       ${stat.partsRevenue.toFixed(2)}
                     </td>
+                    <td className="py-3 px-3 text-right text-amber-400 font-semibold">
+                      ${stat.operationalExpenses.toFixed(2)}
+                    </td>
                     <td className="py-3 px-3 text-right font-bold text-white">
                       ${stat.totalRevenue.toFixed(2)}
                     </td>
@@ -543,7 +858,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ jobCards
                 <span>Revenue Composition</span>
               </h4>
               <p className="text-[11px] text-zinc-400 font-sans">
-                Billing breakdown between technician workshop labor charges and spare parts inventory sales.
+                Billing breakdown across technician workshop labor, spare parts sales, and non-part operational expenses.
               </p>
             </div>
 
@@ -558,7 +873,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ jobCards
                 <div className="w-full bg-zinc-900 rounded-full h-2 overflow-hidden border border-zinc-800">
                   <div 
                     className="bg-white h-full rounded-full" 
-                    style={{ width: `${Math.round(((currentMonthStat.laborRevenue || 1) / Math.max(1, currentMonthStat.totalRevenue)) * 100)}%` }} 
+                    style={{ width: `${Math.min(100, Math.round(((currentMonthStat.laborRevenue || 0) / Math.max(1, currentMonthStat.totalRevenue)) * 100))}%` }} 
                   />
                 </div>
               </div>
@@ -573,7 +888,22 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ jobCards
                 <div className="w-full bg-zinc-900 rounded-full h-2 overflow-hidden border border-zinc-800">
                   <div 
                     className="bg-zinc-400 h-full rounded-full" 
-                    style={{ width: `${Math.round(((currentMonthStat.partsRevenue || 1) / Math.max(1, currentMonthStat.totalRevenue)) * 100)}%` }} 
+                    style={{ width: `${Math.min(100, Math.round(((currentMonthStat.partsRevenue || 0) / Math.max(1, currentMonthStat.totalRevenue)) * 100))}%` }} 
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-400">Operational Expenses (Non-Part)</span>
+                  <span className="text-amber-400 font-bold">
+                    ${(currentMonthStat.operationalExpenses || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="w-full bg-zinc-900 rounded-full h-2 overflow-hidden border border-zinc-800">
+                  <div 
+                    className="bg-amber-400 h-full rounded-full" 
+                    style={{ width: `${Math.min(100, Math.round(((currentMonthStat.operationalExpenses || 0) / Math.max(1, currentMonthStat.totalRevenue)) * 100))}%` }} 
                   />
                 </div>
               </div>
@@ -653,137 +983,233 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ jobCards
         </div>
       </div>
 
-      {/* Technician Efficiency & Performance Breakdown Section */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-5 shadow-xl">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
+      {/* Technician Performance Section (Calculated from Audit Logs) */}
+      <section aria-labelledby="tech-performance-heading" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
           <div>
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 font-mono">
-              <UserCheck className="w-4 h-4 text-white" />
-              <span>Technician Efficiency &amp; Workload Tracking</span>
-            </h3>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Tracks time spent per job card, total repairs completed, and average turnaround time per technician.
+            <div className="flex items-center gap-2">
+              <UserCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+              <h3 id="tech-performance-heading" className="text-base font-bold text-white tracking-tight">
+                Technician Performance
+              </h3>
+            </div>
+            <p className="text-xs text-zinc-400 mt-1">
+              Calculated from job card audit logs: intake-to-completion turnaround time and total jobs completed per technician.
             </p>
           </div>
-          
-          <span className="px-3 py-1 rounded-full text-xs font-mono bg-zinc-950 border border-zinc-800 text-zinc-300 font-bold">
-            {SHOP_TECHNICIANS.length} Shop Technicians On Duty
-          </span>
-        </div>
 
-        {/* Technician Performance Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {techStats.map(({ tech, assignedActive, completedCount, totalLaborHours, avgTurnaroundHours, efficiencyRating, totalRevenueGenerated }) => (
-            <div
-              key={tech.id}
-              className="bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-xl p-4 space-y-3 transition-all shadow-md group"
+          {/* Interactive Sort Controls */}
+          <div className="flex items-center gap-1 p-1 bg-zinc-950 border border-zinc-800 rounded-lg self-start lg:self-auto font-mono">
+            <button
+              type="button"
+              onClick={() => setTechSortBy('completed')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                techSortBy === 'completed'
+                  ? 'bg-white text-zinc-950'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
             >
-              {/* Technician Header */}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs font-mono shrink-0 ${tech.avatarColor}`}>
-                    {tech.name.charAt(0)}
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="text-xs font-bold text-white truncate group-hover:text-zinc-200">
-                      {tech.name.split(' ')[0]} {tech.name.split(' ')[1]}
-                    </h4>
-                    <span className="text-[10px] text-zinc-400 block truncate">{tech.role}</span>
-                  </div>
-                </div>
+              Most Completed
+            </button>
+            <button
+              type="button"
+              onClick={() => setTechSortBy('turnaround')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                techSortBy === 'turnaround'
+                  ? 'bg-white text-zinc-950'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              Fastest Turnaround
+            </button>
+            <button
+              type="button"
+              onClick={() => setTechSortBy('audit')}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                techSortBy === 'audit'
+                  ? 'bg-white text-zinc-950'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              Audit Activity
+            </button>
+          </div>
+        </div>
 
-                <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-zinc-900 text-zinc-300 border border-zinc-800 shrink-0">
-                  {tech.activeStatus}
-                </span>
-              </div>
-
-              {/* Specialization */}
-              <div className="text-[10px] text-zinc-400 bg-zinc-900/80 p-2 rounded border border-zinc-800/80 line-clamp-2 font-mono">
-                {tech.specialization}
-              </div>
-
-              {/* Metrics Grid */}
-              <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-1">
-                <div className="bg-zinc-900 p-2 rounded-lg border border-zinc-800">
-                  <span className="text-[10px] text-zinc-400 block uppercase">Active Jobs</span>
-                  <span className="text-white font-extrabold text-sm">{assignedActive}</span>
-                </div>
-                <div className="bg-zinc-900 p-2 rounded-lg border border-zinc-800">
-                  <span className="text-[10px] text-zinc-400 block uppercase">Completed</span>
-                  <span className="text-white font-extrabold text-sm">{completedCount}</span>
-                </div>
-                <div className="bg-zinc-900 p-2 rounded-lg border border-zinc-800">
-                  <span className="text-[10px] text-zinc-400 block uppercase">Labor Time</span>
-                  <span className="text-white font-bold text-xs">{totalLaborHours.toFixed(1)}h</span>
-                </div>
-                <div className="bg-zinc-900 p-2 rounded-lg border border-zinc-800">
-                  <span className="text-[10px] text-zinc-400 block uppercase">Avg Turnaround</span>
-                  <span className="text-white font-bold text-xs">{avgTurnaroundHours}h</span>
-                </div>
-              </div>
-
-              {/* Efficiency Rating Bar */}
-              <div className="space-y-1 pt-1">
-                <div className="flex items-center justify-between text-[11px] font-mono">
-                  <span className="text-zinc-400">Efficiency Index</span>
-                  <span className="text-white font-bold">{efficiencyRating}%</span>
-                </div>
-                <div className="w-full bg-zinc-900 rounded-full h-1.5 overflow-hidden border border-zinc-800">
-                  <div
-                    className="bg-white h-full rounded-full transition-all"
-                    style={{ width: `${efficiencyRating}%` }}
-                  />
-                </div>
-              </div>
+        {/* Audit-Derived Summary Strip */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-b border-zinc-800 pb-5 font-mono tabular-nums">
+          <div className="space-y-1">
+            <span className="text-xs text-zinc-400 block">Total Jobs Completed</span>
+            <div className="text-2xl font-bold text-white">{totalTechCompleted}</div>
+            <div className="text-xs text-zinc-500 font-sans">
+              Completed or ready for pickup across {SHOP_TECHNICIANS.length} technicians
             </div>
-          ))}
+          </div>
+
+          <div className="space-y-1 sm:border-l sm:border-zinc-800 sm:pl-5">
+            <span className="text-xs text-zinc-400 block">Avg Turnaround Time</span>
+            <div className="text-2xl font-bold text-emerald-400">
+              {workshopAuditAvgTurnaroundHours !== null ? `${workshopAuditAvgTurnaroundHours} hrs` : 'Pending'}
+            </div>
+            <div className="text-xs text-zinc-500 font-sans">
+              {workshopAuditAvgTurnaroundHours !== null
+                ? `${(Math.round((workshopAuditAvgTurnaroundHours / 24) * 10) / 10)} days average intake-to-completion`
+                : 'Awaiting completed job audit trails'}
+            </div>
+          </div>
+
+          <div className="space-y-1 sm:border-l sm:border-zinc-800 sm:pl-5">
+            <span className="text-xs text-zinc-400 block">Audit Log Entries Analyzed</span>
+            <div className="text-2xl font-bold text-white">{totalTechAuditEvents}</div>
+            <div className="text-xs text-zinc-500 font-sans">
+              Technician stage updates, diagnostics &amp; handovers
+            </div>
+          </div>
         </div>
 
-        {/* Detailed Technician Efficiency Table */}
-        <div className="overflow-x-auto pt-2">
-          <table className="w-full text-left text-xs font-mono border-collapse">
-            <thead>
-              <tr className="border-b border-zinc-800 text-zinc-400 uppercase text-[10px]">
-                <th className="py-2.5 px-3">Technician</th>
-                <th className="py-2.5 px-3">Specialization</th>
-                <th className="py-2.5 px-3 text-center">Active Assigned</th>
-                <th className="py-2.5 px-3 text-center">Repairs Completed</th>
-                <th className="py-2.5 px-3 text-center">Labor Hours</th>
-                <th className="py-2.5 px-3 text-center">Avg Turnaround</th>
-                <th className="py-2.5 px-3 text-right">Revenue Generated</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-800/60">
-              {techStats.map(({ tech, assignedActive, completedCount, totalLaborHours, avgTurnaroundHours, totalRevenueGenerated }) => (
-                <tr key={tech.id} className="hover:bg-zinc-950/60 transition-colors">
-                  <td className="py-3 px-3">
-                    <div className="font-bold text-white">{tech.name}</div>
-                    <div className="text-[10px] text-zinc-400">{tech.role}</div>
-                  </td>
-                  <td className="py-3 px-3 text-zinc-300 text-[11px] max-w-xs truncate">
-                    {tech.specialization}
-                  </td>
-                  <td className="py-3 px-3 text-center font-bold text-white">
-                    <span className="px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800">{assignedActive}</span>
-                  </td>
-                  <td className="py-3 px-3 text-center font-bold text-white">
-                    <span className="px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800">{completedCount}</span>
-                  </td>
-                  <td className="py-3 px-3 text-center text-zinc-200">
-                    {totalLaborHours.toFixed(1)} hrs
-                  </td>
-                  <td className="py-3 px-3 text-center text-zinc-200">
-                    {avgTurnaroundHours} hrs
-                  </td>
-                  <td className="py-3 px-3 text-right font-bold text-white">
-                    ${totalRevenueGenerated.toFixed(2)}
-                  </td>
+        {/* Technician Performance Visual Chart + Table */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+          {/* Bar Chart Comparison */}
+          <div className="xl:col-span-5 bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h4 className="text-xs font-bold text-white">Completed Jobs &amp; Avg Turnaround</h4>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Per-technician completion volume vs. hours to complete
+                </p>
+              </div>
+              <span className="text-xs font-mono text-zinc-400 whitespace-nowrap shrink-0">Audit Trail</span>
+            </div>
+
+            {sortedTechStats.every((t) => t.totalJobsCompleted === 0 && t.auditEventsLogged === 0) ? (
+              <div className="h-60 flex items-center justify-center text-xs text-zinc-500 font-mono">
+                No technician audit log records found yet.
+              </div>
+            ) : (
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={techPerformanceChartData} margin={{ top: 10, right: 12, left: -8, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                    <XAxis
+                      dataKey="name"
+                      stroke="#a1a1aa"
+                      tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'monospace' }}
+                      axisLine={{ stroke: '#3f3f46' }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      yAxisId="left"
+                      allowDecimals={false}
+                      stroke="#34d399"
+                      tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'monospace' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      stroke="#f59e0b"
+                      tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'monospace' }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v: number) => `${v}h`}
+                    />
+                    <Tooltip
+                      cursor={{ fill: 'rgba(255, 255, 255, 0.04)' }}
+                      contentStyle={{
+                        backgroundColor: '#09090b',
+                        borderColor: '#3f3f46',
+                        borderRadius: '0.75rem',
+                        fontSize: '12px',
+                        fontFamily: 'monospace',
+                      }}
+                      labelStyle={{ color: '#ffffff', fontWeight: 700, marginBottom: '4px' }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '11px', fontFamily: 'monospace', paddingTop: '8px' }} />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="jobsCompleted"
+                      name="Jobs Completed"
+                      fill="#34d399"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={32}
+                    />
+                    <Bar
+                      yAxisId="right"
+                      dataKey="avgTurnaroundHours"
+                      name="Avg Turnaround (hrs)"
+                      fill="#f59e0b"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={32}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+          {/* High-Density Tabular Breakdown */}
+          <div className="xl:col-span-7 overflow-x-auto bg-zinc-950 border border-zinc-800 rounded-xl">
+            <table className="w-full text-left text-xs font-mono tabular-nums border-collapse">
+              <thead>
+                <tr className="border-b border-zinc-800 text-zinc-400 text-[11px]">
+                  <th className="py-3 px-4 font-semibold">Technician</th>
+                  <th className="py-3 px-3 text-right font-semibold">Jobs Completed</th>
+                  <th className="py-3 px-3 text-right font-semibold">Avg Turnaround</th>
+                  <th className="py-3 px-3 text-right font-semibold">Active</th>
+                  <th className="py-3 px-3 text-right font-semibold">Audit Logs</th>
+                  <th className="py-3 px-4 text-right font-semibold">Billed Revenue</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-zinc-800/70">
+                {sortedTechStats.map((row) => {
+                  const shortName = row.tech.name.split('(')[0].trim();
+                  return (
+                    <tr key={row.tech.id} className="hover:bg-zinc-900/70 transition-colors">
+                      <td className="py-3.5 px-4">
+                        <div className="font-sans font-semibold text-white text-xs">{shortName}</div>
+                        <div className="text-[11px] font-sans text-zinc-400">
+                          {row.tech.role} · {row.tech.activeStatus}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-3 text-right">
+                        <div className="font-bold text-white text-sm">{row.totalJobsCompleted}</div>
+                        <div className="text-[10px] text-zinc-500">
+                          {row.auditVerifiedCompletions} audit-verified
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-3 text-right">
+                        {row.avgTurnaroundHours !== null ? (
+                          <div>
+                            <div className="font-bold text-emerald-400">{row.avgTurnaroundHours} hrs</div>
+                            <div className="text-[10px] text-zinc-500">
+                              {row.avgTurnaroundDays}d avg · best {row.fastestTurnaroundHours}h
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-zinc-500">No completions</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-3 text-right text-zinc-200 font-semibold">
+                        {row.assignedActive}
+                      </td>
+                      <td className="py-3.5 px-3 text-right">
+                        <div className="text-zinc-200 font-semibold">{row.auditEventsLogged}</div>
+                        <div className="text-[10px] text-zinc-500">
+                          {row.lastAuditTimestamp ? row.lastAuditTimestamp.slice(0, 10) : '—'}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-bold text-white">
+                        ${row.totalRevenueGenerated.toFixed(2)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* AI-Driven Inventory Reorder Recommendation Section */}
       <AiReorderRecommendations

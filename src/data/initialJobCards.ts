@@ -66,6 +66,7 @@ export const INITIAL_JOB_CARDS: JobCard[] = [
         total: 9.50
       }
     ],
+    operationalExpenses: [],
     totalAmount: 154.00,
     customerSignature: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="60"><path d="M10 40 Q 50 10 90 40 T 170 30" stroke="%23ffffff" stroke-width="2" fill="none"/></svg>',
     messageLogs: [
@@ -79,8 +80,24 @@ export const INITIAL_JOB_CARDS: JobCard[] = [
         status: 'Delivered'
       }
     ],
-    createdAt: '2026-11-10T09:15:00Z',
-    updatedAt: '2026-11-11T07:10:00Z'
+    auditLogs: [
+      { id: 'aud-101', timestamp: '2026-11-10 09:15', userName: 'Front Desk Reception', userRole: 'Front Desk Receptionist', action: 'JOB_INTAKE_CREATED', newState: 'Status: Intake, Customer Signature Captured' },
+      { id: 'aud-102', timestamp: '2026-11-10 10:30', userName: 'David Miller', userRole: 'Senior Technician', action: 'AI_DIAGNOSIS_APPLIED', newState: 'Probable Cause: Commutator segment pitted & brush wear' },
+      { id: 'aud-103', timestamp: '2026-11-10 11:00', userName: 'David Miller', userRole: 'Senior Technician', action: 'PARTS_RESERVED', newState: 'Reserved BRSH-1002 x1, ARM-1009 x1, GER-1014 x1' }
+    ],
+    photos: [
+      { id: 'ph-101', caption: 'Intake Inspection: Heavily pitted commutator segments & commutator carbon buildup', stage: 'Teardown / Fault', dataUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&auto=format&fit=crop&q=80', uploadedAt: '2026-11-10 10:25' }
+    ],
+    subletRecords: [],
+    publicAccessToken: 'tok-apex-2026-0041-sec',
+    stageEnteredAt: '2026-11-07T07:10:00Z',
+    stageHistory: [
+      { status: 'Intake', enteredAt: '2026-11-05T09:15:00Z' },
+      { status: 'Diagnosis', enteredAt: '2026-11-06T11:30:00Z' },
+      { status: 'In Service', enteredAt: '2026-11-07T07:10:00Z' },
+    ],
+    createdAt: '2026-11-05T09:15:00Z',
+    updatedAt: '2026-11-07T07:10:00Z'
   },
   {
     id: 'BOSCH-2026-0042',
@@ -146,6 +163,19 @@ export const INITIAL_JOB_CARDS: JobCard[] = [
         status: 'Sent'
       }
     ],
+    auditLogs: [
+      { id: 'aud-201', timestamp: '2026-11-11 08:30', userName: 'Front Desk Reception', userRole: 'Front Desk Receptionist', action: 'JOB_INTAKE_CREATED', newState: 'Status: Intake' },
+      { id: 'aud-202', timestamp: '2026-11-11 11:00', userName: 'Alex Rivera', userRole: 'Power Tools Tech', action: 'STAGE_CHANGED', previousState: 'Intake', newState: 'Status: Diagnosis' },
+      { id: 'aud-203', timestamp: '2026-11-11 15:30', userName: 'Alex Rivera', userRole: 'Power Tools Tech', action: 'STAGE_CHANGED', previousState: 'Diagnosis', newState: 'Status: In Service' },
+      { id: 'aud-204', timestamp: '2026-11-12 10:15', userName: 'Alex Rivera', userRole: 'Power Tools Tech', action: 'STAGE_CHANGED', previousState: 'In Service', newState: 'Status: Ready for Pickup' },
+    ],
+    stageEnteredAt: '2026-11-12T10:15:00Z',
+    stageHistory: [
+      { status: 'Intake', enteredAt: '2026-11-11T08:30:00Z' },
+      { status: 'Diagnosis', enteredAt: '2026-11-11T11:00:00Z' },
+      { status: 'In Service', enteredAt: '2026-11-11T15:30:00Z' },
+      { status: 'Ready for Pickup', enteredAt: '2026-11-12T10:15:00Z' },
+    ],
     createdAt: '2026-11-11T08:30:00Z',
     updatedAt: '2026-11-11T10:15:00Z'
   },
@@ -182,6 +212,11 @@ export const INITIAL_JOB_CARDS: JobCard[] = [
     parts: [],
     totalAmount: 49.50,
     messageLogs: [],
+    auditLogs: [
+      { id: 'aud-301', timestamp: '2026-11-11 09:00', userName: 'Front Desk Reception', userRole: 'Front Desk Receptionist', action: 'JOB_INTAKE_CREATED', newState: 'Status: Intake' },
+      { id: 'aud-302', timestamp: '2026-11-11 09:25', userName: 'Sarah Connor', userRole: 'Pneumatic System Specialist', action: 'TECHNICIAN_ASSIGNED', newState: 'Assigned to Sarah Connor' },
+    ],
+    stageEnteredAt: '2026-11-11T09:00:00Z',
     createdAt: '2026-11-11T09:00:00Z',
     updatedAt: '2026-11-11T09:00:00Z'
   },
@@ -205,7 +240,7 @@ export const INITIAL_JOB_CARDS: JobCard[] = [
       serviceType: 'Diagnostic & Repair',
       preApprovedLimit: 120.0,
     },
-    intakeDate: '2026-11-10 14:20',
+    intakeDate: '2026-11-09 14:20',
     promisedCompletion: '2026-11-11 17:00',
     status: 'Diagnosis',
     priority: 'Urgent',
@@ -215,9 +250,29 @@ export const INITIAL_JOB_CARDS: JobCard[] = [
     discount: 0,
     taxRate: 10.0,
     parts: [],
-    totalAmount: 110.00,
+    operationalExpenses: [
+      {
+        id: 'exp-4401',
+        category: 'Outsourced Labor',
+        description: 'Specialized Crankcase Bearing Bore Alignment (Sublet)',
+        vendor: 'Precision Machine Shop',
+        amount: 35.00,
+        date: '2026-11-10',
+      },
+    ],
+    totalAmount: 148.50,
     messageLogs: [],
-    createdAt: '2026-11-10T14:20:00Z',
+    auditLogs: [
+      { id: 'aud-401', timestamp: '2026-11-08 10:00', userName: 'Front Desk Reception', userRole: 'Front Desk Receptionist', action: 'JOB_INTAKE_CREATED', newState: 'Status: Intake' },
+      { id: 'aud-402', timestamp: '2026-11-09 14:20', userName: 'David Miller', userRole: 'Senior Master Technician', action: 'STAGE_CHANGED', previousState: 'Intake', newState: 'Status: Diagnosis' },
+      { id: 'aud-403', timestamp: '2026-11-10 16:00', userName: 'David Miller', userRole: 'Senior Master Technician', action: 'OPERATIONAL_EXPENSE_ADDED', newState: 'Outsourced Labor: Specialized Crankcase Bearing Bore Alignment ($35.00)' },
+    ],
+    stageEnteredAt: '2026-11-09T14:20:00Z',
+    stageHistory: [
+      { status: 'Intake', enteredAt: '2026-11-08T10:00:00Z' },
+      { status: 'Diagnosis', enteredAt: '2026-11-09T14:20:00Z' },
+    ],
+    createdAt: '2026-11-08T10:00:00Z',
     updatedAt: '2026-11-11T08:00:00Z'
   },
   {
@@ -261,6 +316,17 @@ export const INITIAL_JOB_CARDS: JobCard[] = [
     ],
     totalAmount: 52.25,
     messageLogs: [],
+    auditLogs: [
+      { id: 'aud-501', timestamp: '2026-11-09 11:00', userName: 'Front Desk Reception', userRole: 'Front Desk Receptionist', action: 'JOB_INTAKE_CREATED', newState: 'Status: Intake' },
+      { id: 'aud-502', timestamp: '2026-11-09 16:15', userName: 'Marcus Vance', userRole: 'Electrical & Motor Rewinder', action: 'STAGE_CHANGED', previousState: 'Intake', newState: 'Status: Diagnosis' },
+      { id: 'aud-503', timestamp: '2026-11-10 15:30', userName: 'Marcus Vance', userRole: 'Electrical & Motor Rewinder', action: 'STAGE_CHANGED', previousState: 'Diagnosis', newState: 'Status: Awaiting Approval' },
+    ],
+    stageEnteredAt: '2026-11-10T15:30:00Z',
+    stageHistory: [
+      { status: 'Intake', enteredAt: '2026-11-09T11:00:00Z' },
+      { status: 'Diagnosis', enteredAt: '2026-11-09T16:15:00Z' },
+      { status: 'Awaiting Approval', enteredAt: '2026-11-10T15:30:00Z' },
+    ],
     createdAt: '2026-11-09T11:00:00Z',
     updatedAt: '2026-11-10T15:30:00Z'
   },
@@ -305,7 +371,70 @@ export const INITIAL_JOB_CARDS: JobCard[] = [
     ],
     totalAmount: 69.30,
     messageLogs: [],
+    auditLogs: [
+      { id: 'aud-601', timestamp: '2026-11-08 10:00', userName: 'Front Desk Reception', userRole: 'Front Desk Receptionist', action: 'JOB_INTAKE_CREATED', newState: 'Status: Intake' },
+      { id: 'aud-602', timestamp: '2026-11-08 14:15', userName: 'Alex Rivera', userRole: 'Power Tools Tech', action: 'STAGE_CHANGED', previousState: 'Intake', newState: 'Status: In Service' },
+      { id: 'aud-603', timestamp: '2026-11-09 11:45', userName: 'Alex Rivera', userRole: 'Power Tools Tech', action: 'STAGE_CHANGED', previousState: 'In Service', newState: 'Status: Completed' },
+    ],
+    stageEnteredAt: '2026-11-09T11:45:00Z',
     createdAt: '2026-11-08T10:00:00Z',
     updatedAt: '2026-11-09T11:45:00Z'
+  },
+  {
+    id: 'BOSCH-2026-0047',
+    customerName: 'Pacific Steel Erectors',
+    customerPhone: '+1 (555) 789-0123',
+    tool: {
+      brand: 'Bosch Professional',
+      category: 'Circular / Miter Saw',
+      modelNumber: 'GCM 12 GDL Sliding Miter Saw',
+      serialNumber: 'SN-FD-5048812',
+      voltageRating: '230V AC (2000W)',
+      warrantyStatus: 'Bosch Heavy Duty 3-Year Extended',
+      physicalCondition: 'Slide Rail Stiff, Laser Module Dim',
+      accessoriesReceived: ['Material Clamp', 'Dust Bag'],
+    },
+    serviceReq: {
+      grievanceCategory: 'Gearbox Noise / Excessive Heat',
+      detailedComplaint: 'Waiting on imported helical bevel gear kit and electronic soft-start module from regional hub.',
+      serviceType: 'Diagnostic & Repair',
+      preApprovedLimit: 180.0,
+    },
+    intakeDate: '2026-11-06 10:30',
+    promisedCompletion: '2026-11-12 17:00',
+    status: 'Awaiting Parts',
+    priority: 'Urgent',
+    technician: 'Sarah Connor (Pneumatic & SDS Tech)',
+    diagnosticNotes: 'Helical bevel gear chipped; soft-start module backordered from regional parts depot.',
+    laborHours: 2.0,
+    laborRate: 50.0,
+    discount: 0,
+    taxRate: 10.0,
+    parts: [],
+    operationalExpenses: [
+      {
+        id: 'exp-4701',
+        category: 'Shipping & Freight',
+        description: 'Expedited Air Freight from Regional Bosch Parts Hub',
+        vendor: 'DHL Express',
+        amount: 25.00,
+        date: '2026-11-07',
+      },
+    ],
+    totalAmount: 137.50,
+    messageLogs: [],
+    auditLogs: [
+      { id: 'aud-701', timestamp: '2026-11-05 10:30', userName: 'Front Desk Reception', userRole: 'Front Desk Receptionist', action: 'JOB_INTAKE_CREATED', newState: 'Status: Intake' },
+      { id: 'aud-702', timestamp: '2026-11-06 08:00', userName: 'Sarah Connor', userRole: 'Pneumatic System Specialist', action: 'STAGE_CHANGED', previousState: 'Intake', newState: 'Status: Diagnosis' },
+      { id: 'aud-703', timestamp: '2026-11-07 09:00', userName: 'Sarah Connor', userRole: 'Pneumatic System Specialist', action: 'STAGE_CHANGED', previousState: 'Diagnosis', newState: 'Status: Awaiting Parts' },
+    ],
+    stageEnteredAt: '2026-11-07T09:00:00Z',
+    stageHistory: [
+      { status: 'Intake', enteredAt: '2026-11-05T10:30:00Z' },
+      { status: 'Diagnosis', enteredAt: '2026-11-06T08:00:00Z' },
+      { status: 'Awaiting Parts', enteredAt: '2026-11-07T09:00:00Z' },
+    ],
+    createdAt: '2026-11-05T10:30:00Z',
+    updatedAt: '2026-11-07T09:00:00Z'
   }
 ];

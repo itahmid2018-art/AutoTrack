@@ -8,7 +8,51 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
+
+// PII Sanitization Helper (Protects Customer Personal Identifiable Information before calling AI models)
+function stripPII(text: string): string {
+  if (!text) return '';
+  // Mask phone numbers
+  let sanitized = text.replace(/(\+?\d[0-9\-\s\(\)]{7,}\d)/g, '[REDACTED_PHONE]');
+  // Mask email addresses
+  sanitized = sanitized.replace(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g, '[REDACTED_EMAIL]');
+  // Mask Tax/GST IDs
+  sanitized = sanitized.replace(/(\b[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}\b)/g, '[REDACTED_TAX_ID]');
+  return sanitized;
+}
+
+// In-Memory API Rate Limiter Middleware (Prevents API abuse and token exhaustion)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+const rateLimiter = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 minute window
+  const maxRequests = 50; // Max 50 requests per minute per IP
+
+  const record = rateLimitMap.get(ip) || { count: 0, resetTime: now + windowMs };
+
+  if (now > record.resetTime) {
+    record.count = 1;
+    record.resetTime = now + windowMs;
+  } else {
+    record.count += 1;
+  }
+
+  rateLimitMap.set(ip, record);
+
+  if (record.count > maxRequests) {
+    return res.status(429).json({
+      error: 'Rate Limit Exceeded',
+      message: 'Too many requests received from this client. Please wait 1 minute before retrying.',
+    });
+  }
+
+  next();
+};
+
+app.use('/api/', rateLimiter);
 
 // Initialize Gemini Client
 const ai = new GoogleGenAI({
@@ -28,7 +72,7 @@ app.post('/api/ai/diagnose', async (req, res) => {
     const deviceModel = jobCard ? `${jobCard.tool?.brand || ''} ${jobCard.tool?.modelNumber || ''}` : (vehicleOrDevice || 'Bosch Power Tool');
     const deviceCategory = jobCard ? (jobCard.tool?.category || 'Power Tool') : (category || 'General Tool');
     const grievanceCategory = jobCard ? (jobCard.serviceReq?.grievanceCategory || 'Issue') : '';
-    const grievanceComplaint = jobCard ? (jobCard.serviceReq?.detailedComplaint || issueDescription) : (issueDescription || 'Needs inspection');
+    const grievanceComplaint = stripPII(jobCard ? (jobCard.serviceReq?.detailedComplaint || issueDescription) : (issueDescription || 'Needs inspection'));
     const voltagePower = jobCard ? (jobCard.tool?.voltageRating || '230V') : '';
 
     const prompt = `You are a Senior Master Certified Bosch & Power Tools Master Diagnostic Engineer.
@@ -122,6 +166,122 @@ Keep under 220 characters. Include clear call to action.`;
   } catch (error: any) {
     console.error('Gemini Message Error:', error);
     return res.status(500).json({ error: 'Failed to generate message', details: error.message });
+  }
+});
+
+// Server-side AI Response Assistant for Customer Inquiries in MessagingCenter
+app.post('/api/ai/response-assistant', async (req, res) => {
+  try {
+    const {
+      jobCard,
+      customerInquiry,
+      channel = 'WhatsApp',
+      language = 'English',
+      tone = 'Professional & Helpful',
+      portalUrl,
+      billingSummary,
+    } = req.body;
+
+    if (!jobCard) {
+      return res.status(400).json({ error: 'Active JobCard context is required.' });
+    }
+
+    if (!customerInquiry || !String(customerInquiry).trim()) {
+      return res.status(400).json({ error: 'Customer inquiry or prompt topic is required.' });
+    }
+
+    const partsList = Array.isArray(jobCard.parts)
+      ? jobCard.parts.map((p: any) => `${p.name} (${p.sku}) x${p.quantity} = $${Number(p.total || 0).toFixed(2)}`)
+      : [];
+
+    const opExList = Array.isArray(jobCard.operationalExpenses)
+      ? jobCard.operationalExpenses.map((e: any) => `${e.category}: ${e.description} ($${Number(e.amount || 0).toFixed(2)})`)
+      : [];
+
+    const partsSubtotal = billingSummary?.partsSubtotal ?? (Array.isArray(jobCard.parts) ? jobCard.parts.reduce((s: number, p: any) => s + Number(p.total || 0), 0) : 0);
+    const laborSubtotal = billingSummary?.laborSubtotal ?? ((jobCard.laborHours || 0) * (jobCard.laborRate || 0));
+    const opExSubtotal = billingSummary?.operationalExpensesSubtotal ?? (Array.isArray(jobCard.operationalExpenses) ? jobCard.operationalExpenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0) : 0);
+    const taxAmount = billingSummary?.taxAmount ?? 0;
+    const totalAmount = billingSummary?.totalAmount ?? jobCard.totalAmount ?? 0;
+
+    const warrantySummary = jobCard.tool?.warrantyAdjudication
+      ? `${jobCard.tool.warrantyAdjudication.flag} (${jobCard.tool.warrantyAdjudication.reason})`
+      : `${jobCard.tool?.warrantyFlag || jobCard.tool?.warrantyStatus || 'Unconfirmed'}`;
+
+    const prompt = `You are an expert Service Center Customer Support Coordinator replying to a customer inquiry via ${channel}.
+Language: ${language}
+Tone: ${tone}
+
+Customer Inquiry to Answer:
+"${stripPII(String(customerInquiry))}"
+
+Verified Job Card Record Facts:
+- Job Ticket ID: ${jobCard.id}
+- Customer First/Name: ${jobCard.customerName}
+- Tool Brand & Model: ${jobCard.tool?.brand || 'Bosch'} ${jobCard.tool?.modelNumber || ''}
+- Serial Number: ${jobCard.tool?.serialNumber || 'N/A'}
+- Current Workshop Stage / Status: ${jobCard.status} (Priority: ${jobCard.priority})
+- Assigned Technician: ${jobCard.technician || 'Bench Specialist'}
+- Intake Date: ${jobCard.intakeDate}
+- Promised Completion: ${jobCard.promisedCompletion}
+- Reported Issue: ${jobCard.serviceReq?.grievanceCategory || ''} - ${stripPII(jobCard.serviceReq?.detailedComplaint || '')}
+- Diagnostic Notes Summary: ${stripPII(jobCard.diagnosticNotes || 'Pending bench evaluation')}
+- Warranty Status: ${warrantySummary}
+- Pre-Approved Repair Limit: $${Number(jobCard.serviceReq?.preApprovedLimit || 0).toFixed(2)}
+- Labor: ${jobCard.laborHours || 0} hrs @ $${Number(jobCard.laborRate || 0).toFixed(2)}/hr = $${Number(laborSubtotal).toFixed(2)}
+- Spare Parts (${partsList.length}): ${partsList.length > 0 ? partsList.join('; ') : 'None billed yet'} (Subtotal: $${Number(partsSubtotal).toFixed(2)})
+- Operational Expenses (${opExList.length}): ${opExList.length > 0 ? opExList.join('; ') : 'None'} (Subtotal: $${Number(opExSubtotal).toFixed(2)})
+- Discount: $${Number(jobCard.discount || 0).toFixed(2)}
+- Sales Tax (${jobCard.taxRate || 0}%): $${Number(taxAmount).toFixed(2)}
+- Effective Total Amount: $${Number(totalAmount).toFixed(2)}
+${portalUrl ? `- Customer Live Status Tracking Link: ${portalUrl}` : ''}
+
+Instructions:
+1. Craft a clear, accurate primary "recommendedReply" strictly grounded in the verified Job Card facts above (never invent prices, dates, or parts not listed).
+2. Provide 2 helpful "alternateReplies" tailored to common support needs (one concise SMS-ready option under 160 characters if possible, and one detailed polite WhatsApp option with exact cost/stage clarity).
+3. List up to 4 concise "keyFactsCited" referencing exact data points used from the JobCard.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-4-hydrogen',
+      contents: prompt,
+      config: {
+        systemInstruction: 'Respond ONLY with valid structured JSON matching the schema. Ground all figures and statuses strictly in the supplied JobCard facts.',
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            recommendedReply: { type: Type.STRING },
+            alternateReplies: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  label: { type: Type.STRING },
+                  text: { type: Type.STRING },
+                },
+              },
+            },
+            keyFactsCited: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+            },
+          },
+        },
+      },
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    return res.json({
+      recommendedReply: parsed.recommendedReply || '',
+      alternateReplies: Array.isArray(parsed.alternateReplies) ? parsed.alternateReplies : [],
+      keyFactsCited: Array.isArray(parsed.keyFactsCited) ? parsed.keyFactsCited : [],
+    });
+  } catch (error: any) {
+    console.error('Gemini Response Assistant Error:', error);
+    return res.status(500).json({
+      error: 'Failed to generate AI response suggestions',
+      details: error.message,
+    });
   }
 });
 
@@ -274,6 +434,221 @@ Task & Failure Pattern Analysis Rules:
   } catch (error: any) {
     console.error('AI Reorder Recommendation Error:', error);
     return res.status(500).json({ error: 'Failed to generate AI reorder recommendations', details: error.message });
+  }
+});
+
+// Server-side Gemini Recommended Parts Analysis for a specific Job Card
+app.post('/api/ai/recommend-parts', async (req, res) => {
+  try {
+    const { tool, serviceReq, diagnosticNotes, availableParts = [] } = req.body;
+
+    if (!tool || !serviceReq) {
+      return res.status(400).json({ error: 'Tool details and reported complaint are required.' });
+    }
+
+    if (!Array.isArray(availableParts) || availableParts.length === 0) {
+      return res.status(400).json({ error: 'Available inventory catalog items are required for recommendation.' });
+    }
+
+    const sanitizedComplaint = stripPII(serviceReq.detailedComplaint || '');
+    const sanitizedNotes = stripPII(diagnosticNotes || '');
+
+    // Pre-rank catalog items so the model sees the most model- and symptom-relevant parts first
+    const modelTokens = `${tool.brand || ''} ${tool.modelNumber || ''} ${tool.category || ''}`
+      .toLowerCase()
+      .split(/[\s/\-(),]+/)
+      .filter((t) => t.length >= 2);
+
+    const symptomText = `${serviceReq.grievanceCategory || ''} ${sanitizedComplaint} ${sanitizedNotes}`.toLowerCase();
+
+    const scoredParts = [...availableParts]
+      .map((item: any) => {
+        const haystack = `${item.name || ''} ${item.category || ''} ${item.brand || ''} ${item.compatibleModels || ''} ${item.sku || ''}`.toLowerCase();
+        let score = 0;
+        modelTokens.forEach((tok) => {
+          if (haystack.includes(tok)) score += 4;
+        });
+        if (symptomText.includes('spark') || symptomText.includes('smoke') || symptomText.includes('commutator') || symptomText.includes('brush')) {
+          if (haystack.includes('brush') || haystack.includes('armature') || haystack.includes('stator')) score += 6;
+        }
+        if (symptomText.includes('switch') || symptomText.includes('power') || symptomText.includes('cable') || symptomText.includes('cord')) {
+          if (haystack.includes('switch') || haystack.includes('cord') || haystack.includes('cable')) score += 6;
+        }
+        if (symptomText.includes('hammer') || symptomText.includes('impact') || symptomText.includes('chuck') || symptomText.includes('sds')) {
+          if (haystack.includes('chuck') || haystack.includes('sds') || haystack.includes('seal') || haystack.includes('grease')) score += 6;
+        }
+        if (symptomText.includes('gear') || symptomText.includes('heat') || symptomText.includes('noise') || symptomText.includes('bearing')) {
+          if (haystack.includes('gear') || haystack.includes('bearing') || haystack.includes('grease')) score += 6;
+        }
+        if (symptomText.includes('battery') || symptomText.includes('drain') || symptomText.includes('charg')) {
+          if (haystack.includes('battery') || haystack.includes('charger')) score += 6;
+        }
+        if ((item.stockQty ?? 0) > 0) score += 1;
+        return { item, score };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 75)
+      .map((entry) => entry.item);
+
+    const prompt = `You are a Senior Master Certified Power Tool Spare Parts Specialist.
+Analyze the tool specifications and reported customer complaint, then select the 2 to 5 most appropriate replacement spare parts ONLY from the provided inventory catalog list.
+
+Tool Specifications:
+- Brand: ${tool.brand || 'Unknown'}
+- Category: ${tool.category || 'Power Tool'}
+- Model Number: ${tool.modelNumber || 'Unknown'}
+- Voltage Rating: ${tool.voltageRating || 'N/A'}
+
+Reported Complaint:
+- Grievance Category: ${serviceReq.grievanceCategory || 'General Repair'}
+- Detailed Complaint: "${sanitizedComplaint || 'Needs inspection'}"
+- Technician Notes: "${sanitizedNotes || 'None'}"
+
+Candidate Inventory Catalog (${scoredParts.length} items):
+${JSON.stringify(
+      scoredParts.map((p: any) => ({
+        partId: p.id,
+        sku: p.sku,
+        name: p.name,
+        category: p.category,
+        brand: p.brand,
+        compatibleModels: p.compatibleModels,
+        unitPrice: p.unitPrice,
+        stockQty: p.stockQty,
+      })),
+      null,
+      2
+    )}
+
+Rules:
+1. Only recommend parts that appear verbatim (matching partId and sku) in the Candidate Inventory Catalog above.
+2. Explain concisely why each part applies to this specific tool model and failure symptom.
+3. Recommend realistic replacement quantities (usually 1, or 2 for paired bearings/brushes if applicable).`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-4-hydrogen',
+      contents: prompt,
+      config: {
+        systemInstruction: 'Respond ONLY with valid structured JSON matching the declared schema. Only cite partId and sku values present in the provided catalog.',
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            analysisSummary: { type: Type.STRING },
+            recommendedParts: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  partId: { type: Type.STRING },
+                  sku: { type: Type.STRING },
+                  name: { type: Type.STRING },
+                  quantity: { type: Type.INTEGER },
+                  confidence: { type: Type.STRING },
+                  reason: { type: Type.STRING },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    const catalogById = new Map<string, any>();
+    const catalogBySku = new Map<string, any>();
+    availableParts.forEach((item: any) => {
+      if (item.id) catalogById.set(String(item.id), item);
+      if (item.sku) catalogBySku.set(String(item.sku).toUpperCase(), item);
+    });
+
+    const seenPartIds = new Set<string>();
+    const validatedParts = (Array.isArray(parsed.recommendedParts) ? parsed.recommendedParts : [])
+      .map((rec: any) => {
+        const matched =
+          catalogById.get(String(rec.partId || '')) ||
+          catalogBySku.get(String(rec.sku || '').toUpperCase());
+        if (!matched || seenPartIds.has(matched.id)) return null;
+        seenPartIds.add(matched.id);
+        return {
+          partId: matched.id,
+          sku: matched.sku,
+          name: matched.name,
+          category: matched.category,
+          compatibleModels: matched.compatibleModels,
+          unitPrice: matched.unitPrice,
+          stockQty: matched.stockQty,
+          minStockThreshold: matched.minStockThreshold,
+          binLocation: matched.binLocation,
+          quantity: Math.max(1, Number(rec.quantity) || 1),
+          confidence: String(rec.confidence || 'HIGH').toUpperCase() === 'MEDIUM' ? 'MEDIUM' : 'HIGH',
+          reason: rec.reason || 'Recommended based on tool model and failure symptom.',
+        };
+      })
+      .filter(Boolean);
+
+    return res.json({
+      analysisSummary:
+        parsed.analysisSummary ||
+        `Matched replacement parts for ${tool.brand} ${tool.modelNumber} based on "${serviceReq.grievanceCategory}".`,
+      recommendedParts: validatedParts,
+    });
+  } catch (error: any) {
+    console.error('Gemini Recommended Parts Error:', error);
+    return res.status(500).json({
+      error: 'Failed to generate AI part recommendations',
+      details: error.message,
+    });
+  }
+});
+
+// Server-side Gemini Audio Transcription Endpoint for Bench Technician Voice Notes
+app.post('/api/ai/transcribe', async (req, res) => {
+  try {
+    const { audioBase64, mimeType = 'audio/webm', targetField = 'notes', toolContext } = req.body;
+
+    if (!audioBase64 || typeof audioBase64 !== 'string') {
+      return res.status(400).json({ error: 'Audio recording payload (audioBase64) is required.' });
+    }
+
+    const cleanBase64 = audioBase64.includes(',') ? audioBase64.split(',')[1] : audioBase64;
+    if (!cleanBase64) {
+      return res.status(400).json({ error: 'Recorded audio data is empty.' });
+    }
+
+    const normalizedMimeType = String(mimeType).split(';')[0].trim() || 'audio/webm';
+    const targetLabel =
+      targetField === 'complaint'
+        ? 'Detailed Customer Complaint'
+        : 'Internal Diagnostic & Repair Notes';
+
+    const audioPart = {
+      inlineData: {
+        mimeType: normalizedMimeType,
+        data: cleanBase64,
+      },
+    };
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.5-transcribe',
+      contents: {
+        parts: [
+          audioPart,
+          {
+            text: `Transcribe this spoken repair observation from a service center technician verbatim into clean, punctuated English text for "${targetLabel}" on job ticket ${toolContext?.id || ''} (${toolContext?.toolName || 'Power Tool'}). Output only the transcribed text.`,
+          },
+        ],
+      },
+    });
+
+    const transcript = (response.text || '').trim();
+    return res.json({ transcript });
+  } catch (error: any) {
+    console.error('Gemini Audio Transcription Error:', error);
+    return res.status(500).json({
+      error: 'Failed to transcribe voice note',
+      details: error.message,
+    });
   }
 });
 

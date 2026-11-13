@@ -1,10 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { InventoryItem, JobCard, BusinessSettings } from '../types';
 import { generateMySqlDump } from '../utils/mysqlExport';
+import {
+  InventoryNotification,
+  computeReorderSuggestion,
+  isItemBelowThreshold,
+  syncInventoryNotifications,
+} from '../utils/inventoryNotifications';
 import { AiReorderRecommendations } from './AiReorderRecommendations';
 import { 
   Search, Plus, Package, AlertTriangle, Download, Barcode, 
-  RefreshCw, Database, FileCode, CheckCircle2, ShoppingCart, ShieldAlert, Sparkles, BrainCircuit
+  RefreshCw, Database, FileCode, CheckCircle2, ShoppingCart, ShieldAlert, Sparkles, BrainCircuit,
+  Bell, CheckCheck, Minus, PackageX, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 interface InventoryManagerProps {
@@ -13,6 +20,10 @@ interface InventoryManagerProps {
   onOpenAddItemModal: () => void;
   jobCards?: JobCard[];
   settings?: BusinessSettings;
+  notifications?: InventoryNotification[];
+  onMarkNotificationRead?: (id: string) => void;
+  onMarkAllNotificationsRead?: () => void;
+  initialShowLowStockOnly?: boolean;
 }
 
 export const InventoryManager: React.FC<InventoryManagerProps> = ({
@@ -35,15 +46,32 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
     deductStockOn: 'InService',
     requireSignature: true,
   },
+  notifications,
+  onMarkNotificationRead,
+  onMarkAllNotificationsRead,
+  initialShowLowStockOnly = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [stockFilter, setStockFilter] = useState<'All' | 'LowStock' | 'InStock'>('All');
-  const [showReorderPanel, setShowReorderPanel] = useState(false);
+  const [stockFilter, setStockFilter] = useState<'All' | 'LowStock' | 'InStock'>(
+    initialShowLowStockOnly ? 'LowStock' : 'All'
+  );
+  const [showReorderPanel, setShowReorderPanel] = useState(initialShowLowStockOnly);
   const [showAiReorders, setShowAiReorders] = useState(true);
+  const [showNotificationCenter, setShowNotificationCenter] = useState(true);
+  const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'critical'>('all');
+  const [restockFeedback, setRestockFeedback] = useState<string | null>(null);
   const [showSqlModal, setShowSqlModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
+
+  useEffect(() => {
+    if (initialShowLowStockOnly) {
+      setStockFilter('LowStock');
+      setShowNotificationCenter(true);
+      setCurrentPage(1);
+    }
+  }, [initialShowLowStockOnly]);
 
   const [scanModalOpen, setScanModalOpen] = useState(false);
   const [scannedSku, setScannedSku] = useState('');
@@ -51,7 +79,23 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
 
   const categories = ['All', ...Array.from(new Set(inventory.map((i) => i.category)))];
 
-  const lowStockItems = inventory.filter((i) => i.stockQty <= i.minStockThreshold);
+  const lowStockItems = inventory.filter(isItemBelowThreshold);
+  const activeNotifications = notifications || syncInventoryNotifications(inventory);
+  const unreadNotifCount = activeNotifications.filter((n) => !n.read).length;
+  const outOfStockCount = activeNotifications.filter((n) => n.severity === 'OUT_OF_STOCK').length;
+  const criticalNotifCount = activeNotifications.filter(
+    (n) => n.severity === 'OUT_OF_STOCK' || n.severity === 'CRITICAL'
+  ).length;
+  const totalEstimatedReorderBudget = activeNotifications.reduce(
+    (sum, n) => sum + n.estimatedReorderCost,
+    0
+  );
+
+  const visibleNotifications = activeNotifications.filter((n) => {
+    if (notifFilter === 'unread') return !n.read;
+    if (notifFilter === 'critical') return n.severity === 'OUT_OF_STOCK' || n.severity === 'CRITICAL';
+    return true;
+  });
 
   const filteredItems = inventory.filter((item) => {
     const matchesSearch =
@@ -64,8 +108,8 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
     const matchesStock =
       stockFilter === 'All' ||
-      (stockFilter === 'LowStock' && item.stockQty <= item.minStockThreshold) ||
-      (stockFilter === 'InStock' && item.stockQty > item.minStockThreshold);
+      (stockFilter === 'LowStock' && isItemBelowThreshold(item)) ||
+      (stockFilter === 'InStock' && !isItemBelowThreshold(item));
 
     return matchesSearch && matchesCategory && matchesStock;
   });
@@ -77,6 +121,7 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
   );
 
   const handleQuickRestock = (itemId: string, addQty: number = 10) => {
+    const target = inventory.find((i) => i.id === itemId);
     const updated = inventory.map((item) => {
       if (item.id === itemId) {
         return {
@@ -88,6 +133,50 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
       return item;
     });
     onUpdateInventory(updated);
+    if (target) {
+      setRestockFeedback(`Reordered +${addQty} ${target.unit} of ${target.sku} (${target.name}). Stock replenished.`);
+      setTimeout(() => setRestockFeedback(null), 4000);
+    }
+  };
+
+  const handleAdjustStock = (itemId: string, delta: number) => {
+    const updated = inventory.map((item) => {
+      if (item.id === itemId) {
+        const nextQty = Math.max(0, item.stockQty + delta);
+        return {
+          ...item,
+          stockQty: nextQty,
+          lastRestocked: delta > 0 ? new Date().toISOString().split('T')[0] : item.lastRestocked,
+        };
+      }
+      return item;
+    });
+    onUpdateInventory(updated);
+  };
+
+  const handleBulkReorderCritical = () => {
+    const criticalItems = activeNotifications
+      .filter((n) => n.severity === 'OUT_OF_STOCK' || n.severity === 'CRITICAL')
+      .slice(0, 10);
+    if (criticalItems.length === 0) return;
+
+    const reorderMap = new Map(criticalItems.map((c) => [c.itemId, c.suggestedReorderQty]));
+    const today = new Date().toISOString().split('T')[0];
+
+    const updated = inventory.map((item) => {
+      const addQty = reorderMap.get(item.id);
+      if (!addQty) return item;
+      return {
+        ...item,
+        stockQty: item.stockQty + addQty,
+        lastRestocked: today,
+      };
+    });
+    onUpdateInventory(updated);
+    setRestockFeedback(
+      `Batch reordered ${criticalItems.length} critical spare part SKUs back above safety thresholds.`
+    );
+    setTimeout(() => setRestockFeedback(null), 4500);
   };
 
   const handleSimulateScan = () => {
@@ -184,47 +273,214 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
           </div>
         </div>
 
-        {/* 🚨 VISUAL ALERT & NOTIFICATION BADGE BAR FOR LOW STOCK THRESHOLDS */}
-        <div className="mt-5 p-4 bg-zinc-950 border border-zinc-700 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-white text-zinc-950 font-bold shrink-0">
-              <ShieldAlert className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-white uppercase">LOW STOCK THRESHOLD NOTIFICATION</span>
-                <span className="px-2 py-0.2 rounded-full bg-white text-zinc-950 text-xs font-bold font-mono">
-                  {lowStockItems.length} SKUs ALERT
-                </span>
+        {/* DEDICATED INVENTORY NOTIFICATION CENTER */}
+        <div className="mt-5 bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-inner">
+          <div className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-zinc-800/80">
+            <div className="flex items-start sm:items-center gap-3">
+              <div
+                className={`p-2.5 rounded-xl font-bold shrink-0 border ${
+                  lowStockItems.length > 0
+                    ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                    : 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                }`}
+              >
+                <Bell className="w-5 h-5" />
               </div>
-              <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
-                {lowStockItems.length} items have fallen below their safety reorder threshold. Proactive AI reorder forecasting recommended.
-              </p>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    Inventory Notification Center
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono border ${
+                      lowStockItems.length > 0
+                        ? 'bg-rose-950 text-rose-300 border-rose-700'
+                        : 'bg-emerald-950 text-emerald-300 border-emerald-700'
+                    }`}
+                  >
+                    {lowStockItems.length} BELOW MIN THRESHOLD
+                  </span>
+                  {unreadNotifCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500 text-zinc-950 text-[10px] font-extrabold font-mono">
+                      {unreadNotifCount} UNREAD
+                    </span>
+                  )}
+                  {outOfStockCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold font-mono">
+                      {outOfStockCount} OUT OF STOCK
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
+                  Real-time threshold monitor &amp; direct reorder suggestions. Est. PO value for queued alerts:{' '}
+                  <strong className="text-white font-mono">${totalEstimatedReorderBudget.toFixed(2)}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {onMarkAllNotificationsRead && unreadNotifCount > 0 && (
+                <button
+                  onClick={onMarkAllNotificationsRead}
+                  className="px-3 py-1.5 text-[11px] font-bold text-zinc-300 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-xl flex items-center gap-1.5 transition-colors"
+                >
+                  <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Mark All Read</span>
+                </button>
+              )}
+
+              {criticalNotifCount > 0 && (
+                <button
+                  onClick={handleBulkReorderCritical}
+                  className="px-3 py-1.5 text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl flex items-center gap-1.5 transition-colors active:scale-95"
+                >
+                  <ShoppingCart className="w-3.5 h-3.5" />
+                  <span>Reorder Critical ({Math.min(10, criticalNotifCount)})</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  setStockFilter('LowStock');
+                  setShowReorderPanel(true);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 text-[11px] font-bold text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-xl flex items-center gap-1.5 transition-colors"
+              >
+                <ShoppingCart className="w-3.5 h-3.5" />
+                <span>Manual PO Sheet</span>
+              </button>
+
+              <button
+                onClick={() => setShowNotificationCenter((prev) => !prev)}
+                className="px-2.5 py-1.5 text-[11px] font-bold text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 rounded-xl flex items-center gap-1"
+              >
+                {showNotificationCenter ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                <span>{showNotificationCenter ? 'Collapse' : 'Expand'}</span>
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => {
-                setShowAiReorders(true);
-              }}
-              className="px-3.5 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl flex items-center gap-1.5 transition-all active:scale-95"
-            >
-              <Sparkles className="w-4 h-4 text-zinc-950" />
-              <span>AI Predictive Reorder Engine</span>
-            </button>
+          {restockFeedback && (
+            <div className="px-4 py-2.5 bg-emerald-950/70 border-b border-emerald-800/70 text-emerald-300 text-xs flex items-center gap-2 font-sans">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+              <span>{restockFeedback}</span>
+            </div>
+          )}
 
-            <button
-              onClick={() => {
-                setStockFilter('LowStock');
-                setShowReorderPanel(true);
-              }}
-              className="px-3 py-2 text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-xl flex items-center gap-1.5 transition-all"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              <span>Manual PO Sheet</span>
-            </button>
-          </div>
+          {showNotificationCenter && (
+            <div className="p-4 space-y-3">
+              {/* Filter Tabs inside Notification Center */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 bg-zinc-900 p-1 rounded-xl border border-zinc-800">
+                  {[
+                    { id: 'all', label: `All Below Threshold (${activeNotifications.length})` },
+                    { id: 'unread', label: `Unread (${unreadNotifCount})` },
+                    { id: 'critical', label: `Critical / Stockout (${criticalNotifCount})` },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setNotifFilter(tab.id as 'all' | 'unread' | 'critical')}
+                      className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-colors ${
+                        notifFilter === tab.id
+                          ? 'bg-white text-zinc-950'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={handleDownloadReorderCsv}
+                  disabled={lowStockItems.length === 0}
+                  className="px-3 py-1.5 text-[11px] font-bold text-zinc-950 bg-white hover:bg-zinc-200 disabled:opacity-40 rounded-lg flex items-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Export Reorder PO CSV</span>
+                </button>
+              </div>
+
+              {visibleNotifications.length === 0 ? (
+                <div className="p-4 bg-zinc-900/60 border border-dashed border-zinc-800 rounded-xl text-center text-xs text-zinc-400 font-sans">
+                  No inventory threshold alerts in this filter view. All tracked spare parts meet minimum stock levels.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-72 overflow-y-auto pr-1">
+                  {visibleNotifications.slice(0, 18).map((notif) => {
+                    const isOut = notif.severity === 'OUT_OF_STOCK';
+                    return (
+                      <div
+                        key={notif.id}
+                        onClick={() => onMarkNotificationRead && onMarkNotificationRead(notif.id)}
+                        className={`p-3 rounded-xl border transition-all flex flex-col justify-between gap-2.5 cursor-pointer ${
+                          isOut
+                            ? 'bg-rose-950/20 border-rose-800/70 hover:border-rose-600'
+                            : !notif.read
+                            ? 'bg-amber-950/20 border-amber-700/70 hover:border-amber-500'
+                            : 'bg-zinc-900/80 border-zinc-800 hover:border-zinc-700'
+                        }`}
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {!notif.read && (
+                                <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Unread alert" />
+                              )}
+                              <span className="font-bold text-white text-xs truncate">{notif.sku}</span>
+                            </div>
+                            <span
+                              className={`text-[9px] px-1.5 py-0.5 rounded font-bold border shrink-0 ${
+                                isOut
+                                  ? 'bg-rose-950 text-rose-300 border-rose-700'
+                                  : notif.severity === 'CRITICAL'
+                                  ? 'bg-amber-950 text-amber-300 border-amber-700'
+                                  : 'bg-zinc-950 text-zinc-300 border-zinc-700'
+                              }`}
+                            >
+                              {isOut ? 'OUT OF STOCK' : notif.severity}
+                            </span>
+                          </div>
+
+                          <div className="text-xs font-semibold text-zinc-200 font-sans truncate" title={notif.name}>
+                            {notif.name}
+                          </div>
+
+                          <div className="flex items-center justify-between text-[11px] text-zinc-400 pt-0.5">
+                            <span>Bin: {notif.binLocation}</span>
+                            <span className={isOut ? 'text-rose-400 font-bold' : 'text-amber-400 font-bold'}>
+                              Stock: {notif.stockQty} / Min {notif.minStockThreshold}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between gap-2">
+                          <div className="text-[10px]">
+                            <span className="text-zinc-400 block">Reorder Suggestion:</span>
+                            <strong className="text-emerald-400">
+                              +{notif.suggestedReorderQty} {notif.unit} (${notif.estimatedReorderCost.toFixed(2)})
+                            </strong>
+                          </div>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleQuickRestock(notif.itemId, notif.suggestedReorderQty);
+                            }}
+                            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[10px] flex items-center gap-1 shrink-0 active:scale-95"
+                          >
+                            <ShoppingCart className="w-3 h-3" />
+                            <span>Reorder +{notif.suggestedReorderQty}</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Filter Controls Row */}
@@ -376,7 +632,9 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
                 </tr>
               ) : (
                 paginatedItems.map((item) => {
-                  const isLow = item.stockQty <= item.minStockThreshold;
+                  const isLow = isItemBelowThreshold(item);
+                  const isOut = item.stockQty <= 0;
+                  const reorderSpec = isLow ? computeReorderSuggestion(item) : null;
                   return (
                     <tr key={item.id} className={`hover:bg-zinc-950/40 transition-colors ${isLow ? 'bg-zinc-950/60' : ''}`}>
                       <td className="py-3 px-4 font-mono">
@@ -403,13 +661,27 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
                         ${item.unitPrice.toFixed(2)}
                       </td>
 
-                      {/* VISUAL ALERT BADGE COLUMN */}
+                      {/* VISUAL ALERT BADGE & REORDER SUGGESTION COLUMN */}
                       <td className="py-3 px-4 text-center font-mono">
-                        {isLow ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-bold text-[11px] bg-white text-zinc-950 border border-white shadow">
-                            <AlertTriangle className="w-3.5 h-3.5" />
-                            <span>LOW STOCK: {item.stockQty} / Min {item.minStockThreshold}</span>
-                          </span>
+                        {isLow && reorderSpec ? (
+                          <div className="inline-flex flex-col items-center gap-1">
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-bold text-[11px] border shadow ${
+                                isOut
+                                  ? 'bg-rose-950 text-rose-200 border-rose-600'
+                                  : 'bg-amber-500 text-zinc-950 border-amber-400'
+                              }`}
+                            >
+                              {isOut ? <PackageX className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+                              <span>
+                                {isOut ? 'OUT OF STOCK' : 'LOW STOCK'}: {item.stockQty} / Min {item.minStockThreshold}
+                              </span>
+                            </span>
+                            <span className="text-[10px] text-emerald-400 font-semibold">
+                              Suggest Reorder: +{reorderSpec.suggestedReorderQty} {item.unit} ($
+                              {reorderSpec.estimatedReorderCost.toFixed(2)})
+                            </span>
+                          </div>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-medium text-xs bg-zinc-950 text-zinc-300 border border-zinc-800">
                             {item.stockQty} {item.unit}
@@ -418,13 +690,36 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
                       </td>
 
                       <td className="py-3 px-4 text-center">
-                        <button
-                          onClick={() => handleQuickRestock(item.id, 10)}
-                          className="px-2.5 py-1 text-[11px] font-bold text-white hover:bg-zinc-800 bg-zinc-950 rounded-lg border border-zinc-800 transition-colors inline-flex items-center gap-1"
-                        >
-                          <RefreshCw className="w-3 h-3" />
-                          <span>+10</span>
-                        </button>
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleAdjustStock(item.id, -1)}
+                            disabled={item.stockQty <= 0}
+                            title="Issue / deduct 1 unit from stock"
+                            className="px-2 py-1 text-[11px] font-bold text-zinc-300 hover:text-white hover:bg-zinc-800 disabled:opacity-30 bg-zinc-950 rounded-lg border border-zinc-800 transition-colors inline-flex items-center"
+                          >
+                            <Minus className="w-3 h-3" />
+                            <span>1</span>
+                          </button>
+
+                          {isLow && reorderSpec ? (
+                            <button
+                              onClick={() => handleQuickRestock(item.id, reorderSpec.suggestedReorderQty)}
+                              title={`Order suggested ${reorderSpec.suggestedReorderQty} ${item.unit}`}
+                              className="px-2.5 py-1 text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors inline-flex items-center gap-1"
+                            >
+                              <ShoppingCart className="w-3 h-3" />
+                              <span>Order +{reorderSpec.suggestedReorderQty}</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleQuickRestock(item.id, 10)}
+                              className="px-2.5 py-1 text-[11px] font-bold text-white hover:bg-zinc-800 bg-zinc-950 rounded-lg border border-zinc-800 transition-colors inline-flex items-center gap-1"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              <span>+10</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

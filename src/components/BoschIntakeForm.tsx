@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { JobCard, ToolBrand, ToolCategory, GrievanceCategory, InventoryItem, JobPart, BusinessSettings, CustomField } from '../types';
-import { Wrench, User, Phone, ShieldCheck, FileText, Sparkles, Printer, MessageSquare, Plus, PenTool, CheckCircle2, AlertCircle, Sliders } from 'lucide-react';
+import { adjudicateWarranty } from '../utils/warrantyAdjudicator';
+import { Wrench, User, Phone, ShieldCheck, ShieldAlert, FileText, Sparkles, Printer, MessageSquare, Plus, PenTool, CheckCircle2, AlertCircle, Sliders } from 'lucide-react';
 
 interface BoschIntakeFormProps {
   onAddJob: (job: JobCard) => void;
@@ -53,6 +54,20 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
+
+  // Live Warranty Adjudication Evaluation
+  const warrantyEval = adjudicateWarranty(
+    {
+      brand,
+      serialNumber: serialNumber || 'N/A',
+      warrantyStatus,
+      physicalCondition,
+    },
+    {
+      grievanceCategory,
+      detailedComplaint,
+    }
+  );
 
   // Quick Preset Complaints for Counter Technicians
   const complaintPresets = [
@@ -163,6 +178,9 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
       signatureDataUrl = canvasRef.current.toDataURL();
     }
 
+    const nowIso = new Date().toISOString();
+    const { recommendedWarrantyStatus: _, ...adjudicationRecord } = warrantyEval;
+
     const newJob: JobCard = {
       id: generatedId,
       customerName,
@@ -177,6 +195,8 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
         serialNumber: serialNumber || 'N/A',
         voltageRating,
         warrantyStatus,
+        warrantyFlag: warrantyEval.flag,
+        warrantyAdjudication: adjudicationRecord,
         physicalCondition,
         accessoriesReceived: selectedAccessories,
       },
@@ -186,7 +206,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
         serviceType,
         preApprovedLimit,
       },
-      intakeDate: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      intakeDate: nowIso.slice(0, 16).replace('T', ' '),
       promisedCompletion: new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 16).replace('T', ' '),
       status: 'Intake',
       priority: 'Routine',
@@ -197,8 +217,10 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
       discount: 0,
       taxRate: settings.taxRate,
       parts: [],
+      operationalExpenses: [],
       totalAmount: settings.laborRate * (1 + settings.taxRate / 100),
       customerSignature: signatureDataUrl,
+      attachments: [],
       messageLogs: [
         {
           id: `msg-${Date.now()}`,
@@ -210,8 +232,10 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
           status: 'Pending',
         },
       ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      stageEnteredAt: nowIso,
+      stageHistory: [{ status: 'Intake', enteredAt: nowIso }],
+      createdAt: nowIso,
+      updatedAt: nowIso,
     };
 
     onAddJob(newJob);
@@ -436,6 +460,91 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white placeholder-zinc-600 focus:outline-none"
               />
             </div>
+          </div>
+
+          {/* Live Warranty Adjudication Helper Panel */}
+          <div
+            className={`p-4 rounded-xl border space-y-2.5 text-xs font-mono ${
+              warrantyEval.flag === 'In-Warranty'
+                ? 'bg-emerald-950/25 border-emerald-700/60'
+                : 'bg-zinc-950 border-zinc-800'
+            }`}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                {warrantyEval.flag === 'In-Warranty' ? (
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                ) : (
+                  <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+                )}
+                <span className="font-bold text-white uppercase tracking-wider text-[11px]">
+                  Auto Warranty Adjudication
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded text-[10px] font-extrabold border ${
+                    warrantyEval.flag === 'In-Warranty'
+                      ? 'bg-emerald-950 text-emerald-300 border-emerald-600/80'
+                      : 'bg-amber-950/80 text-amber-300 border-amber-700/80'
+                  }`}
+                >
+                  {warrantyEval.flag}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] text-zinc-500">Test Serials:</span>
+                {['SN-3611B54300', 'SN-FD-5048812', 'SN-DW-991823', 'SN-3601C96000'].map((sampleSn) => (
+                  <button
+                    key={sampleSn}
+                    type="button"
+                    onClick={() => setSerialNumber(sampleSn)}
+                    className="px-2 py-0.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded text-[10px] text-zinc-300"
+                  >
+                    {sampleSn}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-1">
+              <div className="bg-zinc-900/70 px-2.5 py-1.5 rounded-lg border border-zinc-800">
+                <span className="text-zinc-500 block text-[9px] uppercase">Manufacture Date</span>
+                <span className="text-white font-bold">{warrantyEval.manufactureDate || 'Unknown'}</span>
+              </div>
+              <div className="bg-zinc-900/70 px-2.5 py-1.5 rounded-lg border border-zinc-800">
+                <span className="text-zinc-500 block text-[9px] uppercase">Warranty Expiry</span>
+                <span className="text-white font-bold">{warrantyEval.expirationDate || 'N/A'}</span>
+              </div>
+              <div className="bg-zinc-900/70 px-2.5 py-1.5 rounded-lg border border-zinc-800">
+                <span className="text-zinc-500 block text-[9px] uppercase">Tool Age / Term</span>
+                <span className="text-white font-bold">
+                  {warrantyEval.ageMonths !== null ? `${warrantyEval.ageMonths}m` : '—'} / {warrantyEval.termMonths}m
+                </span>
+              </div>
+              <div className="bg-zinc-900/70 px-2.5 py-1.5 rounded-lg border border-zinc-800">
+                <span className="text-zinc-500 block text-[9px] uppercase">Lookup Method</span>
+                <span className="text-zinc-200 font-semibold truncate block">{warrantyEval.decodedMethod}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]">
+              <p className="text-zinc-300 font-sans">{warrantyEval.reason}</p>
+              {warrantyStatus !== warrantyEval.recommendedWarrantyStatus && (
+                <button
+                  type="button"
+                  onClick={() => setWarrantyStatus(warrantyEval.recommendedWarrantyStatus)}
+                  className="px-2.5 py-1 bg-white text-zinc-950 hover:bg-zinc-200 rounded-lg text-[10px] font-bold shrink-0"
+                >
+                  Sync Status: {warrantyEval.recommendedWarrantyStatus}
+                </button>
+              )}
+            </div>
+
+            {warrantyEval.exclusionAdvisory && (
+              <div className="px-2.5 py-1.5 bg-amber-950/60 border border-amber-700/70 rounded-lg text-[11px] text-amber-200 font-sans">
+                {warrantyEval.exclusionAdvisory}
+              </div>
+            )}
           </div>
 
           {/* Accessories Received Checklist */}

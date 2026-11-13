@@ -1,6 +1,58 @@
 import React, { useState } from 'react';
 import { JobCard, MessageLog, BusinessSettings } from '../types';
-import { MessageSquare, Copy, Check, User, Clock, ArrowUpRight, Sparkles } from 'lucide-react';
+import { getEffectiveJobBilling } from '../utils/billing';
+import { buildCustomerPortalUrl } from '../utils/customerPortalUrl';
+import {
+  MessageSquare,
+  Copy,
+  Check,
+  User,
+  Clock,
+  ArrowUpRight,
+  Sparkles,
+  Bot,
+  Loader2,
+  AlertCircle,
+} from 'lucide-react';
+
+interface AiReplyVariant {
+  label: string;
+  text: string;
+}
+
+interface AiAssistantResult {
+  recommendedReply: string;
+  alternateReplies: AiReplyVariant[];
+  keyFactsCited: string[];
+}
+
+const COMMON_CUSTOMER_INQUIRIES = [
+  {
+    id: 'status',
+    label: 'Repair Status & ETA',
+    prompt: 'When will my power tool be ready for pickup and what stage of repair is it in right now?',
+  },
+  {
+    id: 'pricing',
+    label: 'Pricing & Cost Breakdown',
+    prompt: 'Why does the repair estimate cost this amount? Please break down parts, labor, and any other charges.',
+  },
+  {
+    id: 'warranty',
+    label: 'Warranty Coverage',
+    prompt: 'Is this repair covered under warranty, or why is it billed as out-of-warranty?',
+  },
+  {
+    id: 'parts',
+    label: 'Parts & Repair Findings',
+    prompt: 'What fault did the technician find and which replacement parts are needed?',
+  },
+  {
+    id: 'pickup',
+    label: 'Pickup & Portal Link',
+    prompt: 'Can you share my live status tracking link and pickup instructions / balance due?',
+  },
+];
 
 interface MessagingCenterProps {
   jobCards: JobCard[];
@@ -27,6 +79,14 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
   const [aiTone, setAiTone] = useState('Professional & Direct');
   const [isSending, setIsSending] = useState(false);
   const [sendFeedback, setSendFeedback] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  // AI Response Assistant State
+  const [customerInquiryInput, setCustomerInquiryInput] = useState('');
+  const [preferredChannel, setPreferredChannel] = useState<'WhatsApp' | 'SMS'>('WhatsApp');
+  const [isAssistantLoading, setIsAssistantLoading] = useState(false);
+  const [assistantError, setAssistantError] = useState<string | null>(null);
+  const [assistantResult, setAssistantResult] = useState<AiAssistantResult | null>(null);
+  const [copiedVariantKey, setCopiedVariantKey] = useState<string | null>(null);
 
   const [apiStatus, setApiStatus] = useState<{
     twilioSmsConfigured: boolean;
@@ -102,6 +162,75 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
     navigator.clipboard.writeText(messageText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleGenerateAssistantReplies = async (inquiryOverride?: string) => {
+    if (!activeJob) return;
+    const inquiry = (inquiryOverride ?? customerInquiryInput).trim();
+    if (!inquiry) {
+      setAssistantError('Enter a customer inquiry or pick a common topic above.');
+      return;
+    }
+
+    if (inquiryOverride) {
+      setCustomerInquiryInput(inquiryOverride);
+    }
+
+    setIsAssistantLoading(true);
+    setAssistantError(null);
+
+    try {
+      const billingSummary = getEffectiveJobBilling(activeJob);
+      const portalUrl = buildCustomerPortalUrl(activeJob);
+
+      const res = await fetch('/api/ai/response-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobCard: activeJob,
+          customerInquiry: inquiry,
+          channel: preferredChannel,
+          language: aiLanguage,
+          tone: aiTone,
+          portalUrl,
+          billingSummary,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || data.details || 'Failed to generate AI response suggestions');
+      }
+
+      setAssistantResult({
+        recommendedReply: data.recommendedReply || '',
+        alternateReplies: Array.isArray(data.alternateReplies) ? data.alternateReplies : [],
+        keyFactsCited: Array.isArray(data.keyFactsCited) ? data.keyFactsCited : [],
+      });
+    } catch (err: any) {
+      setAssistantError(err?.message || 'Unable to generate suggested customer replies.');
+    } finally {
+      setIsAssistantLoading(false);
+    }
+  };
+
+  const handleUseSuggestedReply = (replyText: string) => {
+    setCustomMessage(replyText);
+    setSendFeedback({
+      type: 'info',
+      text: 'Loaded AI suggested reply into the dispatch composer below.',
+    });
+    setTimeout(() => setSendFeedback(null), 3000);
+  };
+
+  const handleCopySuggestedReply = async (replyText: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(replyText);
+      setCopiedVariantKey(key);
+      setTimeout(() => setCopiedVariantKey(null), 2000);
+    } catch {
+      setCopiedVariantKey(null);
+    }
   };
 
   const handleSendWhatsApp = async () => {
@@ -263,6 +392,8 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                 onClick={() => {
                   onSelectJob(job);
                   setCustomMessage('');
+                  setAssistantResult(null);
+                  setAssistantError(null);
                 }}
                 className={`p-3 rounded-xl cursor-pointer transition-all border ${
                   activeJob?.id === job.id
@@ -285,10 +416,216 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
           </div>
         </div>
 
-        {/* Right Column: Template Composer */}
+        {/* Right Column: AI Response Assistant & Template Composer */}
         {activeJob && (
           <div className="lg:col-span-2 space-y-6">
             
+            {/* AI Response Assistant Panel */}
+            <section
+              aria-labelledby="ai-response-assistant-heading"
+              className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xl"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+                <div className="flex items-start gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-emerald-400 shrink-0">
+                    <Bot className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 id="ai-response-assistant-heading" className="text-sm font-bold text-white tracking-tight">
+                      AI Response Assistant
+                    </h2>
+                    <p className="text-xs text-zinc-400 mt-0.5 font-mono tabular-nums">
+                      {activeJob.id} · {activeJob.tool?.brand} {activeJob.tool?.modelNumber} · {activeJob.status} · ${getEffectiveJobBilling(activeJob).totalAmount.toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Channel Preference Toggle */}
+                <div className="flex items-center gap-1 p-1 bg-zinc-950 border border-zinc-800 rounded-lg self-start sm:self-auto font-mono">
+                  {(['WhatsApp', 'SMS'] as const).map((channel) => (
+                    <button
+                      key={channel}
+                      type="button"
+                      onClick={() => setPreferredChannel(channel)}
+                      className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                        preferredChannel === channel
+                          ? 'bg-white text-zinc-950'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {channel}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick Common Customer Inquiry Buttons */}
+              <div className="space-y-1.5">
+                <span className="block text-[11px] font-semibold text-zinc-400 font-mono">
+                  Common Customer Inquiries (1-Click Draft):
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {COMMON_CUSTOMER_INQUIRIES.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      disabled={isAssistantLoading}
+                      onClick={() => handleGenerateAssistantReplies(preset.prompt)}
+                      className="px-3 py-1.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-xs font-medium text-zinc-200 hover:text-white transition-colors disabled:opacity-50 whitespace-nowrap shrink-0"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom Customer Question Input */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <input
+                  type="text"
+                  value={customerInquiryInput}
+                  onChange={(e) => setCustomerInquiryInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleGenerateAssistantReplies();
+                    }
+                  }}
+                  placeholder="Paste customer question (e.g. 'Why is the armature replacement $48?' or 'Can I pick it up today?')..."
+                  className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => handleGenerateAssistantReplies()}
+                  disabled={isAssistantLoading || !customerInquiryInput.trim()}
+                  className="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 text-xs font-mono font-bold flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
+                >
+                  {isAssistantLoading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Drafting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Suggest Replies</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {assistantError && (
+                <div className="p-3 bg-rose-950/30 border border-rose-800/70 rounded-xl text-xs font-mono text-rose-200 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>{assistantError}</span>
+                </div>
+              )}
+
+              {/* Suggested Context-Aware Replies */}
+              {assistantResult && (
+                <div className="space-y-3 pt-2 border-t border-zinc-800">
+                  {assistantResult.keyFactsCited.length > 0 && (
+                    <div className="text-[11px] font-mono text-zinc-400">
+                      Ticket facts used: {assistantResult.keyFactsCited.join(' · ')}
+                    </div>
+                  )}
+
+                  {/* Primary Recommended Reply */}
+                  {assistantResult.recommendedReply && (
+                    <div className="bg-zinc-950 border border-zinc-700 rounded-xl p-3.5 space-y-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-emerald-400">
+                          Recommended {preferredChannel} Reply
+                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleCopySuggestedReply(assistantResult.recommendedReply, 'primary')
+                            }
+                            className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] font-mono text-zinc-300 hover:text-white flex items-center gap-1"
+                          >
+                            {copiedVariantKey === 'primary' ? (
+                              <>
+                                <Check className="w-3 h-3 text-emerald-400" />
+                                <span>Copied</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3" />
+                                <span>Copy</span>
+                              </>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUseSuggestedReply(assistantResult.recommendedReply)}
+                            className="px-3 py-1 rounded-lg bg-white hover:bg-zinc-200 text-zinc-950 text-[11px] font-mono font-bold whitespace-nowrap"
+                          >
+                            Use in Composer
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs font-mono text-zinc-100 leading-relaxed whitespace-pre-wrap">
+                        {assistantResult.recommendedReply}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Alternate Reply Options */}
+                  {assistantResult.alternateReplies.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {assistantResult.alternateReplies.map((variant, idx) => {
+                        const copyKey = `alt-${idx}`;
+                        return (
+                          <div
+                            key={copyKey}
+                            className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 flex flex-col justify-between gap-2.5"
+                          >
+                            <div className="space-y-1.5">
+                              <div className="text-[11px] font-semibold text-zinc-400">
+                                {variant.label || `Option ${idx + 1}`}
+                              </div>
+                              <p className="text-xs font-mono text-zinc-200 leading-relaxed whitespace-pre-wrap">
+                                {variant.text}
+                              </p>
+                            </div>
+                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-900">
+                              <button
+                                type="button"
+                                onClick={() => handleCopySuggestedReply(variant.text, copyKey)}
+                                className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] font-mono text-zinc-300 hover:text-white flex items-center gap-1"
+                              >
+                                {copiedVariantKey === copyKey ? (
+                                  <>
+                                    <Check className="w-3 h-3 text-emerald-400" />
+                                    <span>Copied</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3 h-3" />
+                                    <span>Copy</span>
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleUseSuggestedReply(variant.text)}
+                                className="px-3 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white text-[11px] font-mono font-bold whitespace-nowrap"
+                              >
+                                Use Reply
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xl">
               
               <div className="flex items-center justify-between p-3 bg-zinc-950 rounded-xl border border-zinc-800">
@@ -342,7 +679,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                   >
                     <option value="English">English</option>
                     <option value="Spanish">Spanish</option>
-                    <option value="French font-mono">French</option>
+                    <option value="French">French</option>
                     <option value="German">German</option>
                   </select>
                 </div>

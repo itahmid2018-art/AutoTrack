@@ -36,12 +36,29 @@ export type JobStatus =
   | 'Intake' 
   | 'Diagnosis' 
   | 'Awaiting Approval' 
+  | 'Awaiting Parts'
+  | 'In Repair'
   | 'In Service' 
   | 'Ready for Pickup' 
   | 'Completed' 
   | 'Cancelled';
 
 export type JobPriority = 'Routine' | 'Urgent' | 'Emergency';
+
+export type WarrantyFlag = 'In-Warranty' | 'Out-of-Warranty';
+
+export interface WarrantyAdjudication {
+  flag: WarrantyFlag;
+  serialNumberValid: boolean;
+  manufactureDate: string | null; // YYYY-MM
+  expirationDate: string | null;  // YYYY-MM
+  ageMonths: number | null;
+  termMonths: number;
+  decodedMethod: string;
+  reason: string;
+  exclusionAdvisory?: string;
+  evaluatedAt: string;
+}
 
 export interface ToolDetails {
   brand: ToolBrand;
@@ -50,6 +67,8 @@ export interface ToolDetails {
   serialNumber: string;
   voltageRating: string;
   warrantyStatus: 'Standard 1-Year' | 'Bosch Heavy Duty 3-Year Extended' | 'Out of Warranty' | 'Unconfirmed';
+  warrantyFlag?: WarrantyFlag;
+  warrantyAdjudication?: WarrantyAdjudication;
   physicalCondition: string;
   accessoriesReceived: string[];
 }
@@ -93,6 +112,74 @@ export interface TimeLog {
   status: 'ACTIVE' | 'COMPLETED';
 }
 
+export type ShiftType = 'Full Shift' | 'Morning Half' | 'Afternoon Half' | 'Overtime' | 'Off';
+
+export interface TechnicianShift {
+  id: string;
+  technicianId: string;
+  date: string; // YYYY-MM-DD
+  startHour: number; // e.g., 8 = 08:00, 8.5 = 08:30
+  endHour: number; // e.g., 16 = 16:00
+  shiftType: ShiftType;
+  bay?: string;
+  notes?: string;
+}
+
+export interface ScheduledJobSlot {
+  id: string;
+  jobCardId: string;
+  technicianId: string;
+  date: string; // YYYY-MM-DD
+  startHour: number; // e.g., 9 = 09:00
+  durationHours: number; // e.g., 1.5
+  notes?: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: string;
+  userName: string;
+  userRole: string;
+  action: string;
+  previousState?: string;
+  newState?: string;
+}
+
+export interface PhotoEvidence {
+  id: string;
+  caption: string;
+  stage: 'Intake Inspection' | 'Teardown / Fault' | 'Repaired Workbench' | 'QC Final';
+  dataUrl: string;
+  uploadedAt: string;
+}
+
+export interface SubletRecord {
+  id: string;
+  vendorName: string;
+  serviceScope: string;
+  subletCost: number;
+  expectedReturnDate: string;
+  status: 'Out at Vendor' | 'Returned & Inspected' | 'Invoiced';
+  notes?: string;
+}
+
+export type OperationalExpenseCategory =
+  | 'Outsourced Labor'
+  | 'Shipping & Freight'
+  | 'Sublet Machining / Rewinding'
+  | 'Diagnostics / Calibration Fee'
+  | 'Disposal / Hazmat'
+  | 'Other Operational Cost';
+
+export interface OperationalExpense {
+  id: string;
+  category: OperationalExpenseCategory;
+  description: string;
+  vendor?: string;
+  amount: number;
+  date: string;
+}
+
 export interface JobCard {
   id: string;
   customerName: string;
@@ -119,11 +206,24 @@ export interface JobCard {
   taxRate: number;
 
   parts: JobPart[];
+  operationalExpenses?: OperationalExpense[];
   totalAmount: number;
 
   customerSignature?: string;
+  technicianSignature?: string;
+  technicianSignOffBy?: string;
+  technicianSignOffAt?: string;
+  technicianSignOffNotes?: string;
+  attachments?: string[];
   messageLogs: MessageLog[];
   timeLogs?: TimeLog[];
+  auditLogs?: AuditLogEntry[];
+  photos?: PhotoEvidence[];
+  subletRecords?: SubletRecord[];
+  publicAccessToken?: string;
+
+  stageEnteredAt?: string;
+  stageHistory?: { status: JobStatus; enteredAt: string }[];
 
   createdAt: string;
   updatedAt: string;

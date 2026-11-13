@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { JobCard, JobPriority, BusinessSettings, ToolBrand, ToolCategory, GrievanceCategory } from '../types';
-import { Plus, X, Wrench } from 'lucide-react';
+import { adjudicateWarranty, autoAdjudicateJobCard } from '../utils/warrantyAdjudicator';
+import { Plus, X, Wrench, ShieldCheck, ShieldAlert } from 'lucide-react';
 
 interface NewJobModalProps {
   onClose: () => void;
@@ -30,11 +31,22 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
   const [grievanceCategory, setGrievanceCategory] = useState<GrievanceCategory>('Motor Sparking / Excessive Smoke');
   const [detailedComplaint, setDetailedComplaint] = useState('');
 
+  const warrantyEval = adjudicateWarranty(
+    {
+      brand,
+      serialNumber: serialNumber || 'N/A',
+      warrantyStatus: 'Unconfirmed',
+      physicalCondition: 'Jobsite Wear',
+    },
+    { grievanceCategory, detailedComplaint }
+  );
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName || !customerPhone || !modelNumber || !detailedComplaint) return;
 
-    const newJob: JobCard = {
+    const nowIso = new Date().toISOString();
+    const rawJob: JobCard = {
       id: generatedId,
       customerName,
       customerCompany,
@@ -46,7 +58,7 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
         modelNumber,
         serialNumber: serialNumber || 'N/A',
         voltageRating: '230V AC',
-        warrantyStatus: 'Bosch Heavy Duty 3-Year Extended',
+        warrantyStatus: warrantyEval.recommendedWarrantyStatus,
         physicalCondition: 'Jobsite Wear',
         accessoriesReceived: ['Auxiliary Handle'],
       },
@@ -56,7 +68,7 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
         serviceType: 'Diagnostic & Repair',
         preApprovedLimit: 50.0,
       },
-      intakeDate: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      intakeDate: nowIso.slice(0, 16).replace('T', ' '),
       promisedCompletion: new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 16).replace('T', ' '),
       status: 'Intake',
       priority: 'Routine',
@@ -66,7 +78,9 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
       discount: 0,
       taxRate: settings.taxRate,
       parts: [],
+      operationalExpenses: [],
       totalAmount: settings.laborRate * (1 + settings.taxRate / 100),
+      attachments: [],
       messageLogs: [
         {
           id: `msg-intake-${Date.now()}`,
@@ -78,11 +92,13 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
           status: 'Pending',
         },
       ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      stageEnteredAt: nowIso,
+      stageHistory: [{ status: 'Intake', enteredAt: nowIso }],
+      createdAt: nowIso,
+      updatedAt: nowIso,
     };
 
-    onAddJob(newJob);
+    onAddJob(autoAdjudicateJobCard(rawJob));
     onClose();
   };
 
@@ -134,8 +150,24 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
           </div>
 
           <div className="space-y-3 bg-zinc-950 p-4 rounded-xl border border-zinc-800">
-            <span className="text-zinc-400 font-bold uppercase tracking-wider block text-[10px] font-mono">2. Tool Specifications</span>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-zinc-400 font-bold uppercase tracking-wider block text-[10px] font-mono">2. Tool Specifications</span>
+              <span
+                className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border inline-flex items-center gap-1 ${
+                  warrantyEval.flag === 'In-Warranty'
+                    ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
+                    : 'bg-zinc-900 text-amber-300 border-amber-800/70'
+                }`}
+              >
+                {warrantyEval.flag === 'In-Warranty' ? (
+                  <ShieldCheck className="w-3 h-3" />
+                ) : (
+                  <ShieldAlert className="w-3 h-3" />
+                )}
+                <span>{warrantyEval.flag}</span>
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-zinc-400 mb-1">Brand</label>
                 <select
@@ -144,6 +176,7 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none"
                 >
                   <option value="Bosch Professional">Bosch Professional</option>
+                  <option value="Bosch DIY (Green)">Bosch DIY (Green)</option>
                   <option value="Makita">Makita</option>
                   <option value="DeWalt">DeWalt</option>
                   <option value="Milwaukee">Milwaukee</option>
@@ -162,6 +195,22 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-white font-mono focus:outline-none"
                 />
               </div>
+
+              <div>
+                <label className="block text-zinc-400 mb-1">Serial Number</label>
+                <input
+                  type="text"
+                  value={serialNumber}
+                  onChange={(e) => setSerialNumber(e.target.value)}
+                  placeholder="SN-3611B54300"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-white font-mono focus:outline-none"
+                />
+              </div>
+            </div>
+            <div className="text-[11px] font-mono text-zinc-400 bg-zinc-900/70 px-3 py-1.5 rounded-lg border border-zinc-800">
+              {warrantyEval.manufactureDate
+                ? `Decoded Mfg: ${warrantyEval.manufactureDate} · Expiry: ${warrantyEval.expirationDate} (${warrantyEval.decodedMethod})`
+                : warrantyEval.reason}
             </div>
           </div>
 

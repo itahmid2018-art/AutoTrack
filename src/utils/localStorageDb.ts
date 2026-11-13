@@ -1,4 +1,4 @@
-import { JobCard, InventoryItem, BusinessSettings, CriticalQuestionnaire, MessageLog, CustomField, RecurringMaintenance } from '../types';
+import { JobCard, InventoryItem, BusinessSettings, CriticalQuestionnaire, MessageLog, CustomField, RecurringMaintenance, TechnicianShift, ScheduledJobSlot } from '../types';
 
 const STORAGE_KEYS = {
   JOB_CARDS: 'autotrack_db_job_cards_v1',
@@ -6,6 +6,8 @@ const STORAGE_KEYS = {
   SETTINGS: 'autotrack_db_settings_v1',
   QUESTIONNAIRE: 'autotrack_db_questionnaire_v1',
   CUSTOM_FIELDS: 'autotrack_db_custom_fields_v1',
+  TECH_SHIFTS: 'autotrack_db_tech_shifts_v1',
+  SCHEDULED_SLOTS: 'autotrack_db_scheduled_slots_v1',
   DAILY_SNAPSHOT_PREFIX: 'autotrack_daily_snapshot_',
 };
 
@@ -91,6 +93,44 @@ export const TransactionalDb = {
       return data ? JSON.parse(data) : fallback;
     } catch (e) {
       return fallback;
+    }
+  },
+
+  // Save Technician Shifts
+  saveTechShifts(shifts: TechnicianShift[]) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.TECH_SHIFTS, JSON.stringify(shifts));
+    } catch (e) {
+      console.error('Failed to persist technician shifts:', e);
+    }
+  },
+
+  // Load Technician Shifts
+  loadTechShifts(fallbackFactory: () => TechnicianShift[]): TechnicianShift[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.TECH_SHIFTS);
+      return data ? JSON.parse(data) : fallbackFactory();
+    } catch (e) {
+      return fallbackFactory();
+    }
+  },
+
+  // Save Scheduled Job Slots
+  saveScheduledSlots(slots: ScheduledJobSlot[]) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.SCHEDULED_SLOTS, JSON.stringify(slots));
+    } catch (e) {
+      console.error('Failed to persist scheduled job slots:', e);
+    }
+  },
+
+  // Load Scheduled Job Slots
+  loadScheduledSlots(fallbackFactory: () => ScheduledJobSlot[]): ScheduledJobSlot[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.SCHEDULED_SLOTS);
+      return data ? JSON.parse(data) : fallbackFactory();
+    } catch (e) {
+      return fallbackFactory();
     }
   },
 

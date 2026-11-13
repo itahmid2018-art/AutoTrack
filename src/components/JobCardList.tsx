@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { JobCard, JobStatus } from '../types';
-import { Search, Wrench, MessageSquare, ChevronRight, User, Plus, Printer, FileText, X, Filter, Sparkles } from 'lucide-react';
+import { adjudicateWarranty } from '../utils/warrantyAdjudicator';
+import { Search, Wrench, MessageSquare, ChevronRight, User, Plus, Printer, FileText, X, Filter, Sparkles, ShieldCheck, ShieldAlert } from 'lucide-react';
 
 interface JobCardListProps {
   jobCards: JobCard[];
@@ -37,7 +38,10 @@ export const JobCardList: React.FC<JobCardListProps> = ({
       job.tool.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.serviceReq.grievanceCategory.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = statusFilter === 'All' || job.status === statusFilter;
+    const matchesStatus =
+      statusFilter === 'All' ||
+      job.status === statusFilter ||
+      (statusFilter === 'In Service' && job.status === 'In Repair');
     const matchesBrand = brandFilter === 'All' || job.tool.brand === brandFilter;
 
     return matchesSearch && matchesStatus && matchesBrand;
@@ -51,6 +55,9 @@ export const JobCardList: React.FC<JobCardListProps> = ({
         return 'bg-zinc-800 text-white border-zinc-600 font-bold';
       case 'Awaiting Approval':
         return 'bg-zinc-800 text-zinc-200 border-zinc-600';
+      case 'Awaiting Parts':
+        return 'bg-amber-950/80 text-amber-300 border-amber-700/70 font-bold';
+      case 'In Repair':
       case 'In Service':
         return 'bg-zinc-100 text-zinc-950 border-white font-bold';
       case 'Ready for Pickup':
@@ -143,7 +150,8 @@ export const JobCardList: React.FC<JobCardListProps> = ({
             { id: 'All', label: 'All Cards', count: jobCards.length },
             { id: 'Intake', label: 'Intake', count: jobCards.filter(j => j.status === 'Intake').length },
             { id: 'Diagnosis', label: 'Diagnosis', count: jobCards.filter(j => j.status === 'Diagnosis').length },
-            { id: 'In Service', label: 'In Service', count: jobCards.filter(j => j.status === 'In Service').length },
+            { id: 'Awaiting Parts', label: 'Awaiting Parts', count: jobCards.filter(j => j.status === 'Awaiting Parts').length },
+            { id: 'In Service', label: 'In Repair / Service', count: jobCards.filter(j => j.status === 'In Service' || j.status === 'In Repair').length },
             { id: 'Ready for Pickup', label: 'Ready for Pickup', count: jobCards.filter(j => j.status === 'Ready for Pickup').length },
             { id: 'Completed', label: 'Completed', count: jobCards.filter(j => j.status === 'Completed').length },
           ].map((tab) => (
@@ -203,7 +211,31 @@ export const JobCardList: React.FC<JobCardListProps> = ({
                 </div>
 
                 {/* Tool Model & Brand */}
-                <div className="text-xs font-mono text-zinc-400 uppercase tracking-wider">{job.tool.brand}</div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider">{job.tool.brand}</span>
+                  {(() => {
+                    const warrantyFlag = job.tool.warrantyFlag || adjudicateWarranty(job.tool, {
+                      grievanceCategory: job.serviceReq.grievanceCategory,
+                      detailedComplaint: job.serviceReq.detailedComplaint,
+                    }).flag;
+                    return (
+                      <span
+                        className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border inline-flex items-center gap-1 ${
+                          warrantyFlag === 'In-Warranty'
+                            ? 'bg-emerald-950/70 text-emerald-300 border-emerald-700/70'
+                            : 'bg-zinc-950 text-zinc-400 border-zinc-800'
+                        }`}
+                      >
+                        {warrantyFlag === 'In-Warranty' ? (
+                          <ShieldCheck className="w-3 h-3" />
+                        ) : (
+                          <ShieldAlert className="w-3 h-3" />
+                        )}
+                        <span>{warrantyFlag}</span>
+                      </span>
+                    );
+                  })()}
+                </div>
                 <h3 className="text-base font-bold text-white group-hover:text-zinc-300 transition-colors line-clamp-1 mt-0.5">
                   {job.tool.modelNumber}
                 </h3>

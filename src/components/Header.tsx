@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { JobCard, InventoryItem } from '../types';
+import { InventoryNotification } from '../utils/inventoryNotifications';
 import { 
   Wrench, 
   PlusCircle, 
@@ -17,47 +18,79 @@ import {
   ChevronRight,
   User,
   Tag,
-  Timer
+  Timer,
+  Bell,
+  AlertTriangle,
+  ShoppingCart,
+  CheckCheck,
+  PackageX,
+  ExternalLink
 } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: 'intake' | 'jobs' | 'kanban' | 'maintenance' | 'inventory' | 'messaging' | 'analytics' | 'timetracking' | 'transition';
   setActiveTab: (tab: 'intake' | 'jobs' | 'kanban' | 'maintenance' | 'inventory' | 'messaging' | 'analytics' | 'timetracking' | 'transition') => void;
   onOpenNewJobModal: () => void;
+  onOpenCustomerView?: () => void;
   activeJobCount: number;
   lowStockCount: number;
   dueMaintenanceCount: number;
   jobCards: JobCard[];
   inventory: InventoryItem[];
   onSelectJob: (job: JobCard) => void;
+  inventoryNotifications?: InventoryNotification[];
+  unreadInventoryCount?: number;
+  onMarkNotificationRead?: (id: string) => void;
+  onMarkAllNotificationsRead?: () => void;
+  onQuickReorderItem?: (itemId: string, qty: number) => void;
+  onOpenInventoryAlerts?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
   onOpenNewJobModal,
+  onOpenCustomerView,
   activeJobCount,
   lowStockCount,
   dueMaintenanceCount,
   jobCards,
   inventory,
   onSelectJob,
+  inventoryNotifications = [],
+  unreadInventoryCount = 0,
+  onMarkNotificationRead,
+  onMarkAllNotificationsRead,
+  onQuickReorderItem,
+  onOpenInventoryAlerts,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'critical'>('all');
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const notifContainerRef = useRef<HTMLDivElement>(null);
 
-  // Close search dropdown on click outside
+  // Close search & notification dropdowns on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
         setIsSearchOpen(false);
       }
+      if (notifContainerRef.current && !notifContainerRef.current.contains(event.target as Node)) {
+        setIsNotifOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const filteredNotifs = inventoryNotifications.filter((n) => {
+    if (notifFilter === 'unread') return !n.read;
+    if (notifFilter === 'critical') return n.severity === 'OUT_OF_STOCK' || n.severity === 'CRITICAL';
+    return true;
+  });
 
   const handleNavClick = (tab: 'intake' | 'jobs' | 'kanban' | 'maintenance' | 'inventory' | 'messaging' | 'analytics' | 'timetracking' | 'transition') => {
     setActiveTab(tab);
@@ -105,6 +138,21 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-zinc-950/95 backdrop-blur border-b border-zinc-800">
+      {/* SECURITY STATUS & SETUP BANNER */}
+      <div className="bg-zinc-900 border-b border-zinc-800/80 py-1 px-4 text-[10px] font-mono text-zinc-300 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="font-bold text-white uppercase">Security Status:</span>
+          <span className="text-zinc-400">Default Admin Account Active (<code className="text-white font-bold">admin / 123456</code>). Please change admin password in Settings upon deployment.</span>
+        </div>
+
+        <div className="hidden md:flex items-center gap-3 text-[10px] text-zinc-400">
+          <span>PII Sanitization: <strong className="text-emerald-400 font-bold">Active</strong></span>
+          <span>API Rate Limit: <strong className="text-emerald-400 font-bold">Protected</strong></span>
+          <span>Audit Ledger: <strong className="text-white font-bold">Active</strong></span>
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-2 lg:gap-4">
           
@@ -305,7 +353,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <span>1,000 SKUs</span>
               {lowStockCount > 0 && (
-                <span className="px-1.5 py-0.2 text-[10px] font-mono rounded font-bold bg-zinc-800 text-zinc-300">
+                <span className="px-1.5 py-0.2 text-[10px] font-mono rounded font-extrabold bg-amber-500 text-zinc-950">
                   {lowStockCount}
                 </span>
               )}
@@ -347,8 +395,180 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </nav>
 
-          {/* Zone 4: Primary Action & Mobile Toggle */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Zone 4: Inventory Notification Center Bell, Primary Action & Mobile Toggle */}
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            {/* Inventory Notification Center Bell */}
+            <div className="relative" ref={notifContainerRef}>
+              <button
+                onClick={() => setIsNotifOpen((prev) => !prev)}
+                className={`relative p-2 rounded-lg border transition-colors ${
+                  unreadInventoryCount > 0 || lowStockCount > 0
+                    ? 'bg-zinc-900 border-amber-500/60 text-amber-300 hover:bg-zinc-800'
+                    : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800'
+                }`}
+                title="Inventory Low Stock Notification Center"
+                aria-label="Open Inventory Notification Center"
+              >
+                <Bell className="w-4 h-4" />
+                {(unreadInventoryCount > 0 || lowStockCount > 0) && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow">
+                    {unreadInventoryCount > 0 ? (unreadInventoryCount > 99 ? '99+' : unreadInventoryCount) : lowStockCount}
+                  </span>
+                )}
+              </button>
+
+              {isNotifOpen && (
+                <div className="absolute right-0 top-11 z-50 w-80 sm:w-96 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden font-mono text-xs">
+                  <div className="p-3.5 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between gap-2">
+                    <div>
+                      <div className="font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                        <Bell className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Inventory Notification Center</span>
+                      </div>
+                      <div className="text-[10px] text-zinc-400 mt-0.5">
+                        {inventoryNotifications.length} items below min threshold · {unreadInventoryCount} unread
+                      </div>
+                    </div>
+
+                    {onMarkAllNotificationsRead && unreadInventoryCount > 0 && (
+                      <button
+                        onClick={onMarkAllNotificationsRead}
+                        className="px-2 py-1 text-[10px] bg-zinc-950 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 rounded-lg flex items-center gap-1"
+                      >
+                        <CheckCheck className="w-3 h-3 text-emerald-400" />
+                        <span>Read all</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Filter Tabs */}
+                  <div className="p-2 bg-zinc-950 border-b border-zinc-900 flex items-center gap-1">
+                    {[
+                      { id: 'all', label: `All (${inventoryNotifications.length})` },
+                      { id: 'unread', label: `Unread (${unreadInventoryCount})` },
+                      {
+                        id: 'critical',
+                        label: `Critical (${
+                          inventoryNotifications.filter(
+                            (n) => n.severity === 'OUT_OF_STOCK' || n.severity === 'CRITICAL'
+                          ).length
+                        })`,
+                      },
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setNotifFilter(tab.id as 'all' | 'unread' | 'critical')}
+                        className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-bold transition-colors ${
+                          notifFilter === tab.id
+                            ? 'bg-white text-zinc-950'
+                            : 'text-zinc-400 hover:bg-zinc-900 hover:text-white'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="max-h-80 overflow-y-auto divide-y divide-zinc-900">
+                    {filteredNotifs.length === 0 ? (
+                      <div className="p-6 text-center text-zinc-500 text-xs font-sans">
+                        All spare part SKUs in this view are above minimum stock thresholds.
+                      </div>
+                    ) : (
+                      filteredNotifs.slice(0, 12).map((notif) => {
+                        const isOut = notif.severity === 'OUT_OF_STOCK';
+                        return (
+                          <div
+                            key={notif.id}
+                            onClick={() => onMarkNotificationRead && onMarkNotificationRead(notif.id)}
+                            className={`p-3 space-y-2 hover:bg-zinc-900/70 transition-colors cursor-pointer ${
+                              !notif.read ? 'bg-zinc-900/40' : ''
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  {!notif.read && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />}
+                                  <span className="font-bold text-white truncate">{notif.sku}</span>
+                                  <span
+                                    className={`text-[9px] px-1.5 py-0.5 rounded font-bold border ${
+                                      isOut
+                                        ? 'bg-rose-950 text-rose-300 border-rose-700'
+                                        : notif.severity === 'CRITICAL'
+                                        ? 'bg-amber-950 text-amber-300 border-amber-700'
+                                        : 'bg-zinc-900 text-zinc-300 border-zinc-700'
+                                    }`}
+                                  >
+                                    {notif.severity.replace(/_/g, ' ')}
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-zinc-300 font-sans truncate mt-0.5">
+                                  {notif.name}
+                                </div>
+                              </div>
+
+                              <div className="text-right shrink-0">
+                                <div className={`text-xs font-extrabold ${isOut ? 'text-rose-400' : 'text-amber-400'}`}>
+                                  {notif.stockQty} / Min {notif.minStockThreshold}
+                                </div>
+                                <div className="text-[9px] text-zinc-500">{notif.binLocation}</div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 pt-0.5">
+                              <span className="text-[10px] text-zinc-400">
+                                Suggest: <strong className="text-emerald-400">+{notif.suggestedReorderQty} {notif.unit}</strong> (${notif.estimatedReorderCost.toFixed(2)})
+                              </span>
+                              {onQuickReorderItem && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onQuickReorderItem(notif.itemId, notif.suggestedReorderQty);
+                                  }}
+                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[10px] flex items-center gap-1"
+                                >
+                                  <ShoppingCart className="w-3 h-3" />
+                                  <span>Reorder +{notif.suggestedReorderQty}</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className="p-2.5 bg-zinc-900 border-t border-zinc-800 flex items-center justify-between">
+                    <button
+                      onClick={() => {
+                        setIsNotifOpen(false);
+                        if (onOpenInventoryAlerts) {
+                          onOpenInventoryAlerts();
+                        } else {
+                          handleNavClick('inventory');
+                        }
+                      }}
+                      className="w-full py-1.5 px-3 bg-white hover:bg-zinc-200 text-zinc-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      {lowStockCount > 0 ? <AlertTriangle className="w-3.5 h-3.5" /> : <PackageX className="w-3.5 h-3.5" />}
+                      <span>Open Inventory Notification Center</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {onOpenCustomerView && (
+              <button
+                onClick={onOpenCustomerView}
+                title="Open isolated Customer Status Portal"
+                className="hidden sm:inline-flex px-2.5 py-2 text-xs font-bold text-zinc-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg transition-colors items-center gap-1.5 whitespace-nowrap shrink-0"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Customer View</span>
+              </button>
+            )}
+
             <button
               onClick={onOpenNewJobModal}
               className="px-3 sm:px-3.5 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-lg shadow transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 active:scale-95"
@@ -496,6 +716,21 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Business Setup Questions</span>
             </div>
           </button>
+
+          {onOpenCustomerView && (
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenCustomerView();
+              }}
+              className="w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between text-emerald-300 bg-emerald-950/30 border border-emerald-800/60 hover:bg-emerald-950/60"
+            >
+              <div className="flex items-center gap-2">
+                <ExternalLink className="w-4 h-4" />
+                <span>Customer Status Portal (Customer View)</span>
+              </div>
+            </button>
+          )}
         </div>
       )}
 

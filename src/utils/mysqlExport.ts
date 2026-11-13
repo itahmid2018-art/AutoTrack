@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS \`job_cards\` (
 
   \`intake_date\` VARCHAR(50) NOT NULL,
   \`promised_completion\` VARCHAR(50) NOT NULL,
-  \`status\` ENUM('Intake', 'Diagnosis', 'Awaiting Approval', 'In Service', 'Ready for Pickup', 'Completed', 'Cancelled') NOT NULL DEFAULT 'Intake',
+  \`status\` ENUM('Intake', 'Diagnosis', 'Awaiting Approval', 'Awaiting Parts', 'In Repair', 'In Service', 'Ready for Pickup', 'Completed', 'Cancelled') NOT NULL DEFAULT 'Intake',
   \`priority\` ENUM('Routine', 'Urgent', 'Emergency') NOT NULL DEFAULT 'Routine',
   \`technician\` VARCHAR(100) NOT NULL,
   \`diagnostic_notes\` TEXT NULL,
@@ -183,6 +183,19 @@ CREATE TABLE IF NOT EXISTS \`message_logs\` (
   FOREIGN KEY (\`job_card_id\`) REFERENCES \`job_cards\`(\`id\`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 10. AUDIT LOGS TABLE (Append-Only System Ledger)
+CREATE TABLE IF NOT EXISTS \`audit_logs\` (
+  \`id\` VARCHAR(64) PRIMARY KEY,
+  \`job_card_id\` VARCHAR(64) NULL,
+  \`user_name\` VARCHAR(100) NOT NULL,
+  \`user_role\` VARCHAR(50) NOT NULL,
+  \`action\` VARCHAR(100) NOT NULL,
+  \`previous_state\` TEXT NULL,
+  \`new_state\` TEXT NULL,
+  \`timestamp\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (\`job_card_id\`) REFERENCES \`job_cards\`(\`id\`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
 `;
 }
@@ -207,7 +220,7 @@ export function generateMySqlDump(
 
   // Insert Default Admin & Staff
   dump += `-- USERS SEED DATA (Default Admin password_hash for '123456')\n`;
-  dump += `INSERT INTO \`users\` (\`id\`, \`username\`, \`email\`, \`password_hash\`, \`full_name\`, \`phone\`, \`role_id\`, \`active_status\`) VALUES\n(1, 'admin', 'admin@autotrack.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW', 'Master Service Admin', '+1 (555) 019-2831', 1, 'Active'),\n(2, 'manager', 'manager@boschtools.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW', 'Robert Sterling', '+1 (555) 019-2832', 2, 'Active'),\n(3, 'david.miller', 'david.m@boschtools.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW', 'David Miller', '+1 (555) 901-2244', 3, 'Active'),\n(4, 'marcus.vance', 'marcus.v@boschtools.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW', 'Marcus Vance', '+1 (555) 901-3355', 4, 'Active')\nON DUPLICATE KEY UPDATE \`full_name\`=\`full_name\`;\n\n`;
+  dump += `INSERT INTO \`users\` (\`id\`, \`username\`, \`email\`, \`password_hash\`, \`full_name\`, \`phone\`, \`role_id\`, \`active_status\`) VALUES\n(1, 'admin', 'admin@autotrack.com', '$2b$10$32i.0QG3W55o8K6A4GgVMe/2vH98gO.X1Mv1qQe4u6aY0g7l.0q5i', 'Master Service Admin', '+1 (555) 019-2831', 1, 'Active'),\n(2, 'manager', 'manager@boschtools.com', '$2b$10$32i.0QG3W55o8K6A4GgVMe/2vH98gO.X1Mv1qQe4u6aY0g7l.0q5i', 'Robert Sterling', '+1 (555) 019-2832', 2, 'Active'),\n(3, 'david.miller', 'david.m@boschtools.com', '$2b$10$32i.0QG3W55o8K6A4GgVMe/2vH98gO.X1Mv1qQe4u6aY0g7l.0q5i', 'David Miller', '+1 (555) 901-2244', 3, 'Active'),\n(4, 'marcus.vance', 'marcus.v@boschtools.com', '$2b$10$32i.0QG3W55o8K6A4GgVMe/2vH98gO.X1Mv1qQe4u6aY0g7l.0q5i', 'Marcus Vance', '+1 (555) 901-3355', 4, 'Active')\nON DUPLICATE KEY UPDATE \`full_name\`=\`full_name\`;\n\n`;
 
   // Insert Business Settings
   dump += `-- BUSINESS SETTINGS SEED DATA\n`;

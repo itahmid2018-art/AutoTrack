@@ -1,6 +1,6 @@
 {
   "name": "AutoTrack Service & Inventory - Digital Job Cards",
   "description": "Single-page Job Card tracking and ~1000 product inventory management system with automated SMS & WhatsApp customer updates, AI repair diagnosis, and paper-to-digital transition tools for local service centers.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["camera", "microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
