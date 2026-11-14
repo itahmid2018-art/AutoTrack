@@ -1,6 +1,6 @@
 # AutoTrack Pro - BOSCH & Vendor Power Tools Service Hub
 
-A single-page, high-efficiency **Job Card tracking, ~1,000-item spare parts inventory management, and automated customer dispatch system** specifically designed for **Bosch Power Tools** and vendor tool service centers (*Makita, DeWalt, Milwaukee, Hilti, Metabo, Festool*).
+A One-page, high-efficiency **Job Card tracking, ~1,000-item spare parts inventory management, and automated customer dispatch system** specifically designed for **Bosch Power Tools** and vendor tool service centers (*Makita, DeWalt, Milwaukee, Hilti, Metabo, Festool*).
 
 ---
 
