@@ -5,12 +5,18 @@ import { adjudicateWarranty, autoAdjudicateJobCard } from '../utils/warrantyAdju
 import { calculateJobBilling } from '../utils/billing';
 import { generateJobCardPdf } from '../utils/generatePdf';
 import { buildCustomerPortalUrl } from '../utils/customerPortalUrl';
+import { SerialBarcodeScannerModal } from './SerialBarcodeScannerModal';
+import {
+  BarcodeScanResult,
+  findMatchingInventoryItem,
+  parseProductQrPayload,
+} from '../utils/barcodeSerialParser';
 import { 
   ArrowLeft, Sparkles, Printer, MessageSquare, Plus, Trash2, 
   CheckCircle2, FileText, User, Phone, Wrench, Search, AlertCircle, PenTool, Check, UserCheck,
   Bot, Send, Copy, RotateCcw, Zap, Timer, Play, Square, Clock, ShieldCheck, ShieldAlert, RefreshCw,
   Camera, Video, VideoOff, Upload, Maximize2, X, Download, Image as ImageIcon, Receipt,
-  Mic, MicOff, Loader2, Package
+  Mic, MicOff, Loader2, Package, QrCode, ScanBarcode
 } from 'lucide-react';
 
 interface SpeechRecognitionAlternativeLike {
@@ -123,6 +129,7 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
   // Time Clock State inside JobCardDetail
   const [clockInTechId, setClockInTechId] = useState<string>(SHOP_TECHNICIANS[0].id);
   const [serialDraft, setSerialDraft] = useState<string>(job.tool.serialNumber || '');
+  const [scannerTarget, setScannerTarget] = useState<'serial' | 'part' | null>(null);
   const [, setTick] = useState(0);
 
   // Camera & Dispute Resolution Photo Gallery State
@@ -575,6 +582,7 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
   const searchedInventory = inventory.filter((item) =>
     item.name.toLowerCase().includes(partSearch.toLowerCase()) ||
     item.sku.toLowerCase().includes(partSearch.toLowerCase()) ||
+    item.barcode.toLowerCase().includes(partSearch.toLowerCase()) ||
     item.category.toLowerCase().includes(partSearch.toLowerCase())
   ).slice(0, 10);
 
@@ -671,6 +679,55 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
     });
     setCurrentJob(adjudicatedJob);
     onUpdateJob(adjudicatedJob);
+  };
+
+  const handleDetailScannerDetected = (result: BarcodeScanResult) => {
+    if (scannerTarget === 'part') {
+      const matched = findMatchingInventoryItem(result.rawValue, inventory);
+      const parsed = parseProductQrPayload(result.rawValue);
+      if (matched) {
+        setSelectedInventoryItem(matched);
+        setPartSearch(matched.name);
+        setShowPartDropdown(false);
+      } else {
+        const lookup = parsed.sku || parsed.barcode || result.serialNumber || result.rawValue;
+        setSelectedInventoryItem(null);
+        setPartSearch(lookup);
+        setShowPartDropdown(true);
+      }
+      setScannerTarget(null);
+      return;
+    }
+
+    const parsed = parseProductQrPayload(result.rawValue);
+    const nextSerial = result.serialNumber || parsed.serialNumber || '';
+    if (nextSerial) {
+      setSerialDraft(nextSerial);
+      const nowIso = new Date().toISOString();
+      const candidate: JobCard = {
+        ...currentJob,
+        tool: {
+          ...currentJob.tool,
+          serialNumber: nextSerial,
+          modelNumber: result.detectedModelNumber || currentJob.tool.modelNumber,
+        },
+      };
+      const evaluated = adjudicateWarranty(candidate.tool, {
+        grievanceCategory: candidate.serviceReq.grievanceCategory,
+        detailedComplaint: candidate.serviceReq.detailedComplaint,
+      });
+      const adjudicatedJob = autoAdjudicateJobCard({
+        ...candidate,
+        tool: {
+          ...candidate.tool,
+          warrantyStatus: evaluated.recommendedWarrantyStatus,
+        },
+        updatedAt: nowIso,
+      });
+      setCurrentJob(adjudicatedJob);
+      onUpdateJob(adjudicatedJob);
+    }
+    setScannerTarget(null);
   };
 
   // Append captured/uploaded image data URL to JobCard.attachments + PhotoEvidence metadata
@@ -2113,7 +2170,7 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <input
                     type="text"
                     value={serialDraft}
@@ -2121,6 +2178,15 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
                     placeholder="Serial Number"
                     className="bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1 text-[11px] text-white font-mono w-36 focus:outline-none focus:border-white"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setScannerTarget('serial')}
+                    title="Scan tool serial barcode or QR code"
+                    className="px-2.5 py-1 bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-bold rounded-lg text-[10px] flex items-center gap-1 shrink-0"
+                  >
+                    <ScanBarcode className="w-3 h-3" />
+                    <span>Scan</span>
+                  </button>
                   <button
                     type="button"
                     onClick={handleReAdjudicateWarranty}
@@ -2880,8 +2946,8 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
 
               <span className="block text-xs font-semibold text-zinc-400 font-mono">Link Genuine Spare Parts (~1,000 Catalog):</span>
               
-              <div className="relative flex items-center gap-2 font-mono">
-                <div className="relative flex-1">
+              <div className="relative flex flex-wrap sm:flex-nowrap items-center gap-2 font-mono">
+                <div className="relative flex-1 min-w-[200px]">
                   <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5" />
                   <input
                     type="text"
@@ -2891,10 +2957,20 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
                       setShowPartDropdown(true);
                     }}
                     onFocus={() => setShowPartDropdown(true)}
-                    placeholder="Search 1,000 parts by SKU (e.g. BRSH-1002, ARM-1009)..."
+                    placeholder="Search 1,000 parts by SKU, Barcode (e.g. BRSH-1002)..."
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white focus:outline-none"
                   />
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setScannerTarget('part')}
+                  title="Scan spare part QR code or EAN barcode"
+                  className="px-3 py-2 text-xs font-bold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl flex items-center gap-1.5 shrink-0 transition-colors"
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>Scan Part</span>
+                </button>
 
                 <input
                   type="number"
@@ -3617,6 +3693,24 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {scannerTarget && (
+        <SerialBarcodeScannerModal
+          title={
+            scannerTarget === 'part'
+              ? 'Scan Spare Part QR Code or Barcode'
+              : 'Scan Tool Serial Barcode or QR Code'
+          }
+          subtitle={
+            scannerTarget === 'part'
+              ? 'Matches SKU or EAN barcode directly into the job card part selector'
+              : 'Captures tool serial number and runs warranty adjudication'
+          }
+          prioritizeQr={scannerTarget === 'part'}
+          onDetected={handleDetailScannerDetected}
+          onClose={() => setScannerTarget(null)}
+        />
       )}
 
     </div>

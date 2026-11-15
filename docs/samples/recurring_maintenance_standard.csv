@@ -1,0 +1,11 @@
+customerName,toolBrand,toolCategory,modelNumber,serialNumber,intervalMonths,recommendedServiceScope
+"Apex Industrial Construction","Bosch Professional","Demolition Breaker","GSH 11 E Professional","SN-3611C36000",6,"SDS-Max Striker O-Ring overhaul & FT 1 V 4 Lithium Gearbox Lubrication"
+"Metro Electrical Contractors","Bosch Professional","Rotary Hammer / SDS","GBH 2-28 F Professional","SN-3611B67000",3,"Auto-Stop Carbon Brushes check & High Voltage Cable inspection"
+"Marcus Vance Mechanics","Bosch Professional","Angle Grinder","GWS 24-230 LVI Professional","SN-3601H93000",6,"Vibration Control Side Handle & Grinding Flange bearing replacement"
+"Hilti Fleet Partner Services","Hilti","Demolition Breaker","TE 70-ATC/AVR","SN-HLT902148",12,"Annual AVR Anti-Vibration dampener & Brushless Controller calibration"
+"Precision Formwork & Joinery","Makita","Circular / Miter Saw","LS1019L Sliding Compound Saw","SN-MK-550912",6,"Linear ball bearing rail alignment & electronic brake test"
+"Tri-County Masonry & Concrete","DeWalt","Demolition Breaker","D25901K SDS-Max","SN-DW-889102",6,"Piston ring seal inspection and synthetic grease repack"
+"Titan Steel Fabricators","Bosch Professional","Angle Grinder","GWS 900-100 S","SN-3601C96000",3,"Armature commutator check and switch carbon dust blow-out"
+"Pacific Northwest Demolition","Milwaukee","Rotary Hammer / SDS","M18 FUEL 1-9/16 SDS Max","SN-MW-701923",6,"REDLINK PLUS electronics diagnosis and clutch torque verification"
+"Sierra Infrastructure Group","Bosch Professional","Rotary Hammer / SDS","GBH 12-52 DV Professional","SN-3611B66000",6,"SDS-Max drive sleeve replacement and armature balance test"
+"Elevated Commercial Roofing","Makita","Cordless Drill / Driver","DHP481Z 18V Brushless","SN-MK-332190",12,"Brushless rotor bearing check and keyless chuck runout test"

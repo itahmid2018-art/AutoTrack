@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { InventoryItem } from '../types';
-import { X, Plus, Package } from 'lucide-react';
+import { SerialBarcodeScannerModal } from './SerialBarcodeScannerModal';
+import { BarcodeScanResult, parseProductQrPayload } from '../utils/barcodeSerialParser';
+import { X, Package, ScanBarcode, QrCode } from 'lucide-react';
 
 interface AddInventoryModalProps {
   onClose: () => void;
@@ -16,6 +18,8 @@ export const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
   const autoSku = `SKU-${1000 + existingCount + 1}`;
   const autoBarcode = `316514${Math.floor(100000000 + Math.random() * 900000000)}`;
 
+  const [sku, setSku] = useState(autoSku);
+  const [barcode, setBarcode] = useState(autoBarcode);
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Carbon Brushes & Caps');
   const [brand, setBrand] = useState('Bosch Genuine Spare Parts');
@@ -26,6 +30,35 @@ export const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
   const [minStockThreshold, setMinStockThreshold] = useState(5);
   const [unit, setUnit] = useState<'pcs' | 'sets' | 'bottles' | 'boxes' | 'pairs' | 'meters'>('sets');
   const [binLocation, setBinLocation] = useState('Bin A-01');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
+
+  const handleScanDetected = (result: BarcodeScanResult) => {
+    const parsed = parseProductQrPayload(result.rawValue);
+    const scannedBarcode = parsed.barcode || (/^\d{8,14}$/.test(result.serialNumber) ? result.serialNumber : '');
+    const scannedSku = result.detectedSku || parsed.sku || (!scannedBarcode ? result.serialNumber : '');
+
+    if (scannedBarcode) {
+      setBarcode(scannedBarcode);
+    } else if (result.rawValue && !parsed.sku) {
+      setBarcode(result.serialNumber || result.rawValue);
+    }
+    if (scannedSku) {
+      setSku(scannedSku);
+    }
+    if (result.detectedBrand || parsed.brand) {
+      setBrand(result.detectedBrand || parsed.brand || brand);
+    }
+    if (result.detectedModelNumber || parsed.modelNumber) {
+      const detectedModel = result.detectedModelNumber || parsed.modelNumber || '';
+      setCompatibleModels(detectedModel);
+      if (!name) {
+        setName(`${result.detectedBrand || 'Bosch'} ${detectedModel} Spare Part`);
+      }
+    }
+    setScanMessage(`Scanned (${result.format}): ${scannedSku || scannedBarcode || result.rawValue}`);
+    setIsScannerOpen(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,8 +66,8 @@ export const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
 
     const newItem: InventoryItem = {
       id: `item-${Date.now()}`,
-      sku: autoSku,
-      barcode: autoBarcode,
+      sku: sku.trim() || autoSku,
+      barcode: barcode.trim() || autoBarcode,
       name,
       category,
       brand,
@@ -56,35 +89,63 @@ export const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
     <div className="fixed inset-0 z-50 bg-zinc-950/80 backdrop-blur flex items-center justify-center p-4">
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
         
-        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+        <div className="flex items-center justify-between gap-2 border-b border-zinc-800 pb-3">
           <div className="flex items-center gap-2">
             <Package className="w-5 h-5 text-white" />
             <h2 className="text-base font-bold text-white font-mono">Add New Tool Spare Part SKU</h2>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsScannerOpen(true)}
+              className="px-2.5 py-1.5 text-[11px] font-mono font-bold bg-emerald-400 hover:bg-emerald-300 text-zinc-950 rounded-lg flex items-center gap-1 transition-colors"
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span>Scan Barcode / QR</span>
+            </button>
+            <button onClick={onClose} className="text-zinc-500 hover:text-white">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
+
+        {scanMessage && (
+          <div className="px-3 py-2 rounded-lg bg-emerald-950/40 border border-emerald-800/60 text-[11px] font-mono text-emerald-300">
+            {scanMessage}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-zinc-400 mb-1 font-mono">Generated SKU</label>
+              <label className="block text-zinc-400 mb-1 font-mono">Part SKU</label>
               <input
                 type="text"
-                disabled
-                value={autoSku}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white font-mono font-bold"
+                value={sku}
+                onChange={(e) => setSku(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white font-mono font-bold focus:outline-none focus:border-zinc-500"
               />
             </div>
             <div>
-              <label className="block text-zinc-400 mb-1 font-mono">Barcode EAN</label>
-              <input
-                type="text"
-                disabled
-                value={autoBarcode}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 font-mono"
-              />
+              <label className="block text-zinc-400 mb-1 font-mono">Barcode EAN / QR</label>
+              <div className="flex items-stretch gap-1">
+                <input
+                  type="text"
+                  value={barcode}
+                  onChange={(e) => setBarcode(e.target.value)}
+                  className="w-full min-w-0 bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-2 text-zinc-200 font-mono focus:outline-none focus:border-zinc-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsScannerOpen(true)}
+                  title="Scan part barcode or QR code"
+                  aria-label="Scan part barcode or QR code"
+                  className="px-2.5 py-2 bg-zinc-950 hover:bg-zinc-800 text-emerald-400 border border-emerald-700/60 rounded-lg font-mono text-[10px] font-bold flex items-center gap-1 shrink-0"
+                >
+                  <ScanBarcode className="w-3.5 h-3.5" />
+                  <span>Scan</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -204,6 +265,16 @@ export const AddInventoryModal: React.FC<AddInventoryModalProps> = ({
         </form>
 
       </div>
+
+      {isScannerOpen && (
+        <SerialBarcodeScannerModal
+          title="Scan Spare Part Barcode or QR Code"
+          subtitle="Reads EAN-13, UPC, Code 128, and product QR labels into SKU & Barcode fields"
+          prioritizeQr={false}
+          onDetected={handleScanDetected}
+          onClose={() => setIsScannerOpen(false)}
+        />
+      )}
     </div>
   );
 };

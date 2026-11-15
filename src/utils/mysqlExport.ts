@@ -1,4 +1,4 @@
-import { JobCard, InventoryItem, BusinessSettings } from '../types';
+import { JobCard, InventoryItem, BusinessSettings, RecurringMaintenance } from '../types';
 
 export function generateMySqlSchema(): string {
   return `-- ============================================================
@@ -203,7 +203,8 @@ SET FOREIGN_KEY_CHECKS = 1;
 export function generateMySqlDump(
   jobCards: JobCard[],
   inventory: InventoryItem[],
-  settings: BusinessSettings
+  settings: BusinessSettings,
+  schedules: RecurringMaintenance[] = []
 ): string {
   const schema = generateMySqlSchema();
 
@@ -250,6 +251,14 @@ export function generateMySqlDump(
       });
     }
   });
+
+  // Insert Recurring Maintenance Schedules
+  if (schedules.length > 0) {
+    dump += `\n-- RECURRING MAINTENANCE SCHEDULES (${schedules.length} Records)\n`;
+    schedules.forEach((s) => {
+      dump += `INSERT INTO \`recurring_maintenance\` (\`id\`, \`customer_name\`, \`customer_company\`, \`customer_phone\`, \`customer_email\`, \`tool_brand\`, \`tool_category\`, \`model_number\`, \`serial_number\`, \`interval_months\`, \`last_service_date\`, \`next_due_date\`, \`status\`, \`recommended_service_scope\`, \`notes\`) VALUES (${escapeSql(s.id)}, ${escapeSql(s.customerName)}, ${escapeSql(s.customerCompany)}, ${escapeSql(s.customerPhone || 'N/A')}, ${escapeSql(s.customerEmail)}, ${escapeSql(s.toolBrand)}, ${escapeSql(s.toolCategory)}, ${escapeSql(s.modelNumber)}, ${escapeSql(s.serialNumber || 'SN-UNASSIGNED')}, ${s.intervalMonths || 6}, ${escapeSql(s.lastServiceDate)}, ${escapeSql(s.nextDueDate)}, ${escapeSql(s.status)}, ${escapeSql(s.recommendedServiceScope)}, ${escapeSql(s.notes)}) ON DUPLICATE KEY UPDATE \`status\`=${escapeSql(s.status)}, \`next_due_date\`=${escapeSql(s.nextDueDate)}, \`recommended_service_scope\`=${escapeSql(s.recommendedServiceScope)};\n`;
+    });
+  }
 
   return dump;
 }

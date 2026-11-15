@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { JobCard, JobStatus } from '../types';
 import { adjudicateWarranty } from '../utils/warrantyAdjudicator';
-import { Search, Wrench, MessageSquare, ChevronRight, User, Plus, Printer, FileText, X, Filter, Sparkles, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { SerialBarcodeScannerModal } from './SerialBarcodeScannerModal';
+import { BarcodeScanResult, findMatchingToolHistory, parseProductQrPayload } from '../utils/barcodeSerialParser';
+import { Search, Wrench, MessageSquare, ChevronRight, User, Plus, Printer, FileText, X, Filter, Sparkles, ShieldCheck, ShieldAlert, QrCode } from 'lucide-react';
 
 interface JobCardListProps {
   jobCards: JobCard[];
@@ -27,6 +29,31 @@ export const JobCardList: React.FC<JobCardListProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [brandFilter, setBrandFilter] = useState<string>('All');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  const handleScanJobFilter = (result: BarcodeScanResult) => {
+    const parsed = parseProductQrPayload(result.rawValue);
+    const history = findMatchingToolHistory(result.rawValue, jobCards);
+
+    if (
+      (parsed.jobId || parsed.token) &&
+      history.matchingJobs.length === 1
+    ) {
+      setIsScannerOpen(false);
+      onSelectJob(history.matchingJobs[0]);
+      return;
+    }
+
+    const queryValue =
+      parsed.jobId ||
+      result.serialNumber ||
+      parsed.serialNumber ||
+      parsed.sku ||
+      result.rawValue;
+    setSearchTerm(queryValue);
+    setStatusFilter('All');
+    setIsScannerOpen(false);
+  };
 
   const filteredJobs = jobCards.filter((job) => {
     const matchesSearch =
@@ -105,6 +132,16 @@ export const JobCardList: React.FC<JobCardListProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsScannerOpen(true)}
+              className="px-3 py-2.5 text-xs font-bold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl shadow flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 active:scale-95"
+              title="Scan Job Card QR or Tool Serial Barcode"
+            >
+              <QrCode className="w-4 h-4" />
+              <span>Scan QR / Barcode</span>
+            </button>
+
             <select
               value={brandFilter}
               onChange={(e) => setBrandFilter(e.target.value)}
@@ -309,6 +346,16 @@ export const JobCardList: React.FC<JobCardListProps> = ({
             </div>
           ))}
         </div>
+      )}
+
+      {isScannerOpen && (
+        <SerialBarcodeScannerModal
+          title="Scan Job Card QR or Tool Serial Barcode"
+          subtitle="Opens matching Job Cards or filters the list by scanned serial number"
+          prioritizeQr
+          onDetected={handleScanJobFilter}
+          onClose={() => setIsScannerOpen(false)}
+        />
       )}
 
     </div>

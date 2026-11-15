@@ -1,13 +1,27 @@
-import React, { useState } from 'react';
-import { RecurringMaintenance, ToolBrand, ToolCategory, MessageLog, JobCard } from '../types';
+import React, { useState, useRef } from 'react';
+import { RecurringMaintenance, ToolBrand, ToolCategory, MessageLog } from '../types';
 import { 
   Clock, Calendar, AlertCircle, CheckCircle2, MessageSquare, Plus, Search, 
-  Wrench, User, Phone, ArrowUpRight, ShieldAlert, Sparkles, X, RefreshCw 
+  Wrench, User, Phone, ArrowUpRight, ShieldAlert, Sparkles, X, RefreshCw,
+  Upload, Download, FileSpreadsheet, FileText, Check, AlertTriangle, HelpCircle
 } from 'lucide-react';
+import {
+  parseCsvRows,
+  normalizeHeaderKey,
+  parseMaintenanceCsv,
+  exportMaintenanceCsv,
+  downloadMaintenanceCsvTemplate,
+} from '../utils/maintenanceCsv';
+import { BulkMaintenanceImportModal } from './BulkMaintenanceImportModal';
+import { MaintenanceCsvInstructionModal } from './MaintenanceCsvInstructionModal';
+import { SerialBarcodeScannerModal } from './SerialBarcodeScannerModal';
+import { BarcodeScanResult, parseProductQrPayload } from '../utils/barcodeSerialParser';
+import { QrCode, ScanBarcode } from 'lucide-react';
 
 interface RecurringMaintenanceViewProps {
   schedules: RecurringMaintenance[];
   onAddSchedule: (schedule: RecurringMaintenance) => void;
+  onAddSchedules?: (schedules: RecurringMaintenance[]) => void;
   onUpdateSchedule: (schedule: RecurringMaintenance) => void;
   onLogMessageSent: (scheduleId: string, log: MessageLog) => void;
   onCreateJobCardFromSchedule: (schedule: RecurringMaintenance) => void;
@@ -16,6 +30,7 @@ interface RecurringMaintenanceViewProps {
 export const RecurringMaintenanceView: React.FC<RecurringMaintenanceViewProps> = ({
   schedules,
   onAddSchedule,
+  onAddSchedules,
   onUpdateSchedule,
   onLogMessageSent,
   onCreateJobCardFromSchedule,
@@ -23,6 +38,107 @@ export const RecurringMaintenanceView: React.FC<RecurringMaintenanceViewProps> =
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Due Soon' | 'Overdue' | 'Upcoming'>('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isInstructionModalOpen, setIsInstructionModalOpen] = useState(false);
+  const [notification, setNotification] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const showNotification = (msg: string) => {
+    setNotification(msg);
+    window.setTimeout(() => setNotification(null), 4000);
+  };
+
+  const handleBatchImport = (newSchedules: RecurringMaintenance[]) => {
+    if (newSchedules.length === 0) return;
+    if (onAddSchedules) {
+      onAddSchedules(newSchedules);
+    } else {
+      newSchedules.forEach((s) => onAddSchedule(s));
+    }
+    showNotification(`Imported ${newSchedules.length} client maintenance schedules.`);
+    setIsImportModalOpen(false);
+  };
+
+  const parseAndInjectCsv = (csvText: string) => {
+    if (!csvText.trim()) return;
+
+    try {
+      const rows = parseCsvRows(csvText);
+      if (rows.length < 2) {
+        showNotification('CSV file contains no data rows.');
+        return;
+      }
+
+      const headers = rows[0].map(normalizeHeaderKey);
+      const hasCustomerName = headers.includes('customerName');
+      const hasModelNumber = headers.includes('modelNumber');
+
+      if (!hasCustomerName || !hasModelNumber) {
+        showNotification('Invalid CSV: Missing required customerName or modelNumber header.');
+        return;
+      }
+
+      const result = parseMaintenanceCsv(
+        csvText,
+        schedules.length,
+        new Set(schedules.map((s) => s.id))
+      );
+
+      const validRecords = result.validRows.map((r) => r.data);
+      const skippedCount = result.invalidRows.length;
+
+      if (validRecords.length > 0) {
+        if (onAddSchedules) {
+          onAddSchedules(validRecords);
+        } else {
+          validRecords.forEach((s) => onAddSchedule(s));
+        }
+        const skippedMsg = skippedCount > 0 ? ` (${skippedCount} invalid rows skipped.)` : '';
+        showNotification(`Imported ${validRecords.length} client maintenance schedules.${skippedMsg}`);
+      } else {
+        showNotification('No valid maintenance records found in CSV.');
+      }
+    } catch (err) {
+      console.error('Error importing CSV:', err);
+      showNotification('Failed to import CSV file.');
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (typeof (file as any).text === 'function') {
+      try {
+        const textPromise = (file as any).text();
+        if (textPromise && typeof textPromise.then === 'function') {
+          textPromise
+            .then((text: string) => {
+              parseAndInjectCsv(text);
+              if (fileInputRef.current) fileInputRef.current.value = '';
+            })
+            .catch(() => {
+              readWithFileReader(file);
+            });
+          return;
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    readWithFileReader(file);
+  };
+
+  const readWithFileReader = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = typeof event.target?.result === 'string' ? event.target.result : '';
+      parseAndInjectCsv(content);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsText(file);
+  };
 
   // Filtered schedules
   const filteredSchedules = schedules.filter((s) => {
@@ -88,8 +204,61 @@ export const RecurringMaintenanceView: React.FC<RecurringMaintenanceViewProps> =
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Hidden CSV File Input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".csv,text/csv"
+              style={{ display: 'none' }}
+              className="hidden"
+              data-testid="bulk-import-csv-input"
+              aria-label="Bulk CSV File Input"
+              onChange={handleFileInputChange}
+            />
+
             <button
+              type="button"
+              onClick={() => exportMaintenanceCsv(schedules)}
+              className="px-3 py-2 text-xs font-semibold text-zinc-300 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
+              title="Export all client schedules to CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-zinc-400" />
+              <span>Export CSV</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => downloadMaintenanceCsvTemplate()}
+              className="px-3 py-2 text-xs font-semibold text-zinc-300 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
+              title="Download standard CSV template for client maintenance schedules"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-zinc-400" />
+              <span>Download Template</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="px-3.5 py-2 text-xs font-semibold text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
+              title="Bulk import client maintenance schedules from CSV"
+            >
+              <Upload className="w-3.5 h-3.5 text-white" />
+              <span>Bulk Import CSV</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsInstructionModalOpen(true)}
+              className="px-2.5 py-2 text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
+              title="View CSV formatting guide and specifications"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-zinc-400" />
+              <span>CSV Format Guide</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setIsAddModalOpen(true)}
               className="px-4 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow transition-all flex items-center gap-1.5 active:scale-95"
             >
@@ -123,6 +292,22 @@ export const RecurringMaintenanceView: React.FC<RecurringMaintenanceViewProps> =
         </div>
       </div>
 
+      {/* Toast Notification */}
+      {notification && (
+        <div className="bg-zinc-900 border border-emerald-500/50 p-3 rounded-xl text-xs font-mono text-emerald-300 flex items-center justify-between shadow-lg">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{notification}</span>
+          </div>
+          <button
+            onClick={() => setNotification(null)}
+            className="text-zinc-500 hover:text-zinc-300"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Filter & Search Toolbar */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl space-y-3">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -133,7 +318,7 @@ export const RecurringMaintenanceView: React.FC<RecurringMaintenanceViewProps> =
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by Model (GBH 11 DE), Serial SN, Customer Name, Phone..."
+              placeholder="Search by Model (GBH 11 DE), Serial SN, Client Name, Phone..."
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500 font-mono"
             />
           </div>
@@ -161,7 +346,7 @@ export const RecurringMaintenanceView: React.FC<RecurringMaintenanceViewProps> =
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredSchedules.length === 0 ? (
           <div className="col-span-full bg-zinc-900 border border-zinc-800 rounded-2xl p-12 text-center text-zinc-500">
-            No recurring maintenance schedules found. Click "+ Register Tool Schedule" above.
+            No recurring maintenance schedules found. Click "+ Register Tool Schedule" or "Bulk Import CSV" above.
           </div>
         ) : (
           filteredSchedules.map((item) => (
@@ -266,6 +451,24 @@ export const RecurringMaintenanceView: React.FC<RecurringMaintenanceViewProps> =
         />
       )}
 
+      {/* Modal: Bulk Import Maintenance CSV */}
+      {isImportModalOpen && (
+        <BulkMaintenanceImportModal
+          onClose={() => setIsImportModalOpen(false)}
+          onImport={handleBatchImport}
+          existingCount={schedules.length}
+          existingIds={new Set(schedules.map((s) => s.id))}
+        />
+      )}
+
+      {/* Modal: CSV Format Instructions & Template Download */}
+      {isInstructionModalOpen && (
+        <MaintenanceCsvInstructionModal
+          onClose={() => setIsInstructionModalOpen(false)}
+          onTriggerUpload={() => fileInputRef.current?.click()}
+        />
+      )}
+
     </div>
   );
 };
@@ -292,6 +495,24 @@ const RegisterScheduleModal: React.FC<RegisterScheduleModalProps> = ({ onClose, 
   const [intervalMonths, setIntervalMonths] = useState(6);
   const [lastServiceDate, setLastServiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [recommendedServiceScope, setRecommendedServiceScope] = useState('Carbon Brush & SDS Gearbox Lubrication');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scanNotice, setScanNotice] = useState<string | null>(null);
+
+  const handleScanDetected = (result: BarcodeScanResult) => {
+    const parsed = parseProductQrPayload(result.rawValue);
+    const nextSerial = result.serialNumber || parsed.serialNumber || parsed.sku || '';
+    if (nextSerial) setSerialNumber(nextSerial);
+    if (result.detectedModelNumber || parsed.modelNumber) {
+      setModelNumber(result.detectedModelNumber || parsed.modelNumber || modelNumber);
+    }
+    if (parsed.brand) {
+      setToolBrand(parsed.brand as ToolBrand);
+    } else if (result.detectedBrand && result.detectedBrand.toLowerCase().includes('bosch')) {
+      setToolBrand(result.detectedBrand.toLowerCase().includes('green') ? 'Bosch DIY (Green)' : 'Bosch Professional');
+    }
+    setScanNotice(`Scanned (${result.format}): ${nextSerial || result.rawValue}`);
+    setIsScannerOpen(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -336,20 +557,36 @@ const RegisterScheduleModal: React.FC<RegisterScheduleModalProps> = ({ onClose, 
   return (
     <div className="fixed inset-0 z-50 bg-zinc-950/80 backdrop-blur flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 font-mono">
-        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+        <div className="flex items-center justify-between gap-2 border-b border-zinc-800 pb-3">
           <div className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-white" />
             <h2 className="text-base font-bold text-white uppercase">Register Scheduled Tool Servicing</h2>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsScannerOpen(true)}
+              className="px-2.5 py-1.5 text-[11px] font-bold bg-emerald-400 hover:bg-emerald-300 text-zinc-950 rounded-lg flex items-center gap-1 transition-colors"
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span>Scan QR / Barcode</span>
+            </button>
+            <button onClick={onClose} className="text-zinc-500 hover:text-white">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
+
+        {scanNotice && (
+          <div className="px-3 py-2 rounded-lg bg-emerald-950/40 border border-emerald-800/60 text-[11px] font-mono text-emerald-300">
+            {scanNotice}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs font-sans">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-zinc-400 mb-1 font-mono">Customer Name *</label>
+              <label className="block text-zinc-400 mb-1 font-mono">Client Name *</label>
               <input
                 type="text"
                 required
@@ -404,13 +641,25 @@ const RegisterScheduleModal: React.FC<RegisterScheduleModalProps> = ({ onClose, 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-zinc-400 mb-1 font-mono">Serial Number SN</label>
-              <input
-                type="text"
-                value={serialNumber}
-                onChange={(e) => setSerialNumber(e.target.value)}
-                placeholder="SN-3611C36000"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white font-mono focus:outline-none"
-              />
+              <div className="flex items-stretch gap-1">
+                <input
+                  type="text"
+                  value={serialNumber}
+                  onChange={(e) => setSerialNumber(e.target.value)}
+                  placeholder="SN-3611C36000"
+                  className="w-full min-w-0 bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-2 text-white font-mono focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsScannerOpen(true)}
+                  title="Scan tool serial barcode or QR code"
+                  aria-label="Scan tool serial barcode or QR code"
+                  className="px-2.5 py-2 bg-zinc-950 hover:bg-zinc-800 text-emerald-400 border border-emerald-700/60 rounded-lg text-[10px] font-bold flex items-center gap-1 shrink-0"
+                >
+                  <ScanBarcode className="w-3.5 h-3.5" />
+                  <span>Scan</span>
+                </button>
+              </div>
             </div>
 
             <div>
@@ -453,6 +702,16 @@ const RegisterScheduleModal: React.FC<RegisterScheduleModalProps> = ({ onClose, 
         </form>
 
       </div>
+
+      {isScannerOpen && (
+        <SerialBarcodeScannerModal
+          title="Scan Tool QR Code or Serial Barcode"
+          subtitle="Populates tool serial number, model number, and brand for maintenance scheduling"
+          prioritizeQr
+          onDetected={handleScanDetected}
+          onClose={() => setIsScannerOpen(false)}
+        />
+      )}
     </div>
   );
 };

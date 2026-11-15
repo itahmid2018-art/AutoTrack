@@ -28,6 +28,7 @@
    - 8.1 Front-Desk Receptionist Onboarding Checklist
    - 8.2 Bench Repair Technician Workflow
    - 8.3 Workshop Manager & Inventory Lead Protocols
+9. [Quality Assurance & Testing Acceptance Guide](#9-quality-assurance--testing-acceptance-guide)
 
 ---
 
@@ -111,17 +112,20 @@ It automates and digitizes the entire lifecycle of power tool servicing across l
 
 #### 4.1 Tool Intake & Digital Job Card Management
 1. Click **`+ Intake Form`** in the top navigation bar.
-2. Enter **Customer Information**: Customer Name, Company, Mobile Phone Number, Email Address, Tax/GST ID.
-3. Enter **Tool Specifications**: Brand Vendor, Tool Category (Rotary Hammer, Angle Grinder, Cordless Drill, Demolition Breaker, etc.), Model Number, Serial Number, Voltage Rating, Warranty Status.
-4. Select **Customer Grievance Details**: Grievance Category (*Motor Sparking*, *No Power*, *Low Impact*, *Gearbox Noise*, etc.), Detailed Complaint Description, Service Type, Pre-Approved Cost Limit.
-5. Capture **Digital Signature**: Customer signs directly on the touch/mouse signature canvas.
+2. Enter **Client Information**: Client Name, Company, Mobile Phone Number, Email Address, Tax/GST ID.
+3. Enter **Tool Specifications**: Brand Vendor, Tool Category, Model Number, Serial Number, Voltage Rating, Warranty Status.
+4. Select **Client Grievance Details**: Grievance Category, Detailed Complaint Description, Service Type, Pre-Approved Cost Limit.
+5. Capture **Digital Signature**: Client signs directly on the touch/mouse signature canvas.
 6. Click **`Submit & Generate Job Ticket`**.
-7. The system assigns a unique Job Ticket ID (e.g., `BOSCH-2026-0041`), logs intake date, and opens quick actions to print tags or notify the customer.
+7. The system assigns a unique Job Ticket ID (e.g., `BOSCH-2026-0041`), generates a secure `publicAccessToken`, and opens quick actions to print traveler tags or notify the client.
+8. **Voice Note Dictation**: Click `Record Voice Note` to transcribe spoken bench observations directly into Detailed Complaint or Internal Notes with timestamped audit entries.
+9. **Technician Repair Sign-Off**: Once repairs conclude, bench technicians sign off using the dedicated HTML5 canvas signature pad before marking tickets `Completed`.
+10. **Unique QR Code Receipts**: Printed PDF job cards include a 2D QR matrix linking directly to the live client status portal via the ticket's public access token.
 
 #### 4.2 Global Real-Time Search Bar
 Located in the center header navigation bar:
 - Real-time instant search across all Job Cards and 1,000 Inventory Spare Parts SKUs.
-- Accepts: **Customer Name**, **Mobile Phone Number**, **Job Ticket ID** (e.g., `BOSCH-2026-0041`), **Part SKU** (e.g., `BRSH-1002`), **Model Number** (e.g., `GBH 2-26`), or **Serial Number**.
+- Accepts: **Client Name**, **Mobile Phone Number**, **Job Ticket ID** (e.g., `BOSCH-2026-0041`), **Part SKU** (e.g., `BRSH-1002`), **Model Number** (e.g., `GBH 2-26`), or **Serial Number**.
 - Click any search result item to view details instantly.
 
 #### 4.3 Drag-and-Drop Kanban Board
@@ -131,12 +135,12 @@ Located in the center header navigation bar:
 3. Drag any job ticket card and drop it into a new column. Status and timestamps update automatically.
 4. Use quick step arrow buttons (`<` and `>`) for touch-screen operation.
 
-#### 4.4 Gemini AI Repair Diagnosis & Workbench Chatbot
+#### 4.4 Gemini AI Repair Diagnosis & AI Recommended Parts
 1. Open any Job Card from **`Service Cards`** or click **`Diagnose`**.
 2. Click **`✨ Run Gemini AI Diagnosis`**:
    - Queries `gemini-3.8-flash` with tool model and grievance complaint context.
    - Generates: **Probable Cause Analysis**, **Step-by-Step Bench Repair Procedures**, **Recommended Catalog Spare Parts**, and **Technical Notes**.
-3. Click **`1-Click Apply to Ticket`** to write diagnostic recommendations, labor estimates, and linked parts directly to the ticket.
+3. **AI Recommended Parts Analyzer**: Click `Recommend Parts` under the parts table to match tool models and reported complaints against catalog inventory. Click `+ Add to Job` on individual items or `Attach All Recommended Parts` to auto-populate estimates.
 4. **Workbench AI Diagnostic Chatbot**: Select the `💬 AI Repair Chatbot` tab to ask freeform diagnostic questions, request multimeter check values, or click part SKU buttons to attach parts directly from assistant messages.
 
 #### 4.5 AI Predictive Inventory Reorder Recommendation Engine
@@ -147,11 +151,14 @@ Located in the center header navigation bar:
 3. Click **`+ Receive Restock`** to add parts directly to inventory stock.
 4. Click **`Export AI PO CSV`** to export purchase orders formatted for supplier procurement.
 
-#### 4.6 Technician Bench Time Tracking & Labor Accounting
+#### 4.6 Technician Bench Time Tracking & Workshop Capacity Scheduler
 1. Click **`Time Tracking`** on the header bar.
-2. **Clock In**: Select Technician -> Select Target Job Card -> Enter optional notes -> Click `Clock In Now`.
-3. **Live Workshop Timer**: Track active working sessions with real-time timers (`1h 42m 10s`).
-4. **Clock Out**: Click `Clock Out` to finalize duration, record logs, and auto-sync labor hours to the customer invoice.
+2. **Clock In & Out**: Select Technician -> Select Job Card -> Track live session timer -> Clock out to sync labor hours to ticket costs.
+3. **Weekly Workshop Calendar & Capacity Scheduler**:
+   - View 7-day columns (Monday through Sunday) showing technician shifts and booked ticket repair slots.
+   - Monitor total weekly shop capacity and individual technician workload progress bars.
+   - Click `+ Schedule Ticket` on any day to assign tickets and duration slots to specific technicians.
+   - Filter calendar view by specific technician to inspect individual bench loads.
 
 #### 4.7 1,000 Spare Parts Inventory & Barcode Management
 1. Click **`1,000 SKUs`**.
@@ -159,23 +166,28 @@ Located in the center header navigation bar:
 3. **Barcode Scanner**: Click `Barcode Scanner` and scan any part barcode or enter SKU to display stock quantity, bin location, and price.
 4. **Quick Restock**: Click `+10` on any row to increment stock count instantly.
 
-#### 4.8 Recurring Maintenance & Preventive Overhaul Servicing
+#### 4.8 Recurring Maintenance Tracker & Bulk CSV Import
 1. Click **`Servicing`**.
-2. Track commercial contractor equipment registered for 3, 6, or 12-month interval overhauls.
-3. Monitor status flags: `Upcoming`, `Due Soon`, `Overdue`.
-4. Click **`+ Generate Intake Ticket`** to convert due maintenance items into active job cards in 1 click.
+2. Track commercial contractor equipment registered for 3, 6, or 12-month interval overhauls with status flags (`Upcoming`, `Due Soon`, `Overdue`).
+3. **Bulk CSV Import Engine**: Click `Bulk Import CSV` to upload contractor fleet equipment lists.
+   - Drag and drop CSV files or paste raw CSV text.
+   - Click `Load 5 Sample Client Schedules` to test fleet import with realistic contractor data.
+   - Inspect the real-time validation grid filtering valid rows and diagnostic issue warnings.
+   - Toggle `Skip invalid rows` to import clean records without failing the batch.
+4. **CSV Export**: Click `Export CSV` to download all client schedules in RFC 4180 format.
+5. Click **`+ Generate Intake Ticket`** to convert due maintenance tools into active job cards.
 
-#### 4.9 WhatsApp & Twilio SMS Customer Dispatch Center
+#### 4.9 WhatsApp & Twilio SMS Dispatch & AI Response Assistant
 1. Click **`WhatsApp`** on the top header bar.
-2. Select target customer job ticket.
-3. Choose milestone template: **Intake Received**, **Estimate Ready**, **Ready for Pickup**, or **Service Invoice**.
+2. Select target client job ticket.
+3. **AI Response Assistant**: Choose inquiry category (`Status Update`, `Pricing / Estimate`, `Completion Notice`, `Parts Delay`) and click `Suggest Reply`. Click `Use Suggestion` to populate message composer.
 4. Click **`Send Twilio SMS API`** or **`Send WhatsApp API`** (or 1-click native web deep link fallback).
 
-#### 4.10 Analytics & Financial Audit CSV Reporting
+#### 4.10 Analytics & Technician Performance Reporting
 1. Click **`Analytics`**.
-2. Review workshop KPIs: Active Intakes, Total Revenue, Average Turnaround Hours, Technician Efficiency Metrics.
-3. Click **`Download Jobs CSV`** for job ticket history.
-4. Click **`Download Inventory CSV`** for inventory valuation reports.
+2. Review workshop KPIs: Active Intakes, Total Revenue, Average Turnaround Hours, Inventory Valuation.
+3. **Technician Performance Section**: View turnaround times and completed job counts calculated dynamically from audit log timestamps for each technician.
+4. Click **`Download Jobs CSV`** and **`Download Inventory CSV`** for spreadsheet auditing.
 
 #### 4.11 UI & Form Field Customization Suite
 1. Click **`Business Setup Questions`** (Transition View) -> **`UI & Field Customizer`**.
@@ -254,7 +266,24 @@ The project includes a 100% MySQL 8.0+ compatible database dump (`database.sql`)
 - [ ] **Step 1**: Morning review of **`Analytics`** dashboard and technician active workloads.
 - [ ] **Step 2**: Open **`1,000 SKUs`** -> Click `✨ AI Reorder Recommendations` -> Review low stock velocity items.
 - [ ] **Step 3**: Export `AI PO CSV` purchase order sheet for vendor spare part procurement.
-- [ ] **Step 4**: Verify daily database backup execution and export monthly MySQL `.sql` snapshots.
+---
+
+### 9. QUALITY ASSURANCE & TESTING ACCEPTANCE GUIDE
+
+For comprehensive test matrices, automated/manual test scripts, edge case validations, and step-by-step acceptance procedures for all updated features, refer to:
+
+👉 **[`docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md`](TESTING_AND_QA_ACCEPTANCE_GUIDE.md)**
+
+#### Test Modules Covered:
+1. **TC-VN-01 to TC-VN-04**: Voice Note Dictation & Transcription (Complaint & Notes targets, mic permissions, cancel flow).
+2. **TC-TP-01 to TC-TP-03**: Technician Performance Analytics (Turnaround time calculations, real-time ticket completions, zero-job edge cases).
+3. **TC-RP-01 to TC-RP-03**: AI Recommended Spare Parts (Model and complaint analysis, single & batch attachment).
+4. **TC-QR-01 to TC-QR-02**: Unique PDF Receipt QR Code & Public Status Portal Navigation.
+5. **TC-RA-01 to TC-RA-03**: Context-Aware AI Response Assistant (Status updates, pricing approvals, WhatsApp composer).
+6. **TC-WC-01 to TC-WC-03**: Technician Weekly Calendar & Workshop Capacity Scheduler (7-day shift grid, slot booking, technician filters).
+7. **TC-SP-01 to TC-SP-03**: Technician Repair Sign-Off Signature Pad (Stroke capture, re-signing, PDF embedding).
+8. **TC-CSV-01 to TC-CSV-04**: Bulk CSV Maintenance Schedule Import Engine (RFC 4180 parsing, 5-sample loader, validation error filtering, CSV export).
+9. **E2E Regression Protocol**: 10-step full-cycle workshop health verification script.
 
 ---
 *Manual compiled and maintained for Bosch Authorised Service Hub Operations.*

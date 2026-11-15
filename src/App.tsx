@@ -5,6 +5,7 @@ import { INITIAL_INVENTORY } from './data/mockInventory';
 import { INITIAL_RECURRING_MAINTENANCE } from './data/initialRecurringMaintenance';
 import { INITIAL_CUSTOM_FIELDS } from './data/initialCustomFields';
 import { TransactionalDb } from './utils/localStorageDb';
+import { DEFAULT_ANALYTICS_METRICS } from './utils/analyticsConfig';
 import { autoAdjudicateJobCard } from './utils/warrantyAdjudicator';
 import { ensurePublicAccessToken } from './utils/customerPortalUrl';
 import {
@@ -32,6 +33,13 @@ import { PrintableJobCardModal } from './components/PrintableJobCardModal';
 import { PdfViewModal } from './components/PdfViewModal';
 import { InventoryNotificationToast } from './components/InventoryNotificationToast';
 import { CustomerView, sanitizeJobForCustomer, PublicJobStatusSummary } from './components/CustomerView';
+import { SerialBarcodeScannerModal } from './components/SerialBarcodeScannerModal';
+import { GlobalScanResultModal } from './components/GlobalScanResultModal';
+import {
+  BarcodeScanResult,
+  findMatchingInventoryItem,
+  findMatchingToolHistory,
+} from './utils/barcodeSerialParser';
 
 const normalizeJobCard = (job: JobCard): JobCard => {
   const adjudicated = autoAdjudicateJobCard(job);
@@ -61,13 +69,16 @@ export default function App() {
 
   const [isCustomerViewActive, setIsCustomerViewActive] = useState<boolean>(isLockedCustomerUrl);
   const [activeTab, setActiveTab] = useState<'intake' | 'jobs' | 'kanban' | 'maintenance' | 'inventory' | 'messaging' | 'analytics' | 'timetracking' | 'transition'>('intake');
+  const [transitionSubTab, setTransitionSubTab] = useState<'fields' | 'backups' | 'rules' | 'manual'>('backups');
   
   // Core Persistent Transactional State
   const [jobCards, setJobCards] = useState<JobCard[]>(() =>
     TransactionalDb.loadJobCards(INITIAL_JOB_CARDS).map(normalizeJobCard)
   );
   const [inventory, setInventory] = useState<InventoryItem[]>(() => TransactionalDb.loadInventory(INITIAL_INVENTORY));
-  const [schedules, setSchedules] = useState<RecurringMaintenance[]>(INITIAL_RECURRING_MAINTENANCE);
+  const [schedules, setSchedules] = useState<RecurringMaintenance[]>(() =>
+    TransactionalDb.loadRecurringMaintenance(INITIAL_RECURRING_MAINTENANCE)
+  );
   const [customFields, setCustomFields] = useState<CustomField[]>(() => TransactionalDb.loadCustomFields(INITIAL_CUSTOM_FIELDS));
   const [selectedJob, setSelectedJob] = useState<JobCard | null>(null);
   const [inventoryNotifications, setInventoryNotifications] = useState<InventoryNotification[]>(() =>
@@ -83,6 +94,10 @@ export default function App() {
   const [printableJob, setPrintableJob] = useState<JobCard | null>(null);
   const [pdfModalJob, setPdfModalJob] = useState<JobCard | null>(null);
   const [aiDiagnosisJob, setAiDiagnosisJob] = useState<JobCard | null>(null);
+  const [isGlobalScannerOpen, setIsGlobalScannerOpen] = useState(false);
+  const [globalScanResult, setGlobalScanResult] = useState<BarcodeScanResult | null>(null);
+  const [intakeScanPrefill, setIntakeScanPrefill] = useState<{ result: BarcodeScanResult; nonce: number } | null>(null);
+  const [inventoryExternalLookup, setInventoryExternalLookup] = useState<{ code: string; nonce: number } | null>(null);
 
   // Business Settings
   const [settings, setSettings] = useState<BusinessSettings>(() => TransactionalDb.loadSettings({
@@ -99,6 +114,7 @@ export default function App() {
     WhatsAppTemplateEstimate: 'Hi {{customer_name}}, estimate for {{job_id}} is ${{total_amount}}. Reply YES to approve.',
     deductStockOn: 'InService',
     requireSignature: true,
+    analyticsMetrics: DEFAULT_ANALYTICS_METRICS,
   }));
 
   const [questionnaire, setQuestionnaire] = useState<CriticalQuestionnaire>({
@@ -156,6 +172,10 @@ export default function App() {
   useEffect(() => {
     TransactionalDb.saveCustomFields(customFields);
   }, [customFields]);
+
+  useEffect(() => {
+    TransactionalDb.saveRecurringMaintenance(schedules);
+  }, [schedules]);
 
   // Check and run automatic daily backup on startup
   useEffect(() => {
@@ -446,6 +466,7 @@ export default function App() {
         onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
         onQuickReorderItem={handleQuickReorderItem}
         onOpenInventoryAlerts={handleOpenInventoryAlerts}
+        onOpenGlobalScanner={() => setIsGlobalScannerOpen(true)}
       />
 
       {/* Main View Area */}
@@ -473,6 +494,13 @@ export default function App() {
                 existingCount={jobCards.length}
                 onOpenWhatsApp={handleOpenWhatsAppForJob}
                 customFields={customFields}
+                jobCards={jobCards}
+                schedules={schedules}
+                externalScanPrefill={intakeScanPrefill}
+                onSelectExistingJob={(job) => {
+                  setSelectedJob(job);
+                  setActiveTab('jobs');
+                }}
               />
             )}
 
@@ -508,8 +536,11 @@ export default function App() {
             {activeTab === 'maintenance' && (
               <RecurringMaintenanceView
                 schedules={schedules}
-                onAddSchedule={(newSched) => setSchedules([newSched, ...schedules])}
-                onUpdateSchedule={(upSched) => setSchedules(schedules.map(s => s.id === upSched.id ? upSched : s))}
+                onAddSchedule={(newSched) => setSchedules((prev) => [newSched, ...prev])}
+                onAddSchedules={(newScheds) => setSchedules((prev) => [...newScheds, ...prev])}
+                onUpdateSchedule={(upSched) =>
+                  setSchedules((prev) => prev.map((s) => (s.id === upSched.id ? upSched : s)))
+                }
                 onLogMessageSent={handleLogMaintenanceMessage}
                 onCreateJobCardFromSchedule={handleCreateJobCardFromSchedule}
               />
@@ -521,11 +552,17 @@ export default function App() {
                 onUpdateInventory={(newInv) => setInventory(newInv)}
                 onOpenAddItemModal={() => setIsAddInventoryModalOpen(true)}
                 jobCards={jobCards}
+                schedules={schedules}
                 settings={settings}
                 notifications={inventoryNotifications}
                 onMarkNotificationRead={handleMarkNotificationRead}
                 onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
                 initialShowLowStockOnly={inventoryInitialFilterLow}
+                externalLookupCode={inventoryExternalLookup}
+                onSelectJobCard={(job) => {
+                  setSelectedJob(job);
+                  setActiveTab('jobs');
+                }}
               />
             )}
 
@@ -544,6 +581,12 @@ export default function App() {
                 jobCards={jobCards}
                 inventory={inventory}
                 onUpdateInventory={(newInv) => setInventory(newInv)}
+                settings={settings}
+                schedules={schedules}
+                onOpenAnalyticsSettings={() => {
+                  setTransitionSubTab('rules');
+                  setActiveTab('transition');
+                }}
               />
             )}
 
@@ -577,6 +620,8 @@ export default function App() {
                   if (backupData.schedules) setSchedules(backupData.schedules);
                 }}
                 onProceedToJobs={() => setActiveTab('intake')}
+                initialSubTab={transitionSubTab}
+                onOpenAnalytics={() => setActiveTab('analytics')}
               />
             )}
           </>
@@ -623,6 +668,8 @@ export default function App() {
           onAddJob={handleAddJobCard}
           settings={settings}
           existingCount={jobCards.length}
+          inventory={inventory}
+          jobCards={jobCards}
         />
       )}
 
@@ -631,6 +678,54 @@ export default function App() {
           onClose={() => setIsAddInventoryModalOpen(false)}
           onAddItem={handleAddInventoryItem}
           existingCount={inventory.length}
+        />
+      )}
+
+      {isGlobalScannerOpen && (
+        <SerialBarcodeScannerModal
+          title="Universal Barcode & QR Code Scanner"
+          subtitle="Scan a tool serial barcode, spare part SKU QR, or job card QR to look up or prefill"
+          prioritizeQr
+          onDetected={(result) => {
+            setIsGlobalScannerOpen(false);
+            setGlobalScanResult(result);
+          }}
+          onClose={() => setIsGlobalScannerOpen(false)}
+        />
+      )}
+
+      {globalScanResult && (
+        <GlobalScanResultModal
+          scanResult={globalScanResult}
+          matchedInventory={findMatchingInventoryItem(globalScanResult.rawValue, inventory)}
+          historyMatch={findMatchingToolHistory(
+            globalScanResult.rawValue,
+            jobCards,
+            schedules,
+            findMatchingInventoryItem(globalScanResult.rawValue, inventory)?.sku
+          )}
+          onClose={() => setGlobalScanResult(null)}
+          onRescan={() => {
+            setGlobalScanResult(null);
+            setIsGlobalScannerOpen(true);
+          }}
+          onPrefillIntake={(result) => {
+            setGlobalScanResult(null);
+            setSelectedJob(null);
+            setActiveTab('intake');
+            setIntakeScanPrefill({ result, nonce: Date.now() });
+          }}
+          onOpenInventoryLookup={(code) => {
+            setGlobalScanResult(null);
+            setSelectedJob(null);
+            setActiveTab('inventory');
+            setInventoryExternalLookup({ code, nonce: Date.now() });
+          }}
+          onSelectJob={(job) => {
+            setGlobalScanResult(null);
+            setSelectedJob(job);
+            setActiveTab('jobs');
+          }}
         />
       )}
 

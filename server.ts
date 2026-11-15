@@ -1,12 +1,40 @@
 import express from 'express';
+import http from 'http';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
+function resolveCliArg(flag: string): string | undefined {
+  const index = process.argv.indexOf(flag);
+  if (index !== -1 && process.argv[index + 1]) {
+    return process.argv[index + 1];
+  }
+  const prefixed = process.argv.find((arg) => arg.startsWith(`${flag}=`));
+  return prefixed ? prefixed.slice(flag.length + 1) : undefined;
+}
+
+function resolveServerPort(): number {
+  const cliPort = Number(resolveCliArg('--port'));
+  if (Number.isInteger(cliPort) && cliPort > 0) {
+    return cliPort;
+  }
+  if (process.env.NODE_ENV !== 'production') {
+    const devPort = Number(process.env.DEFAULT_APP_PORT);
+    return Number.isInteger(devPort) && devPort > 0 ? devPort : 3000;
+  }
+  const prodPort = Number(process.env.PORT);
+  return Number.isInteger(prodPort) && prodPort > 0 ? prodPort : 3000;
+}
+
+function resolveServerHost(): string {
+  return resolveCliArg('--host') || process.env.HOST || '0.0.0.0';
+}
+
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = resolveServerPort();
+const HOST = resolveServerHost();
 
 app.use(express.json({ limit: '15mb' }));
 
@@ -652,6 +680,76 @@ app.post('/api/ai/transcribe', async (req, res) => {
   }
 });
 
+// Server-side Gemini Vision Endpoint for Tool Serial Number & Barcode Extraction
+app.post('/api/ai/scan-serial', async (req, res) => {
+  try {
+    const { imageBase64, mimeType = 'image/jpeg' } = req.body;
+
+    if (!imageBase64 || typeof imageBase64 !== 'string') {
+      return res.status(400).json({ error: 'Camera image payload (imageBase64) is required.' });
+    }
+
+    const cleanBase64 = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
+    if (!cleanBase64) {
+      return res.status(400).json({ error: 'Captured image data is empty.' });
+    }
+
+    const normalizedMimeType = String(mimeType).split(';')[0].trim() || 'image/jpeg';
+
+    const imagePart = {
+      inlineData: {
+        mimeType: normalizedMimeType,
+        data: cleanBase64,
+      },
+    };
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-4-hydrogen',
+      contents: {
+        parts: [
+          imagePart,
+          {
+            text: `Inspect this power tool or spare part product QR code, barcode, or rating plate image. Extract any visible tool serial number (e.g. SN-3611B54300, 3611B54300, FD-504), spare part SKU or EAN/UPC barcode (e.g. BRSH-1002, 31651401000), tool model number (e.g. GBH 2-26 DFR), and brand (e.g. Bosch Professional). If the image contains a QR code payload or printed code, return the exact decoded string in serialNumber or sku. If nothing is readable, return empty strings.`,
+          },
+        ],
+      },
+      config: {
+        systemInstruction: 'Respond ONLY with valid structured JSON matching the declared schema.',
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            serialNumber: { type: Type.STRING },
+            sku: { type: Type.STRING },
+            modelNumber: { type: Type.STRING },
+            brand: { type: Type.STRING },
+            format: { type: Type.STRING },
+            confidence: { type: Type.STRING },
+            notes: { type: Type.STRING },
+          },
+        },
+      },
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    return res.json({
+      serialNumber: typeof parsed.serialNumber === 'string' ? parsed.serialNumber.trim() : '',
+      sku: typeof parsed.sku === 'string' ? parsed.sku.trim() : '',
+      modelNumber: typeof parsed.modelNumber === 'string' ? parsed.modelNumber.trim() : '',
+      brand: typeof parsed.brand === 'string' ? parsed.brand.trim() : '',
+      format: typeof parsed.format === 'string' && parsed.format.trim() ? parsed.format.trim() : 'Label Vision',
+      confidence: typeof parsed.confidence === 'string' ? parsed.confidence : 'MEDIUM',
+      notes: typeof parsed.notes === 'string' ? parsed.notes : '',
+    });
+  } catch (error: any) {
+    console.error('Gemini Serial Barcode Vision Error:', error);
+    return res.status(500).json({
+      error: 'Failed to decode serial number from camera image',
+      details: error.message,
+    });
+  }
+});
+
 // Server-side Messaging API Credentials Status Check Endpoint
 app.get('/api/messaging/status', (req, res) => {
   const twilioSmsConfigured = Boolean(
@@ -858,9 +956,14 @@ app.post('/api/messaging/send-whatsapp', async (req, res) => {
 
 
 async function startServer() {
+  const httpServer = http.createServer(app);
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: process.env.DISABLE_HMR === 'true' ? false : { server: httpServer },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -868,9 +971,17 @@ async function startServer() {
     app.use(express.static('dist'));
   }
 
-  app.listen(PORT, () => {
-    console.log(`BOSCH Service Center Server running on http://localhost:${PORT}`);
+  httpServer.on('error', (err: NodeJS.ErrnoException) => {
+    console.error(`Server failed to bind ${HOST}:${PORT}:`, err.message);
+    process.exit(1);
+  });
+
+  httpServer.listen(PORT, HOST, () => {
+    console.log(`BOSCH Service Center Server running on http://${HOST}:${PORT}`);
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error('Fatal server startup error:', err);
+  process.exit(1);
+});

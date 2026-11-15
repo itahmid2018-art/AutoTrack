@@ -1,7 +1,15 @@
-import React, { useState, useRef } from 'react';
-import { JobCard, ToolBrand, ToolCategory, GrievanceCategory, InventoryItem, JobPart, BusinessSettings, CustomField } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { JobCard, ToolBrand, ToolCategory, GrievanceCategory, InventoryItem, JobPart, BusinessSettings, CustomField, RecurringMaintenance } from '../types';
 import { adjudicateWarranty } from '../utils/warrantyAdjudicator';
-import { Wrench, User, Phone, ShieldCheck, ShieldAlert, FileText, Sparkles, Printer, MessageSquare, Plus, PenTool, CheckCircle2, AlertCircle, Sliders } from 'lucide-react';
+import { SerialBarcodeScannerModal } from './SerialBarcodeScannerModal';
+import {
+  BarcodeScanResult,
+  ToolHistoryMatch,
+  findMatchingInventoryItem,
+  findMatchingToolHistory,
+  parseProductQrPayload,
+} from '../utils/barcodeSerialParser';
+import { Wrench, User, Phone, ShieldCheck, ShieldAlert, FileText, Sparkles, Printer, MessageSquare, Plus, PenTool, CheckCircle2, AlertCircle, Sliders, ScanBarcode, QrCode, History, Package, ExternalLink } from 'lucide-react';
 
 interface BoschIntakeFormProps {
   onAddJob: (job: JobCard) => void;
@@ -10,6 +18,10 @@ interface BoschIntakeFormProps {
   existingCount: number;
   onOpenWhatsApp: (job: JobCard) => void;
   customFields?: CustomField[];
+  jobCards?: JobCard[];
+  schedules?: RecurringMaintenance[];
+  onSelectExistingJob?: (job: JobCard) => void;
+  externalScanPrefill?: { result: BarcodeScanResult; nonce: number } | null;
 }
 
 export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
@@ -19,6 +31,10 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
   existingCount,
   onOpenWhatsApp,
   customFields = [],
+  jobCards = [],
+  schedules = [],
+  onSelectExistingJob,
+  externalScanPrefill,
 }) => {
   const generatedId = `${settings.jobCardPrefix}${(existingCount + 45).toString().padStart(4, '0')}`;
 
@@ -54,6 +70,77 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
+
+  // Camera Serial / Product QR Scanner State & Lookup Results
+  const [isSerialScannerOpen, setIsSerialScannerOpen] = useState(false);
+  const [scanResultBadge, setScanResultBadge] = useState<BarcodeScanResult | null>(null);
+  const [qrLookupPanel, setQrLookupPanel] = useState<{
+    result: BarcodeScanResult;
+    matchedInventory: InventoryItem | null;
+    historyMatch: ToolHistoryMatch;
+  } | null>(null);
+
+  const handlePrefillFromHistoryJob = (job: JobCard) => {
+    setCustomerName(job.customerName || '');
+    setCustomerCompany(job.customerCompany || '');
+    setCustomerPhone(job.customerPhone || '');
+    setCustomerEmail(job.customerEmail || '');
+    setGstOrTaxId(job.gstOrTaxId || '');
+    if (job.tool?.brand) setBrand(job.tool.brand);
+    if (job.tool?.category) setCategory(job.tool.category);
+    if (job.tool?.modelNumber) setModelNumber(job.tool.modelNumber);
+    if (job.tool?.serialNumber && job.tool.serialNumber !== 'N/A') {
+      setSerialNumber(job.tool.serialNumber);
+    }
+    if (job.tool?.voltageRating) setVoltageRating(job.tool.voltageRating);
+    if (job.tool?.warrantyStatus) setWarrantyStatus(job.tool.warrantyStatus);
+  };
+
+  const handleSerialBarcodeDetected = (result: BarcodeScanResult) => {
+    const parsed = parseProductQrPayload(result.rawValue);
+    const matchedInventory = findMatchingInventoryItem(result.rawValue, inventory);
+    const historyMatch = findMatchingToolHistory(
+      result.rawValue,
+      jobCards,
+      schedules,
+      matchedInventory?.sku
+    );
+
+    const nextSerial = result.serialNumber || parsed.serialNumber || matchedInventory?.sku || '';
+    if (nextSerial) {
+      setSerialNumber(nextSerial);
+    }
+    if (result.detectedModelNumber) {
+      setModelNumber(result.detectedModelNumber);
+    } else if (historyMatch.matchingJobs[0]?.tool?.modelNumber) {
+      setModelNumber(historyMatch.matchingJobs[0].tool.modelNumber);
+    }
+    if (result.detectedBrand && result.detectedBrand.toLowerCase().includes('bosch')) {
+      setBrand(result.detectedBrand.toLowerCase().includes('green') ? 'Bosch DIY (Green)' : 'Bosch Professional');
+    } else if (historyMatch.matchingJobs[0]?.tool?.brand) {
+      setBrand(historyMatch.matchingJobs[0].tool.brand);
+    }
+    if (historyMatch.matchingJobs[0]?.tool?.category) {
+      setCategory(historyMatch.matchingJobs[0].tool.category);
+    }
+    if (!customerName && historyMatch.matchingJobs[0]) {
+      handlePrefillFromHistoryJob(historyMatch.matchingJobs[0]);
+    }
+
+    setScanResultBadge(result);
+    setQrLookupPanel({
+      result,
+      matchedInventory,
+      historyMatch,
+    });
+    setIsSerialScannerOpen(false);
+  };
+
+  useEffect(() => {
+    if (externalScanPrefill?.result) {
+      handleSerialBarcodeDetected(externalScanPrefill.result);
+    }
+  }, [externalScanPrefill?.nonce]);
 
   // Live Warranty Adjudication Evaluation
   const warrantyEval = adjudicateWarranty(
@@ -261,7 +348,15 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setIsSerialScannerOpen(true)}
+              className="px-3.5 py-2 text-xs font-bold font-mono text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl shadow flex items-center gap-1.5 transition-colors active:scale-95"
+            >
+              <ScanBarcode className="w-4 h-4" />
+              <span>Barcode / QR Scanner</span>
+            </button>
             <span className="text-[11px] font-mono text-zinc-400 bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800">
               Tax: {settings.taxRate}% · Base Labor: ${settings.laborRate}/hr
             </span>
@@ -352,10 +447,21 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
 
         {/* Section 2: Tool Specifications */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
-          <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2 border-b border-zinc-800 pb-3">
-            <Wrench className="w-4 h-4 text-white" />
-            <span>2. Bosch &amp; Tool Specifications</span>
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+            <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+              <Wrench className="w-4 h-4 text-white" />
+              <span>2. Bosch &amp; Tool Specifications</span>
+            </h2>
+
+            <button
+              type="button"
+              onClick={() => setIsSerialScannerOpen(true)}
+              className="px-3 py-1.5 text-[11px] font-bold font-mono text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow flex items-center gap-1.5 transition-colors active:scale-95"
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span>QR / Barcode Scanner</span>
+            </button>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
             <div>
@@ -412,13 +518,46 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
 
             <div>
               <label className="block text-zinc-400 mb-1 font-medium">Serial Number / Bare Tool ID</label>
-              <input
-                type="text"
-                value={serialNumber}
-                onChange={(e) => setSerialNumber(e.target.value)}
-                placeholder="e.g. SN-3611B54300"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono placeholder-zinc-600 focus:outline-none"
-              />
+              <div className="flex items-stretch gap-1.5">
+                <input
+                  type="text"
+                  value={serialNumber}
+                  onChange={(e) => {
+                    setSerialNumber(e.target.value);
+                    if (scanResultBadge && e.target.value !== scanResultBadge.serialNumber) {
+                      setScanResultBadge(null);
+                    }
+                  }}
+                  placeholder="e.g. SN-3611B54300"
+                  className="w-full min-w-0 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsSerialScannerOpen(true)}
+                  title="Scan tool serial barcode with device camera"
+                  aria-label="Scan tool serial barcode with camera"
+                  className="px-3 py-2 bg-zinc-950 hover:bg-zinc-800 text-emerald-400 hover:text-emerald-300 border border-emerald-700/60 rounded-xl font-mono text-[11px] font-bold flex items-center gap-1.5 shrink-0 transition-colors active:scale-95"
+                >
+                  <ScanBarcode className="w-4 h-4" />
+                  <span>Scan</span>
+                </button>
+              </div>
+              {scanResultBadge && (
+                <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1.5 text-[10px] font-mono text-emerald-300 bg-emerald-950/40 border border-emerald-800/60 rounded-lg px-2 py-1">
+                  <span>
+                    Scanned ({scanResultBadge.format}) via {scanResultBadge.method}
+                  </span>
+                  {scanResultBadge.detectedModelNumber && scanResultBadge.detectedModelNumber !== modelNumber && (
+                    <button
+                      type="button"
+                      onClick={() => setModelNumber(scanResultBadge.detectedModelNumber!)}
+                      className="underline font-bold text-white hover:text-emerald-200"
+                    >
+                      Use model {scanResultBadge.detectedModelNumber}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
@@ -540,12 +679,123 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
               )}
             </div>
 
-            {warrantyEval.exclusionAdvisory && (
+              {warrantyEval.exclusionAdvisory && (
               <div className="px-2.5 py-1.5 bg-amber-950/60 border border-amber-700/70 rounded-lg text-[11px] text-amber-200 font-sans">
                 {warrantyEval.exclusionAdvisory}
               </div>
             )}
           </div>
+
+          {/* Product QR Scan Result: Inventory Item & Tool Service History Lookup */}
+          {qrLookupPanel && (
+            <div className="p-4 bg-zinc-950 border border-emerald-700/60 rounded-xl space-y-3 text-xs font-mono">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <QrCode className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="font-bold text-white uppercase">
+                    QR Lookup Result: {qrLookupPanel.historyMatch.queryCode || qrLookupPanel.result.serialNumber}
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-emerald-300">
+                    {qrLookupPanel.result.format}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setQrLookupPanel(null)}
+                  className="text-[11px] text-zinc-400 hover:text-white underline"
+                >
+                  Dismiss
+                </button>
+              </div>
+
+              {qrLookupPanel.matchedInventory && (
+                <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 text-emerald-300 font-bold text-[11px]">
+                      <Package className="w-3.5 h-3.5" />
+                      <span>Matched Spare Part SKU: {qrLookupPanel.matchedInventory.sku}</span>
+                    </div>
+                    <div className="text-white font-sans font-semibold">
+                      {qrLookupPanel.matchedInventory.name}
+                    </div>
+                    <div className="text-[11px] text-zinc-400">
+                      Bin {qrLookupPanel.matchedInventory.binLocation} · {qrLookupPanel.matchedInventory.stockQty} {qrLookupPanel.matchedInventory.unit} in stock · ${qrLookupPanel.matchedInventory.unitPrice.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {qrLookupPanel.historyMatch.matchingJobs.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold text-zinc-200 flex items-center gap-1.5">
+                      <History className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>
+                        Prior Tool Service History ({qrLookupPanel.historyMatch.matchingJobs.length}{' '}
+                        {qrLookupPanel.historyMatch.matchingJobs.length === 1 ? 'record' : 'records'})
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handlePrefillFromHistoryJob(qrLookupPanel.historyMatch.matchingJobs[0])}
+                      className="px-2.5 py-1 bg-white hover:bg-zinc-200 text-zinc-950 font-bold rounded-lg text-[10px]"
+                    >
+                      Prefill Client &amp; Tool from Latest
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {qrLookupPanel.historyMatch.matchingJobs.slice(0, 4).map((histJob) => (
+                      <div
+                        key={histJob.id}
+                        className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg flex flex-wrap items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white">{histJob.id}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-950 border border-zinc-700 text-zinc-300">
+                              {histJob.status}
+                            </span>
+                            <span className="text-[10px] text-zinc-400">{histJob.intakeDate}</span>
+                          </div>
+                          <div className="text-[11px] text-zinc-300 font-sans truncate">
+                            {histJob.customerName} · {histJob.serviceReq.grievanceCategory}
+                          </div>
+                        </div>
+
+                        {onSelectExistingJob && (
+                          <button
+                            type="button"
+                            onClick={() => onSelectExistingJob(histJob)}
+                            className="px-2.5 py-1 bg-zinc-950 hover:bg-zinc-800 border border-zinc-700 text-emerald-300 rounded-lg text-[10px] font-bold flex items-center gap-1 shrink-0"
+                          >
+                            <span>Open Ticket</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                !qrLookupPanel.matchedInventory && (
+                  <p className="text-[11px] text-zinc-400 font-sans">
+                    No prior tool repair records or spare part SKUs matched this code. Serial number filled for new intake.
+                  </p>
+                )
+              )}
+
+              {qrLookupPanel.historyMatch.matchingSchedules.length > 0 && (
+                <div className="pt-1 border-t border-zinc-800 text-[11px] text-zinc-300 font-sans">
+                  Recurring maintenance schedule found: Next service due{' '}
+                  <strong className="text-emerald-300 font-mono">
+                    {qrLookupPanel.historyMatch.matchingSchedules[0].nextDueDate}
+                  </strong>{' '}
+                  ({qrLookupPanel.historyMatch.matchingSchedules[0].status})
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Accessories Received Checklist */}
           <div className="pt-3 border-t border-zinc-800">
@@ -774,6 +1024,16 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
         </div>
 
       </form>
+
+      {isSerialScannerOpen && (
+        <SerialBarcodeScannerModal
+          title="Scan Tool QR Code or Serial Barcode"
+          subtitle="Auto-fills serial number and looks up inventory SKUs or prior tool repair history"
+          prioritizeQr
+          onDetected={handleSerialBarcodeDetected}
+          onClose={() => setIsSerialScannerOpen(false)}
+        />
+      )}
 
     </div>
   );

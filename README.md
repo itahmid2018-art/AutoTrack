@@ -8,40 +8,55 @@ A One-page, high-efficiency **Job Card tracking, ~1,000-item spare parts invento
 
 1. **Monochrome Industrial Counter Intake Form**:
    * Single-page intake interface designed for service counter technicians.
-   * Tool Specs: Brand, Model Number (e.g., `GBH 2-26 DFR`, `GWS 900`), Serial Number, Voltage Rating (`230V`, `18V Cordless`), Warranty Status (*Bosch Heavy Duty 3-Year Extended*).
-   * Customer Info: Client Name, Company/Account Name, Mobile Phone (WhatsApp), GST/Tax ID, Pre-Approved Repair Limit.
+   * Tool Specs: Brand, Model Number (`GBH 2-26 DFR`, `GWS 900`), Serial Number, Voltage Rating (`230V`, `18V Cordless`), Warranty Status (*Bosch Heavy Duty 3-Year Extended*).
+   * Client Info: Client Name, Company/Account Name, Mobile Phone (WhatsApp), GST/Tax ID, Pre-Approved Repair Limit.
    * Defect Categories: Motor Sparking/Smoke, Dead Switch, SDS Chuck Jammed, Low Hammer Impact, Gearbox Heating.
    * Counter Accessories Checklist & On-Screen Touch Digital Signature.
 
 2. **✨ Gemini AI Fault Diagnosis Engine**:
    * Powered by **Gemini 3.8 Flash** (`@google/genai`).
-   * Analyzes customer grievances and tool details to suggest probable root causes, step-by-step repair actions, estimated labor hours, and matched spare parts.
-   * **1-Click Part Link**: Technicians can auto-attach AI-recommended spare parts directly to the job card ticket.
+   * Analyzes client grievances and tool details to suggest probable root causes, step-by-step repair actions, estimated labor hours, and matched spare parts.
+   * **1-Click Part Link**: Technicians auto-attach AI-recommended spare parts directly to the job card ticket.
 
-3. **📄 Digital PDF Generation & Direct WhatsApp / SMS Dispatch**:
-   * Uses `jsPDF` to generate official digital PDF Job Card receipts.
-   * **1-Click WhatsApp & SMS Dispatch**: Instantly triggers WhatsApp Web (`wa.me`) or SMS with customer phone numbers pre-filled, sending PDF link and status updates.
-   * In-browser PDF preview iframe and download capabilities.
+3. **🎙️ Voice Note Dictation & Audio Transcription**:
+   * Microphone recording via MediaRecorder with fallback to browser Web Speech API.
+   * Transcribes spoken repair observations directly into Detailed Complaint or Internal Notes with timestamped audit entries.
 
-4. **🖨️ Dual-Section Physical Workshop Traveler Tag & Service Receipt (Print View)**:
-   * **Upper Half**: Workshop Repair Tag attached to the tool/carrying case with barcode, physical condition, accessories checklist, and **Technician Quality & Safety Checklist** (Carbon Brushes, Armature Segment Test, Gearbox Repack, High Voltage Ground Test).
-   * **Lower Half**: Perforated Customer Service Slip with terms, signature line, and estimate totals.
+4. **⚡ AI Recommended Spare Parts Analyzer**:
+   * Analyzes tool model and reported complaint against spare parts inventory.
+   * Suggests catalog items with confidence rationale and 1-click single or batch attachment to quotes.
 
-5. **📦 ~1,000 Product Spare Parts Inventory & Low-Stock Alerts**:
-   * Pre-populated with 1,000 genuine Bosch replacement parts (Carbon Brushes, Armatures 230V/110V, SDS Chuck Assemblies, Bearings 608/6201, Switches, Cords, Lithium Batteries).
-   * **🚨 Visual Low-Stock Badges**: Highlights items where `stockQty <= minStockThreshold`.
-   * **⚡ Supplier Reorder PO Planning Sheet**: Aggregates all low-stock items into an itemized reorder plan with suggested PO quantities and 1-click CSV export.
-   * Barcode / SKU scanner simulation modal.
+5. **📱 Unique QR Code on Printed PDF Job Cards**:
+   * Generates a 2D QR matrix on every printed receipt linking to live public status portal via secure access token.
+   * Clients scan receipt with smartphone cameras to inspect repair progress without login.
 
-6. **⏰ Recurring Tool Maintenance Tracker**:
-   * Tracks contractor tools requiring 3-month, 6-month, or 12-month periodic servicing.
-   * Auto-calculates next due dates and flags tools as **Due Soon** or **Overdue**.
-   * **Queue Reminder**: Automatically formats and logs WhatsApp/SMS maintenance reminders into the message transaction history.
-   * **1-Click Job Intake**: Converts scheduled maintenance tools directly into active Job Cards.
+6. **🤖 Context-Aware AI Response Assistant**:
+   * Generates contextual WhatsApp and SMS replies in Messaging Center based on live job card data.
+   * 1-click dispatch to WhatsApp Web or Twilio SMS gateway.
 
-7. **🗄️ MySQL Database DDL & Data Dump Export**:
-   * Complete relational database schema script (`database.sql`) for local MySQL 8.0+ deployment.
-   * Includes 1-click **Export Local MySQL DB (.sql)** button in the UI.
+7. **📅 Technician Weekly Calendar & Workshop Capacity Scheduler**:
+   * 7-day visual calendar view for scheduling technician shifts and booking ticket repair slots.
+   * Tracks technician load, warns on 90%+ over-allocation, and filters by technician roster.
+
+8. **✍️ Technician Repair Sign-Off Digital Signature Pad**:
+   * HTML5 canvas signature pad allowing bench technicians to sign off on completed repairs.
+   * Embeds vector signature image directly into final PDF invoices and traveler receipts.
+
+9. **📊 Technician Performance Analytics**:
+   * Calculates average turnaround time and total jobs completed per technician based on append-only audit logs.
+   * Displays visual comparison table and on-time completion percentages.
+
+10. **📑 Bulk CSV Client Maintenance Schedule Import & Export**:
+    * RFC 4180 compliant parser supporting drag-and-drop file upload, text paste, and 5-record sample client loader.
+    * Real-time row validation grid, skip invalid rows toggle, dynamic next due date calculator, and 1-click CSV export.
+
+11. **📦 ~1,000 Product Spare Parts Inventory & Low-Stock Alerts**:
+    * Pre-populated with 1,000 genuine Bosch replacement parts (Carbon Brushes, Armatures, SDS Chucks, Bearings, Switches).
+    * Highlights low-stock items and exports itemized supplier reorder purchase orders.
+
+12. **🗄️ MySQL Database DDL & Data Dump Export**:
+    * Complete relational database schema script (`database.sql`) for local MySQL 8.0+ deployment.
+    * Includes 1-click **Export Local MySQL DB (.sql)** button in the UI.
 
 ---
 
@@ -145,7 +160,27 @@ The database script automatically provisions a default administrator account in 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `POST` | `/api/ai/diagnose` | Accepts tool grievance details & inventory sample; returns Gemini AI root cause analysis, repair steps, labor hours, and recommended part SKUs. |
-| `POST` | `/api/ai/generate-message` | Generates personalized customer notifications for WhatsApp & SMS. |
+| `POST` | `/api/ai/generate-message` | Generates personalized client notifications for WhatsApp & SMS. |
+| `POST` | `/api/ai/response-assistant` | Generates context-aware replies for client inquiries based on active ticket details. |
+| `POST` | `/api/ai/repair-chat` | Interactive diagnostic chatbot for bench technicians querying wiring, exploded views, and torque specs. |
+| `POST` | `/api/ai/recommend-reorders` | Predictive inventory reorder planner correlating historical failures with stock velocity. |
+| `POST` | `/api/ai/recommend-parts` | Suggests catalog spare parts matching tool model and reported complaint with confidence scores. |
+| `POST` | `/api/ai/transcribe` | Transcribes recorded microphone audio observations into Detailed Complaint or Internal Notes. |
+| `GET`  | `/api/messaging/status` | Reports live credentials status for Twilio SMS and Meta WhatsApp Cloud API providers. |
+| `POST` | `/api/messaging/send-sms` | Dispatches outbound SMS messages via Twilio REST API. |
+| `POST` | `/api/messaging/send-whatsapp` | Dispatches outbound WhatsApp messages via Meta Graph Cloud API. |
+
+---
+
+## 📚 Technical Documentation & Test Guides
+
+1. **[Testing & QA Acceptance Guide](docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md)**:
+   * Test matrices, steps, pre-conditions, and expected results for all 8 updated features.
+   * Includes 10-step end-to-end regression flow and edge case validation scripts.
+2. **[End-User Operating Manual & Training Guide](docs/USER_MANUAL_AND_TRAINING_GUIDE.md)**:
+   * Counter intake protocols, bench repair instructions, parts management, and staff checklists.
+3. **[Setup, Security & Maintenance Guide](docs/SETUP_AND_MAINTENANCE_GUIDE.md)**:
+   * Architecture overview, PII sanitization policies, rate limiting, and MySQL database setup.
 
 ---
 

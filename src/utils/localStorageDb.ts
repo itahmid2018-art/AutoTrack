@@ -8,6 +8,7 @@ const STORAGE_KEYS = {
   CUSTOM_FIELDS: 'autotrack_db_custom_fields_v1',
   TECH_SHIFTS: 'autotrack_db_tech_shifts_v1',
   SCHEDULED_SLOTS: 'autotrack_db_scheduled_slots_v1',
+  RECURRING_MAINTENANCE: 'autotrack_db_recurring_maintenance_v1',
   DAILY_SNAPSHOT_PREFIX: 'autotrack_daily_snapshot_',
 };
 
@@ -131,6 +132,26 @@ export const TransactionalDb = {
       return data ? JSON.parse(data) : fallbackFactory();
     } catch (e) {
       return fallbackFactory();
+    }
+  },
+
+  // Save Recurring Maintenance Schedules
+  saveRecurringMaintenance(schedules: RecurringMaintenance[]) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.RECURRING_MAINTENANCE, JSON.stringify(schedules));
+    } catch (e) {
+      console.error('Failed to persist recurring maintenance to storage:', e);
+    }
+  },
+
+  // Load Recurring Maintenance Schedules
+  loadRecurringMaintenance(fallback: RecurringMaintenance[]): RecurringMaintenance[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.RECURRING_MAINTENANCE);
+      return data ? JSON.parse(data) : fallback;
+    } catch (e) {
+      console.error('Failed to load recurring maintenance from storage:', e);
+      return fallback;
     }
   },
 

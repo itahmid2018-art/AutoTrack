@@ -24,7 +24,10 @@ import {
   ShoppingCart,
   CheckCheck,
   PackageX,
-  ExternalLink
+  ExternalLink,
+  Settings,
+  QrCode,
+  ScanBarcode
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -44,6 +47,7 @@ interface HeaderProps {
   onMarkAllNotificationsRead?: () => void;
   onQuickReorderItem?: (itemId: string, qty: number) => void;
   onOpenInventoryAlerts?: () => void;
+  onOpenGlobalScanner?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -63,6 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
   onMarkAllNotificationsRead,
   onQuickReorderItem,
   onOpenInventoryAlerts,
+  onOpenGlobalScanner,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -181,15 +186,28 @@ export const Header: React.FC<HeaderProps> = ({
                   setIsSearchOpen(true);
                 }}
                 onFocus={() => setIsSearchOpen(true)}
-                placeholder="Global search: Customer, Phone, SKU (BRSH-1002), Job ID..."
-                className="w-full bg-zinc-900 border border-zinc-800 hover:border-zinc-700 focus:border-white rounded-xl pl-8 pr-8 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none font-mono transition-colors"
+                placeholder="Global search: Client, Phone, SKU (BRSH-1002), Job ID..."
+                className="w-full bg-zinc-900 border border-zinc-800 hover:border-zinc-700 focus:border-white rounded-xl pl-8 pr-16 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none font-mono transition-colors"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-2 text-zinc-500 hover:text-white text-xs font-bold"
+                  className={`absolute top-2 text-zinc-500 hover:text-white text-xs font-bold ${
+                    onOpenGlobalScanner ? 'right-8' : 'right-2.5'
+                  }`}
                 >
                   <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {onOpenGlobalScanner && (
+                <button
+                  type="button"
+                  onClick={onOpenGlobalScanner}
+                  title="Open QR / Barcode Scanner"
+                  aria-label="Open QR and Barcode Scanner"
+                  className="absolute right-2 top-1.5 p-1 rounded-md text-emerald-400 hover:text-emerald-300 hover:bg-zinc-800 transition-colors"
+                >
+                  <QrCode className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
@@ -558,6 +576,19 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
+            <button
+              onClick={() => handleNavClick('transition')}
+              className={`p-2 rounded-lg border transition-colors ${
+                activeTab === 'transition'
+                  ? 'bg-white border-white text-zinc-950'
+                  : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800'
+              }`}
+              title="Business Settings & Analytics Configuration"
+              aria-label="Open Business Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+
             {onOpenCustomerView && (
               <button
                 onClick={onOpenCustomerView}
@@ -566,6 +597,20 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Customer View</span>
+              </button>
+            )}
+
+            {onOpenGlobalScanner && (
+              <button
+                type="button"
+                onClick={onOpenGlobalScanner}
+                title="Scan Barcode or QR Code"
+                aria-label="Scan Barcode or QR Code"
+                className="px-2.5 sm:px-3 py-2 text-xs font-bold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 active:scale-95"
+              >
+                <ScanBarcode className="w-4 h-4" />
+                <span className="hidden xl:inline">Scan QR / Barcode</span>
+                <span className="xl:hidden hidden sm:inline">Scan</span>
               </button>
             )}
 
@@ -594,6 +639,22 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Responsive Mobile / Tablet Navigation Panel */}
       {mobileMenuOpen && (
         <div className="lg:hidden bg-zinc-950 border-b border-zinc-800 px-4 py-3 space-y-1.5 shadow-2xl animate-in slide-in-from-top duration-200 font-mono text-xs">
+          {onOpenGlobalScanner && (
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenGlobalScanner();
+              }}
+              className="w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between text-zinc-950 bg-emerald-400 hover:bg-emerald-300"
+            >
+              <div className="flex items-center gap-2">
+                <ScanBarcode className="w-4 h-4" />
+                <span>QR Code &amp; Barcode Scanner</span>
+              </div>
+            </button>
+          )}
+
           <button
             onClick={() => handleNavClick('intake')}
             className={`w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between ${
@@ -712,8 +773,8 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <div className="flex items-center gap-2">
-              <HelpCircle className="w-4 h-4" />
-              <span>Business Setup Questions</span>
+              <Settings className="w-4 h-4" />
+              <span>Business Settings &amp; Setup</span>
             </div>
           </button>
 

@@ -1,7 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BusinessSettings, CriticalQuestionnaire, CustomField, JobCard, InventoryItem, RecurringMaintenance } from '../types';
 import { FieldCustomizer } from './FieldCustomizer';
 import { TransactionalDb } from '../utils/localStorageDb';
+import {
+  ANALYTICS_METRIC_DEFINITIONS,
+  AnalyticsMetricKey,
+  CORE_ANALYTICS_METRICS,
+  DEFAULT_ANALYTICS_METRICS,
+  countEnabledAnalyticsMetrics,
+  resolveAnalyticsMetrics,
+} from '../utils/analyticsConfig';
 import { 
   HelpCircle, 
   CheckCircle2, 
@@ -19,7 +27,10 @@ import {
   FileCheck,
   HardDrive,
   Upload,
-  AlertTriangle
+  AlertTriangle,
+  BarChart3,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface TransitionViewProps {
@@ -34,6 +45,8 @@ interface TransitionViewProps {
   schedules: RecurringMaintenance[];
   onRestoreDatabase: (backupData: any) => void;
   onProceedToJobs: () => void;
+  initialSubTab?: 'fields' | 'backups' | 'rules' | 'manual';
+  onOpenAnalytics?: () => void;
 }
 
 export const TransitionView: React.FC<TransitionViewProps> = ({
@@ -48,14 +61,47 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
   schedules,
   onRestoreDatabase,
   onProceedToJobs,
+  initialSubTab = 'backups',
+  onOpenAnalytics,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'fields' | 'backups' | 'rules' | 'manual'>('backups');
+  const [activeSubTab, setActiveSubTab] = useState<'fields' | 'backups' | 'rules' | 'manual'>(initialSubTab);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    setActiveSubTab(initialSubTab);
+  }, [initialSubTab]);
+
+  const resolvedMetrics = resolveAnalyticsMetrics(settings.analyticsMetrics);
+  const enabledMetricsCount = countEnabledAnalyticsMetrics(resolvedMetrics);
 
   const showNotice = (msg: string) => {
     setActionNotice(msg);
     setTimeout(() => setActionNotice(null), 4000);
+  };
+
+  const handleToggleAnalyticsMetric = (key: AnalyticsMetricKey, label: string) => {
+    const nextValue = !resolvedMetrics[key];
+    const updatedMetrics = {
+      ...resolvedMetrics,
+      [key]: nextValue,
+    };
+    onUpdateSettings({
+      ...settings,
+      analyticsMetrics: updatedMetrics,
+    });
+    showNotice(`${label} ${nextValue ? 'enabled' : 'hidden'} on Analytics dashboard.`);
+  };
+
+  const handleApplyMetricsPreset = (
+    preset: typeof DEFAULT_ANALYTICS_METRICS,
+    noticeText: string
+  ) => {
+    onUpdateSettings({
+      ...settings,
+      analyticsMetrics: { ...preset },
+    });
+    showNotice(noticeText);
   };
 
   const handleSave = () => {
@@ -180,7 +226,7 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
             }`}
           >
             <Settings className="w-4 h-4" />
-            <span>3. Business Rules &amp; Operational Policies</span>
+            <span>3. Business Settings &amp; Analytics Metrics</span>
           </button>
 
           <button
@@ -649,6 +695,112 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
                   When enabled, customer signs directly on tablet or mobile touchscreen during intake. Signature is embedded into the digital PDF invoice &amp; job record.
                 </p>
+              </div>
+            </div>
+
+            {/* Section 7: Analytics Dashboard Metrics Configuration */}
+            <div className="md:col-span-2 bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-colors space-y-4">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                    7
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-bold text-white uppercase flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-emerald-400" />
+                        <span>Analytics Dashboard Metrics Visibility</span>
+                      </h3>
+                      <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-zinc-950 border border-zinc-700 text-emerald-400">
+                        {enabledMetricsCount} / {ANALYTICS_METRIC_DEFINITIONS.length} Active
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-400 mt-1 font-sans">
+                      Toggle which KPI cards and reporting sections appear on the Analytics dashboard. Changes save automatically.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleApplyMetricsPreset(DEFAULT_ANALYTICS_METRICS, 'Enabled all 8 Analytics dashboard metrics.')}
+                    className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-zinc-950 hover:bg-zinc-800 text-white border border-zinc-700 transition-colors"
+                  >
+                    Enable All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyMetricsPreset(CORE_ANALYTICS_METRICS, 'Applied Core 4 KPIs preset (Active Jobs, Low Inventory, Revenue, Today\'s Appointments).')}
+                    className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-zinc-950 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 transition-colors"
+                  >
+                    Core 4 Only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyMetricsPreset(DEFAULT_ANALYTICS_METRICS, 'Reset Analytics metrics to default configuration.')}
+                    className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-zinc-950 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition-colors flex items-center gap-1"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Reset Defaults</span>
+                  </button>
+                  {onOpenAnalytics && (
+                    <button
+                      type="button"
+                      onClick={onOpenAnalytics}
+                      className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-white hover:bg-zinc-200 text-zinc-950 transition-colors flex items-center gap-1.5"
+                    >
+                      <BarChart3 className="w-3.5 h-3.5" />
+                      <span>Open Analytics</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {ANALYTICS_METRIC_DEFINITIONS.map((metric) => {
+                  const isEnabled = resolvedMetrics[metric.key];
+                  return (
+                    <label
+                      key={metric.key}
+                      className={`flex items-start justify-between gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                        isEnabled
+                          ? 'bg-zinc-950 border-zinc-600 text-white'
+                          : 'bg-zinc-950/40 border-zinc-800/80 text-zinc-400 hover:border-zinc-700'
+                      }`}
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`text-xs font-bold ${isEnabled ? 'text-white' : 'text-zinc-400'}`}>
+                            {metric.label}
+                          </span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">
+                            {metric.group}
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold inline-flex items-center gap-1 ${
+                              isEnabled ? 'text-emerald-400' : 'text-zinc-500'
+                            }`}
+                          >
+                            {isEnabled ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                            <span>{isEnabled ? 'Visible' : 'Hidden'}</span>
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
+                          {metric.description}
+                        </p>
+                      </div>
+
+                      <input
+                        type="checkbox"
+                        checked={isEnabled}
+                        onChange={() => handleToggleAnalyticsMetric(metric.key, metric.label)}
+                        aria-label={`Toggle ${metric.label} on Analytics dashboard`}
+                        className="mt-0.5 w-4 h-4 accent-white rounded cursor-pointer shrink-0"
+                      />
+                    </label>
+                  );
+                })}
               </div>
             </div>
 

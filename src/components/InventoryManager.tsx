@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { InventoryItem, JobCard, BusinessSettings } from '../types';
+import { InventoryItem, JobCard, BusinessSettings, RecurringMaintenance } from '../types';
 import { generateMySqlDump } from '../utils/mysqlExport';
 import {
   InventoryNotification,
@@ -8,10 +8,18 @@ import {
   syncInventoryNotifications,
 } from '../utils/inventoryNotifications';
 import { AiReorderRecommendations } from './AiReorderRecommendations';
+import { SerialBarcodeScannerModal } from './SerialBarcodeScannerModal';
+import {
+  BarcodeScanResult,
+  ToolHistoryMatch,
+  findMatchingInventoryItem,
+  findMatchingToolHistory,
+  parseProductQrPayload,
+} from '../utils/barcodeSerialParser';
 import { 
   Search, Plus, Package, AlertTriangle, Download, Barcode, 
   RefreshCw, Database, FileCode, CheckCircle2, ShoppingCart, ShieldAlert, Sparkles, BrainCircuit,
-  Bell, CheckCheck, Minus, PackageX, ChevronDown, ChevronUp
+  Bell, CheckCheck, Minus, PackageX, ChevronDown, ChevronUp, QrCode, History, ExternalLink, Camera
 } from 'lucide-react';
 
 interface InventoryManagerProps {
@@ -19,11 +27,14 @@ interface InventoryManagerProps {
   onUpdateInventory: (newInv: InventoryItem[]) => void;
   onOpenAddItemModal: () => void;
   jobCards?: JobCard[];
+  schedules?: RecurringMaintenance[];
   settings?: BusinessSettings;
   notifications?: InventoryNotification[];
   onMarkNotificationRead?: (id: string) => void;
   onMarkAllNotificationsRead?: () => void;
   initialShowLowStockOnly?: boolean;
+  onSelectJobCard?: (job: JobCard) => void;
+  externalLookupCode?: { code: string; nonce: number } | null;
 }
 
 export const InventoryManager: React.FC<InventoryManagerProps> = ({
@@ -31,6 +42,7 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
   onUpdateInventory,
   onOpenAddItemModal,
   jobCards = [],
+  schedules = [],
   settings = {
     centerName: 'BOSCH Authorised Service Center',
     address: 'Industrial Estate, Bay 4',
@@ -50,6 +62,8 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
   onMarkNotificationRead,
   onMarkAllNotificationsRead,
   initialShowLowStockOnly = false,
+  onSelectJobCard,
+  externalLookupCode,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -74,8 +88,22 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
   }, [initialShowLowStockOnly]);
 
   const [scanModalOpen, setScanModalOpen] = useState(false);
+  const [cameraQrScannerOpen, setCameraQrScannerOpen] = useState(false);
   const [scannedSku, setScannedSku] = useState('');
   const [scanResult, setScanResult] = useState<InventoryItem | null>(null);
+  const [scanToolHistory, setScanToolHistory] = useState<ToolHistoryMatch | null>(null);
+  const [lastScanMeta, setLastScanMeta] = useState<{ code: string; format: string; method: string } | null>(null);
+
+  useEffect(() => {
+    if (externalLookupCode?.code) {
+      setSearchTerm(externalLookupCode.code);
+      setCurrentPage(1);
+      performCodeLookup(externalLookupCode.code, {
+        format: 'Global Scanner',
+        method: 'Header QR / Barcode Lookup',
+      });
+    }
+  }, [externalLookupCode?.nonce]);
 
   const categories = ['All', ...Array.from(new Set(inventory.map((i) => i.category)))];
 
@@ -179,15 +207,46 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
     setTimeout(() => setRestockFeedback(null), 4500);
   };
 
-  const handleSimulateScan = () => {
-    const found = inventory.find(
-      (i) => i.sku.toLowerCase() === scannedSku.toLowerCase() || i.barcode === scannedSku
-    );
+  const performCodeLookup = (
+    rawCode: string,
+    meta: { format: string; method: string } = { format: 'Manual Input', method: 'SKU / Barcode Lookup' }
+  ) => {
+    const parsed = parseProductQrPayload(rawCode);
+    const found = findMatchingInventoryItem(rawCode, inventory);
+    const history = findMatchingToolHistory(rawCode, jobCards, schedules, found?.sku);
+    const displayCode =
+      found?.sku ||
+      parsed.sku ||
+      parsed.serialNumber ||
+      parsed.jobId ||
+      parsed.barcode ||
+      rawCode.trim();
+
+    setScannedSku(displayCode);
     setScanResult(found || null);
+    setScanToolHistory(history);
+    setLastScanMeta({
+      code: displayCode,
+      format: meta.format,
+      method: meta.method,
+    });
+    setScanModalOpen(true);
+  };
+
+  const handleSimulateScan = () => {
+    performCodeLookup(scannedSku);
+  };
+
+  const handleCameraQrDetected = (result: BarcodeScanResult) => {
+    setCameraQrScannerOpen(false);
+    performCodeLookup(result.rawValue || result.detectedSku || result.serialNumber, {
+      format: result.format,
+      method: result.method,
+    });
   };
 
   const handleDownloadSqlDump = () => {
-    const sqlDump = generateMySqlDump(jobCards, inventory, settings);
+    const sqlDump = generateMySqlDump(jobCards, inventory, settings, schedules);
     const blob = new Blob([sqlDump], { type: 'text/sql;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -256,11 +315,20 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
             </button>
 
             <button
+              onClick={() => setCameraQrScannerOpen(true)}
+              className="px-3 py-2 text-xs font-bold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl transition-all shadow flex items-center gap-1.5 active:scale-95"
+              title="Open device camera to scan product QR codes or inventory barcodes"
+            >
+              <QrCode className="w-4 h-4" />
+              <span>QR / Barcode Scanner</span>
+            </button>
+
+            <button
               onClick={() => setScanModalOpen(true)}
               className="px-3 py-2 text-xs font-bold text-zinc-200 bg-zinc-950 hover:bg-zinc-800 rounded-xl transition-all border border-zinc-800 flex items-center gap-1.5"
             >
               <Barcode className="w-4 h-4 text-white" />
-              <span>Barcode Scanner</span>
+              <span>Lookup / Barcode</span>
             </button>
 
             <button
@@ -485,18 +553,30 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
 
         {/* Filter Controls Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4 pt-4 border-t border-zinc-800">
-          <div className="relative">
-            <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Search 1,000 parts by SKU, Name, Bin..."
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500 font-mono"
-            />
+          <div className="flex items-stretch gap-1.5">
+            <div className="relative flex-1 min-w-0">
+              <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search 1,000 parts by SKU, Barcode, Name, Bin..."
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500 font-mono"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setCameraQrScannerOpen(true)}
+              title="Scan SKU barcode or QR code with camera"
+              aria-label="Scan SKU barcode or QR code with camera"
+              className="px-3 py-2 bg-zinc-950 hover:bg-zinc-800 text-emerald-400 hover:text-emerald-300 border border-emerald-700/60 rounded-xl font-mono text-[11px] font-bold flex items-center gap-1 shrink-0 transition-colors"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span>Scan</span>
+            </button>
           </div>
 
           <select
@@ -807,47 +887,219 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
         </div>
       )}
 
-      {/* Barcode Scanner Modal */}
+      {/* QR / Barcode Lookup Modal */}
       {scanModalOpen && (
         <div className="fixed inset-0 z-50 bg-zinc-950/80 backdrop-blur flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-lg w-full space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <h3 className="text-base font-bold text-white flex items-center gap-2 font-mono">
-                <Barcode className="w-5 h-5 text-white" />
-                <span>Barcode / SKU Scanner</span>
+                <QrCode className="w-5 h-5 text-emerald-400" />
+                <span>Product QR &amp; Barcode Lookup</span>
               </h3>
-              <button onClick={() => setScanModalOpen(false)} className="text-zinc-500 hover:text-white text-xs">
+              <button onClick={() => setScanModalOpen(false)} className="text-zinc-400 hover:text-white text-xs font-bold">
                 Close
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 type="text"
                 value={scannedSku}
                 onChange={(e) => setScannedSku(e.target.value)}
-                placeholder="Scan SKU (e.g. BRSH-1002)..."
-                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSimulateScan();
+                }}
+                placeholder="Scan or type SKU (BRSH-1002), Barcode, or Tool Serial..."
+                className="flex-1 min-w-0 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-zinc-500"
               />
               <button
+                type="button"
                 onClick={handleSimulateScan}
                 className="px-4 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl"
               >
-                Scan
+                Lookup
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setScanModalOpen(false);
+                  setCameraQrScannerOpen(true);
+                }}
+                className="px-3.5 py-2 text-xs font-bold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl flex items-center gap-1.5"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>Camera QR</span>
               </button>
             </div>
 
-            {scanResult && (
-              <div className="p-4 bg-zinc-950 border border-zinc-700 rounded-xl space-y-2 text-xs">
-                <div className="font-bold text-white text-sm">{scanResult.name}</div>
-                <div className="text-zinc-400 font-mono">SKU: {scanResult.sku} · Barcode: {scanResult.barcode}</div>
-                <div className="text-zinc-200 font-bold">Location: {scanResult.binLocation}</div>
-                <div className="text-white font-bold font-mono">Price: ${scanResult.unitPrice.toFixed(2)}</div>
-                <div className="text-zinc-400">Stock: {scanResult.stockQty} {scanResult.unit}</div>
+            {lastScanMeta && (
+              <div className="text-[10px] font-mono text-zinc-400 flex flex-wrap items-center justify-between gap-2 bg-zinc-950 border border-zinc-800 px-3 py-1.5 rounded-lg">
+                <span>
+                  Query: <strong className="text-white">{lastScanMeta.code || '—'}</strong>
+                </span>
+                <span>
+                  {lastScanMeta.format} · {lastScanMeta.method}
+                </span>
+              </div>
+            )}
+
+            {scanResult ? (
+              <div className="p-4 bg-zinc-950 border border-emerald-700/60 rounded-xl space-y-3 text-xs">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase text-emerald-400 mb-0.5">
+                      Matched Inventory Item
+                    </div>
+                    <div className="font-bold text-white text-sm font-sans">{scanResult.name}</div>
+                    <div className="text-zinc-400 font-mono mt-0.5">
+                      SKU: {scanResult.sku} · Barcode: {scanResult.barcode}
+                    </div>
+                  </div>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                      isItemBelowThreshold(scanResult)
+                        ? 'bg-amber-950 text-amber-300 border-amber-700'
+                        : 'bg-emerald-950 text-emerald-300 border-emerald-700'
+                    }`}
+                  >
+                    {scanResult.stockQty} {scanResult.unit}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-zinc-800/80">
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Bin Location</span>
+                    <span className="text-zinc-100 font-bold">{scanResult.binLocation}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">Unit Price / Cost</span>
+                    <span className="text-white font-bold">
+                      ${scanResult.unitPrice.toFixed(2)} / ${scanResult.costPrice.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-zinc-400 font-sans">
+                  Compatible tools: <span className="text-zinc-200">{scanResult.compatibleModels}</span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchTerm(scanResult.sku);
+                      setCurrentPage(1);
+                      setScanModalOpen(false);
+                    }}
+                    className="px-3 py-1.5 text-[11px] font-bold bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white rounded-lg"
+                  >
+                    Filter Table to SKU
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleQuickRestock(scanResult.id, 10);
+                      setScanResult({ ...scanResult, stockQty: scanResult.stockQty + 10 });
+                    }}
+                    className="px-3 py-1.5 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Restock +10 {scanResult.unit}</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              lastScanMeta && (
+                <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-400 font-sans flex flex-wrap items-center justify-between gap-2">
+                  <span>No exact spare part SKU or barcode matched &quot;{lastScanMeta.code}&quot;.</span>
+                  {lastScanMeta.code && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchTerm(lastScanMeta.code);
+                        setCurrentPage(1);
+                        setScanModalOpen(false);
+                      }}
+                      className="text-[11px] font-mono font-bold text-white underline"
+                    >
+                      Search in Catalog
+                    </button>
+                  )}
+                </div>
+              )
+            )}
+
+            {/* Matched Tool History & Spare Part Usage in Job Cards */}
+            {scanToolHistory && (scanToolHistory.matchingJobs.length > 0 || scanToolHistory.matchingSchedules.length > 0) && (
+              <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl space-y-2.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-white uppercase flex items-center gap-1.5">
+                    <History className="w-4 h-4 text-emerald-400" />
+                    <span>Tool &amp; Part Service History ({scanToolHistory.matchingJobs.length})</span>
+                  </span>
+                </div>
+
+                {scanToolHistory.matchingJobs.length > 0 && (
+                  <div className="space-y-2 max-h-44 overflow-y-auto">
+                    {scanToolHistory.matchingJobs.slice(0, 5).map((job) => (
+                      <div
+                        key={job.id}
+                        className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg flex items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-bold text-white">{job.id}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-950 border border-zinc-700 text-zinc-300">
+                              {job.status}
+                            </span>
+                            <span className="text-[10px] text-zinc-400">{job.intakeDate}</span>
+                          </div>
+                          <div className="text-[11px] text-zinc-300 font-sans truncate mt-0.5">
+                            {job.tool.brand} {job.tool.modelNumber} ({job.tool.serialNumber}) · Client: {job.customerName}
+                          </div>
+                        </div>
+
+                        {onSelectJobCard && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setScanModalOpen(false);
+                              onSelectJobCard(job);
+                            }}
+                            className="px-2.5 py-1 bg-zinc-950 hover:bg-zinc-800 border border-zinc-700 text-emerald-300 rounded-lg text-[10px] font-bold flex items-center gap-1 shrink-0"
+                          >
+                            <span>Open</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {scanToolHistory.matchingSchedules.length > 0 && (
+                  <div className="pt-2 border-t border-zinc-800 text-[11px] text-zinc-300 font-sans">
+                    Maintenance plan: <strong className="text-white">{scanToolHistory.matchingSchedules[0].customerName}</strong> · Next due{' '}
+                    <span className="text-emerald-300 font-mono font-bold">
+                      {scanToolHistory.matchingSchedules[0].nextDueDate}
+                    </span>{' '}
+                    ({scanToolHistory.matchingSchedules[0].status})
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {cameraQrScannerOpen && (
+        <SerialBarcodeScannerModal
+          title="Scan Product QR or Inventory Barcode"
+          subtitle="Point camera at a spare part QR label, EAN barcode, or tool serial tag"
+          prioritizeQr
+          onDetected={handleCameraQrDetected}
+          onClose={() => setCameraQrScannerOpen(false)}
+        />
       )}
 
     </div>

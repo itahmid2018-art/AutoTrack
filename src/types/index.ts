@@ -270,6 +270,17 @@ export interface InventoryItem {
   lastRestocked: string;
 }
 
+export interface AnalyticsMetricsConfig {
+  activeJobs: boolean;
+  lowInventory: boolean;
+  revenue: boolean;
+  todaysAppointments: boolean;
+  avgRepairTime: boolean;
+  topGrievance: boolean;
+  technicianPerformance: boolean;
+  categoryVolume: boolean;
+}
+
 export interface BusinessSettings {
   centerName: string;
   address: string;
@@ -287,6 +298,7 @@ export interface BusinessSettings {
   autoDailyBackupEnabled?: boolean;
   autoDailyBackupDestination?: 'localStorage' | 'downloadJson' | 'both';
   lastAutoBackupDate?: string;
+  analyticsMetrics?: AnalyticsMetricsConfig;
 }
 
 export interface CriticalQuestionnaire {
