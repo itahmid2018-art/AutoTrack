@@ -56,8 +56,14 @@ export interface PublicJobStatusSummary {
   _pdfRecord?: JobCard;
 }
 
+export type CustomerLookupResult =
+  | { status: 'found'; summary: PublicJobStatusSummary }
+  | { status: 'needs-verification'; jobId: string }
+  | { status: 'invalid-phone'; jobId: string }
+  | { status: 'not-found' };
+
 interface CustomerViewProps {
-  onLookupJob: (query: string, phoneLast4?: string) => PublicJobStatusSummary | null;
+  onLookupJob: (query: string, phoneLast4?: string) => CustomerLookupResult;
   initialQuery?: string;
   initialShowFeedback?: boolean;
   sampleJobIds?: string[];
@@ -177,7 +183,7 @@ export function sanitizeJobForCustomer(
     verifiedByTokenOrPhone,
     publicAccessToken: job.publicAccessToken,
     customerFeedback: job.customerFeedback,
-    _pdfRecord: job,
+    _pdfRecord: verifiedByTokenOrPhone ? job : undefined,
   };
 }
 
@@ -201,9 +207,18 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
 }) => {
   const [lookupInput, setLookupInput] = useState(initialQuery);
   const [phoneLast4Input, setPhoneLast4Input] = useState('');
-  const [matchedSummary, setMatchedSummary] = useState<PublicJobStatusSummary | null>(() =>
-    initialQuery ? onLookupJob(initialQuery) : null
+  const initialLookupResult = initialQuery ? onLookupJob(initialQuery) : null;
+  const [matchedSummary, setMatchedSummary] = useState<PublicJobStatusSummary | null>(
+    initialLookupResult?.status === 'found' ? initialLookupResult.summary : null
   );
+  const [lookupNotice, setLookupNotice] = useState<{
+    type: 'needs-verification' | 'invalid-phone' | 'not-found';
+    jobId?: string;
+  } | null>(() => {
+    if (!initialLookupResult || initialLookupResult.status === 'found') return null;
+    if (initialLookupResult.status === 'not-found') return { type: 'not-found' };
+    return { type: initialLookupResult.status, jobId: initialLookupResult.jobId };
+  });
   const [hasSearched, setHasSearched] = useState(Boolean(initialQuery));
   const [pdfSavedMsg, setPdfSavedMsg] = useState<string | null>(null);
   const [activeToken, setActiveToken] = useState<string>(() =>
@@ -230,35 +245,55 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
   const runLookup = async (queryText: string, last4?: string) => {
     const cleaned = queryText.trim();
     if (!cleaned) return;
+    const cleanedLast4 = (last4 || '').replace(/\D/g, '').slice(-4);
 
-    const localMatch = onLookupJob(cleaned, last4);
-    if (localMatch) {
-      setMatchedSummary(localMatch);
+    const localResult = onLookupJob(cleaned, cleanedLast4 || undefined);
+    if (localResult.status === 'found') {
+      setMatchedSummary(localResult.summary);
+      setLookupNotice(null);
       setActiveToken(
-        localMatch.publicAccessToken || (cleaned.toLowerCase().startsWith('tok-') ? cleaned : '')
+        localResult.summary.publicAccessToken || (cleaned.toLowerCase().startsWith('tok-') ? cleaned : '')
       );
+      setHasSearched(true);
+      return;
+    }
+
+    if (localResult.status === 'needs-verification' || localResult.status === 'invalid-phone') {
+      setMatchedSummary(null);
+      setLookupNotice({ type: localResult.status, jobId: localResult.jobId });
       setHasSearched(true);
       return;
     }
 
     try {
       const params = new URLSearchParams({ query: cleaned });
-      if (last4) params.set('phoneLast4', last4);
+      if (cleanedLast4) params.set('phoneLast4', cleanedLast4);
       const res = await fetch(resolveApiUrl(`/api/customer-portal/lookup?${params.toString()}`));
       if (res.ok) {
         const data = await res.json();
         if (data?.summary) {
           setMatchedSummary(data.summary);
+          setLookupNotice(null);
           setActiveToken(cleaned.toLowerCase().startsWith('tok-') ? cleaned : '');
           setHasSearched(true);
           return;
         }
+      } else if (res.status === 403) {
+        const errData = await res.json().catch(() => ({}));
+        setMatchedSummary(null);
+        setLookupNotice({
+          type: cleanedLast4 ? 'invalid-phone' : 'needs-verification',
+          jobId: errData?.jobId || cleaned,
+        });
+        setHasSearched(true);
+        return;
       }
     } catch {
       // Fallback cleanly when offline or server lookup unavailable
     }
 
     setMatchedSummary(null);
+    setLookupNotice({ type: 'not-found' });
     setHasSearched(true);
   };
 
@@ -342,7 +377,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                 ? prevHistory
                 : [...prevHistory, { status: nextStatus, enteredAt: update.updatedAt || new Date().toISOString() }],
               updatedAt: update.updatedAt || new Date().toISOString(),
-              verifiedByTokenOrPhone: true,
+              verifiedByTokenOrPhone: prev?.verifiedByTokenOrPhone ?? Boolean(token),
               publicAccessToken: token,
               customerFeedback: update.customerFeedback || prev?.customerFeedback,
               _pdfRecord: prev?._pdfRecord
@@ -414,12 +449,13 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
   const handleQuickSampleLookup = (sampleId: string) => {
     setLookupInput(sampleId);
     setPhoneLast4Input('');
+    setMatchedSummary(null);
     setPdfSavedMsg(null);
     void runLookup(sampleId);
   };
 
   const handleDownloadCustomerReceipt = () => {
-    if (!matchedSummary) return;
+    if (!matchedSummary || !matchedSummary.verifiedByTokenOrPhone) return;
     const pdfSource: JobCard = matchedSummary._pdfRecord || {
       id: matchedSummary.id,
       customerName: matchedSummary.customerFirstName,
@@ -619,7 +655,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                 maxLength={4}
                 value={phoneLast4Input}
                 onChange={(e) => setPhoneLast4Input(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="Phone Last 4 (Optional)"
+                placeholder="Phone Last 4 (Required for ID)"
                 className="w-full bg-zinc-950 border border-zinc-800 focus:border-white rounded-xl px-3 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none"
               />
             </div>
@@ -654,15 +690,31 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
           )}
         </section>
 
-        {/* Empty / Not Found Feedback */}
-        {hasSearched && !matchedSummary && (
+        {/* Verification Required / Invalid Phone / Not Found Feedback */}
+        {hasSearched && !matchedSummary && lookupNotice && (lookupNotice.type === 'needs-verification' || lookupNotice.type === 'invalid-phone') && (
+          <div className="bg-zinc-900 border border-amber-700/70 rounded-2xl p-6 text-center space-y-2 shadow-lg">
+            <Lock className="w-7 h-7 text-amber-400 mx-auto" />
+            <h2 className="text-sm font-bold text-white font-mono uppercase">
+              {lookupNotice.type === 'invalid-phone'
+                ? 'Phone Verification Digits Do Not Match'
+                : 'Phone Verification Required'}
+            </h2>
+            <p className="text-xs text-zinc-300 max-w-md mx-auto">
+              {lookupNotice.type === 'invalid-phone'
+                ? `The last 4 digits entered do not match the client phone number on ticket ${lookupNotice.jobId || lookupInput}. Re-enter the correct 4 digits or use your private tracking token link.`
+                : `Ticket ${lookupNotice.jobId || lookupInput} exists. Enter the last 4 digits of the client phone number in the field above to unlock repair progress and PDF receipt download.`}
+            </p>
+          </div>
+        )}
+
+        {hasSearched && !matchedSummary && (!lookupNotice || lookupNotice.type === 'not-found') && (
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center space-y-2 shadow-lg">
             <AlertCircle className="w-8 h-8 text-amber-400 mx-auto" />
             <h2 className="text-sm font-bold text-white font-mono uppercase">
               No Matching Service Ticket Found
             </h2>
             <p className="text-xs text-zinc-400 max-w-md mx-auto">
-              Verify your Job Card ID (for example <code className="text-zinc-200">BOSCH-2026-0041</code>) and, if entered, ensure the last 4 phone digits match the intake phone number.
+              Verify your Job Card ID (for example <code className="text-zinc-200">BOSCH-2026-0041</code>) and private token or phone last 4 digits.
             </p>
           </div>
         )}
@@ -709,10 +761,21 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={handleDownloadCustomerReceipt}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs font-mono flex items-center gap-1.5 shadow active:scale-95 transition-all"
+                    disabled={!matchedSummary.verifiedByTokenOrPhone}
+                    className={`px-4 py-2 font-bold rounded-xl text-xs font-mono flex items-center gap-1.5 shadow transition-all ${
+                      matchedSummary.verifiedByTokenOrPhone
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95'
+                        : 'bg-zinc-800 text-zinc-400 cursor-not-allowed opacity-70'
+                    }`}
                   >
                     <Download className="w-4 h-4" />
-                    <span>{pdfSavedMsg ? 'PDF Saved' : 'Download PDF Receipt'}</span>
+                    <span>
+                      {!matchedSummary.verifiedByTokenOrPhone
+                        ? 'Verify phone last 4 for PDF'
+                        : pdfSavedMsg
+                        ? 'PDF Saved'
+                        : 'Download PDF Receipt'}
+                    </span>
                   </button>
                 </div>
               </div>

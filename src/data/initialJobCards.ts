@@ -77,7 +77,7 @@ export const INITIAL_JOB_CARDS: JobCard[] = [
         recipientPhone: '+1 (555) 234-5678',
         text: 'Apex Industrial: Bosch GBH 2-26 DFR (SN-3611B54300) checked in for service under Job Card BOSCH-2026-0041. Bosch Service Center.',
         channel: 'WhatsApp',
-        status: 'Delivered'
+        status: 'Sent'
       }
     ],
     auditLogs: [
@@ -388,7 +388,7 @@ export const INITIAL_JOB_CARDS: JobCard[] = [
         recipientPhone: '+1 (555) 678-9012',
         text: 'Hi Highland Carpentry & Joinery, thank you for servicing your Milwaukee M18 FUEL 1/4" Hex Impact Driver (BOSCH-2026-0046). Please share a quick rating & review: https://service.portal.local/?view=customer&token=tok-bosch-2026-0046&feedback=1',
         channel: 'SMS',
-        status: 'Delivered',
+        status: 'Sent',
       },
     ],
     auditLogs: [

@@ -1,4 +1,5 @@
 import { JobCard, InventoryItem, BusinessSettings, CriticalQuestionnaire, MessageLog, CustomField, RecurringMaintenance, TechnicianShift, ScheduledJobSlot } from '../types';
+import { getEffectiveJobBilling } from './billing';
 
 const STORAGE_KEYS = {
   JOB_CARDS: 'autotrack_db_job_cards_v1',
@@ -188,7 +189,7 @@ export const TransactionalDb = {
     ];
 
     const rows = jobCards.map((j) => {
-      const partsSubtotal = j.parts ? j.parts.reduce((sum, p) => sum + p.total, 0) : 0;
+      const billing = getEffectiveJobBilling(j);
       return [
         escapeCsv(j.id),
         escapeCsv(j.intakeDate),
@@ -210,9 +211,9 @@ export const TransactionalDb = {
         escapeCsv(j.laborHours),
         escapeCsv(j.laborRate),
         escapeCsv(j.parts ? j.parts.length : 0),
-        escapeCsv(partsSubtotal.toFixed(2)),
+        escapeCsv(billing.partsSubtotal.toFixed(2)),
         escapeCsv(j.taxRate),
-        escapeCsv(j.totalAmount.toFixed(2)),
+        escapeCsv(billing.totalAmount.toFixed(2)),
         escapeCsv(j.customerFeedback ? j.customerFeedback.rating : ''),
         escapeCsv(j.customerFeedback ? j.customerFeedback.comment : ''),
         escapeCsv(j.createdAt),

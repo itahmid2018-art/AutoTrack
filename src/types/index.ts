@@ -96,7 +96,7 @@ export interface MessageLog {
   recipientPhone: string;
   text: string;
   channel: 'WhatsApp' | 'SMS';
-  status: 'Sent' | 'Delivered' | 'Pending';
+  status: 'Sent' | 'Pending';
 }
 
 export interface CustomerFeedback {
@@ -233,6 +233,9 @@ export interface JobCard {
   publicAccessToken?: string;
   customerFeedback?: CustomerFeedback;
   feedbackSmsSentAt?: string;
+  stockDeductedAt?: string;
+  partsDeducted?: { partId: string; qty: number }[];
+  customFieldValues?: Record<string, string | number | boolean>;
 
   stageEnteredAt?: string;
   stageHistory?: { status: JobStatus; enteredAt: string }[];

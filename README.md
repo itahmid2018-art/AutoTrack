@@ -94,10 +94,10 @@ A One-page, high-efficiency **Job Card tracking, ~1,000-item spare parts invento
 * **Recharts** (`recharts`) & **Motion** (`motion`)
 
 ### Backend & AI
-* **Node.js 22** with `express` 4.21
-* **tsx** 4.21 for running server TypeScript files (`server.ts`)
+* **Node.js 22** with `express` 4.21 (bundled for production into `dist-server/server.cjs`)
+* **tsx** 4.21 for running server TypeScript files (`server.ts`) and utility test suites
 * **Firebase Client & Admin SDKs** (`firebase` 13, `firebase-admin` 14)
-* **@google/genai** (^3.1.0) using **Gemini 3.8 Flash**, **Gemini 4 Hydrogen**, and **Gemini 3.5 Transcribe**
+* **@google/genai** (^3.1.0) with env-configurable `GEMINI_TEXT_MODEL` (default `gemini-4-hydrogen`) and `GEMINI_AUDIO_MODEL` (default `gemini-3.5-transcribe`)
 
 ### Storage & Demonstration Databases
 * **Cloud Firestore Live Multi-Client DB** (`firebase-applet-config.json`, `firestore.rules`, `firebase-blueprint.json`)
@@ -132,6 +132,8 @@ Create a `.env` file in the root directory (refer to `.env.example`):
 ```env
 # Required for Gemini AI Diagnosis, Vision Barcode Scan & Message Generation
 GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"
+GEMINI_TEXT_MODEL="gemini-4-hydrogen"
+GEMINI_AUDIO_MODEL="gemini-3.5-transcribe"
 
 # Server Port
 PORT=3000
@@ -148,11 +150,15 @@ npm run dev
 ```
 Open your browser and navigate to `http://localhost:3000`.
 
-### 5. Building for Production
-To compile the TypeScript project and bundle the frontend for production:
+### 5. Building, Testing & Verification
+To type-check, run unit tests, validate SQL scripts, build the production client + server bundle (`dist/index.html` and `dist-server/server.cjs`), and run the production smoke check:
 
 ```bash
+npm run lint
+npm test
+npm run validate:sql
 npm run build
+npm run smoke
 npm start
 ```
 
@@ -178,7 +184,7 @@ node scripts/validate_sql.js
 ```
 
 ### 🔑 SQL Script Default Administrator Credentials (`database.sql` / `database.postgres.sql`)
-Both SQL demonstration scripts provision starter staff accounts in `users`:
+Both SQL demonstration scripts provision starter staff accounts in `users` using bcrypt hash `$2b$10$32i.0QG3W55o8K6A4GgVMe/2vH98gO.X1Mv1qQe4u6aY0g7l.0q5i`:
 
 | Parameter | Value |
 | :--- | :--- |
@@ -209,7 +215,7 @@ Both SQL demonstration scripts provision starter staff accounts in `users`:
 | `GET/POST/PUT` | `/api/jobs`, `/api/jobs/:id` | Authenticated Firestore-backed job card CRUD endpoints with automatic `publicDeliveries` projection sync. |
 | `GET/POST/PATCH` | `/api/inventory`, `/api/inventory/:id/stock` | Authenticated Firestore-backed spare parts catalog and stock quantity adjustments. |
 | `GET/POST` | `/api/schedules` | Authenticated Firestore-backed recurring maintenance schedules API. |
-| `GET`  | `/api/customer-portal/lookup` | Unauthenticated zero-PII Client delivery lookup by Job ID or `publicAccessToken` (+ optional phone last-4 check). |
+| `GET`  | `/api/customer-portal/lookup` | Unauthenticated zero-PII Client delivery lookup by `publicAccessToken` or `jobId` + matching phone last-4 digits (returns HTTP `403` if bare ID lacks verification). |
 | `GET`  | `/api/customer-portal/stream` | Unauthenticated SSE stream pushing real-time repair stage changes to `CustomerView`. |
 | `POST` | `/api/customer-portal/feedback` | Unauthenticated post-service rating (`1–5` stars) & comment (max `1000` chars) submission validated by `token`/`jobId` + optional phone last-4. |
 
@@ -222,10 +228,12 @@ Both SQL demonstration scripts provision starter staff accounts in `users`:
 2. **[Testing & QA Acceptance Guide](docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md)**:
    * Test matrices, steps, pre-conditions, and expected results covering Voice Notes, AI Diagnosis, Calendar, Sign-Offs, Bulk CSV & Excel Inventory Import, Analytics Toggles, Revenue Forecast, Camera Barcode/QR Scanner, Offline Service Worker, Customer Feedback SMS, and Multi-Client Firebase Sync + Security Rules tests.
 3. **[End-User Operating Manual & Training Guide](docs/USER_MANUAL_AND_TRAINING_GUIDE.md)**:
-   * Counter intake protocols, camera barcode/QR scanning, Predictive Revenue charts, offline Service Worker behavior, live Google Auth sync, Client delivery portal & feedback survey usage, and staff checklists.
+   * Counter intake protocols, camera barcode/QR scanning, Predictive Revenue charts, offline Service Worker behavior, live Google Auth sync, Client delivery portal (`/?view=customer&token=...`) & feedback survey usage, and staff checklists.
 4. **[Setup, Security & Maintenance Guide](docs/SETUP_AND_MAINTENANCE_GUIDE.md)**:
-   * Architecture overview, PII sanitization policies, API rate limits, Firebase security rules (`security_spec.md`), Service Worker caching, and SQL setup.
-5. **[Sample CSV Datasets Directory](docs/samples/README.md)**:
+   * Architecture reality, deployment limits, PII sanitization policies, Cancelled stock reversal policy, API rate limits, Firebase security rules (`security_spec.md`), Service Worker caching, and SQL setup.
+5. **[Remediation Plan Archive](docs/REMEDIATION_PLAN.md)** & **[Engineering Guide](AGENTS.md)**:
+   * Archived Phase 1–9 remediation records and developer invariants (`getEffectiveJobBilling`, `applyStockLifecycleTransition`, `nextJobCardId`).
+6. **[Sample CSV Datasets Directory](docs/samples/README.md)**:
    * Pre-formatted CSV import fixtures for maintenance schedules, inventory items (including Excel/TSV & CSV bulk paste), and service tickets.
 
 ---

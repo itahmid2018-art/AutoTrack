@@ -1,6 +1,7 @@
 import { User } from 'firebase/auth';
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   onSnapshot,
@@ -99,6 +100,33 @@ function clampNumber(value: unknown, min: number, max: number, fallback = 0): nu
   const num = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(num)) return fallback;
   return Math.min(max, Math.max(min, num));
+}
+
+function sanitizeCustomFieldValues(
+  values: Record<string, string | number | boolean> | undefined
+): Record<string, string | number | boolean> | undefined {
+  if (!values || typeof values !== 'object' || Array.isArray(values)) return undefined;
+  const entries = Object.entries(values).slice(0, 30);
+  const cleaned: Record<string, string | number | boolean> = {};
+  for (const [k, v] of entries) {
+    const cleanKey = clampString(k, 64);
+    if (!cleanKey) continue;
+    if (typeof v === 'boolean') {
+      cleaned[cleanKey] = v;
+    } else if (typeof v === 'number' && Number.isFinite(v)) {
+      cleaned[cleanKey] = v;
+    } else if (typeof v === 'string') {
+      cleaned[cleanKey] = v.slice(0, 500);
+    }
+  }
+  return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+}
+
+function sanitizeMessageLogsForFirestore(logs: JobCard['messageLogs'] | undefined) {
+  return (logs || []).slice(0, 50).map((m) => ({
+    ...m,
+    status: m.status === 'Pending' ? 'Pending' : 'Sent',
+  }));
 }
 
 function normalizeStaffUids(ownerUid: string, extraUids: string[] = []): string[] {
@@ -236,7 +264,7 @@ export function buildJobCardCreatePayload(
     taxRate: clampNumber(job.taxRate, 0, 100, 0),
     parts: stripUndefined((job.parts || []).slice(0, 50)),
     totalAmount: clampNumber(job.totalAmount, 0, 1000000, 0),
-    messageLogs: stripUndefined((job.messageLogs || []).slice(0, 50)),
+    messageLogs: stripUndefined(sanitizeMessageLogsForFirestore(job.messageLogs)),
     publicAccessToken: token,
     createdAtIso: clampString(job.createdAt, 40, nowIso),
     updatedAtIso: clampString(job.updatedAt, 40, nowIso),
@@ -260,6 +288,14 @@ export function buildJobCardCreatePayload(
   if (Array.isArray(job.auditLogs)) payload.auditLogs = stripUndefined(job.auditLogs.slice(0, 50));
   if (Array.isArray(job.photos)) payload.photos = stripUndefined(job.photos.slice(0, 6));
   if (Array.isArray(job.subletRecords)) payload.subletRecords = stripUndefined(job.subletRecords.slice(0, 20));
+  if (job.stockDeductedAt?.trim()) payload.stockDeductedAt = clampString(job.stockDeductedAt, 40);
+  if (Array.isArray(job.partsDeducted) && job.partsDeducted.length > 0) {
+    payload.partsDeducted = stripUndefined(job.partsDeducted.slice(0, 50));
+  }
+  const cleanCustomFieldValues = sanitizeCustomFieldValues(job.customFieldValues);
+  if (cleanCustomFieldValues) {
+    payload.customFieldValues = cleanCustomFieldValues;
+  }
   if (job.customerFeedback) {
     payload.customerFeedback = stripUndefined({
       rating: clampNumber(job.customerFeedback.rating, 1, 5, 5),
@@ -293,7 +329,7 @@ export function buildJobCardUpdatePatch(job: JobCard, staffUids: string[]) {
     taxRate: clampNumber(job.taxRate, 0, 100, 0),
     parts: stripUndefined((job.parts || []).slice(0, 50)),
     totalAmount: clampNumber(job.totalAmount, 0, 1000000, 0),
-    messageLogs: stripUndefined((job.messageLogs || []).slice(0, 50)),
+    messageLogs: stripUndefined(sanitizeMessageLogsForFirestore(job.messageLogs)),
     promisedCompletion: clampString(
       job.promisedCompletion,
       40,
@@ -319,6 +355,20 @@ export function buildJobCardUpdatePatch(job: JobCard, staffUids: string[]) {
   if (Array.isArray(job.auditLogs)) patch.auditLogs = stripUndefined(job.auditLogs.slice(0, 50));
   if (Array.isArray(job.photos)) patch.photos = stripUndefined(job.photos.slice(0, 6));
   if (Array.isArray(job.subletRecords)) patch.subletRecords = stripUndefined(job.subletRecords.slice(0, 20));
+  if (job.stockDeductedAt?.trim()) {
+    patch.stockDeductedAt = clampString(job.stockDeductedAt, 40);
+  } else {
+    patch.stockDeductedAt = deleteField();
+  }
+  if (Array.isArray(job.partsDeducted) && job.partsDeducted.length > 0) {
+    patch.partsDeducted = stripUndefined(job.partsDeducted.slice(0, 50));
+  } else {
+    patch.partsDeducted = deleteField();
+  }
+  const cleanCustomFieldValues = sanitizeCustomFieldValues(job.customFieldValues);
+  if (cleanCustomFieldValues) {
+    patch.customFieldValues = cleanCustomFieldValues;
+  }
   if (job.customerFeedback) {
     patch.customerFeedback = stripUndefined({
       rating: clampNumber(job.customerFeedback.rating, 1, 5, 5),

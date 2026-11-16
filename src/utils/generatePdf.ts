@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { JobCard } from '../types';
+import { CustomField, JobCard } from '../types';
 import { getEffectiveJobBilling } from './billing';
 import {
   buildCustomerPortalUrl,
@@ -18,7 +18,8 @@ export interface PdfBrandMeta {
 
 export function generateJobCardPdf(
   job: JobCard,
-  brandMeta?: PdfBrandMeta
+  brandMeta?: PdfBrandMeta,
+  customFields: CustomField[] = []
 ): { doc: jsPDF; filename: string; dataUrl: string } {
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -384,6 +385,36 @@ export function generateJobCardPdf(
   });
 
   y = Math.max(sectionTopY + qrBoxHeight, totalsY + 4);
+
+  const customEntries = Object.entries(job.customFieldValues || {}).filter(
+    ([, val]) => val !== '' && val !== undefined && val !== null
+  );
+  if (customEntries.length > 0) {
+    const labelMap = new Map(customFields.map((f) => [f.key, f.label]));
+    const formattedEntries = customEntries.map(([key, val]) => {
+      const label = labelMap.get(key) || key;
+      const displayVal = typeof val === 'boolean' ? (val ? 'Yes' : 'No') : String(val);
+      return `${label}: ${displayVal}`;
+    });
+    const rowsNeeded = formattedEntries.length * 4.5 + 10;
+    y = ensureSpace(rowsNeeded, y + 6);
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(203, 213, 225);
+    doc.roundedRect(margin, y, contentWidth, rowsNeeded, 2, 2, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(15, 23, 42);
+    doc.text('CUSTOM INTAKE PROPERTIES', margin + 4, y + 5.5);
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(30, 41, 59);
+    let cy = y + 10.5;
+    formattedEntries.forEach((line) => {
+      doc.text(line.slice(0, 95), margin + 4, cy);
+      cy += 4.5;
+    });
+    y += rowsNeeded;
+  }
 
   // Signature Block
   y = ensureSpace(36, y + 10);

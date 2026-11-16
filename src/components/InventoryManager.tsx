@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { InventoryItem, JobCard, BusinessSettings, RecurringMaintenance } from '../types';
+import { InventoryItem, JobCard, BusinessSettings, RecurringMaintenance, CustomField } from '../types';
 import { generateMySqlDump } from '../utils/mysqlExport';
 import {
   InventoryNotification,
@@ -29,6 +29,7 @@ interface InventoryManagerProps {
   onOpenAddItemModal: () => void;
   jobCards?: JobCard[];
   schedules?: RecurringMaintenance[];
+  customFields?: CustomField[];
   settings?: BusinessSettings;
   notifications?: InventoryNotification[];
   onMarkNotificationRead?: (id: string) => void;
@@ -44,6 +45,7 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
   onOpenAddItemModal,
   jobCards = [],
   schedules = [],
+  customFields = [],
   settings = {
     centerName: 'BOSCH Authorised Service Center',
     address: 'Industrial Estate, Bay 4',
@@ -248,7 +250,7 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
   };
 
   const handleDownloadSqlDump = () => {
-    const sqlDump = generateMySqlDump(jobCards, inventory, settings, schedules);
+    const sqlDump = generateMySqlDump(jobCards, inventory, settings, schedules, customFields);
     const blob = new Blob([sqlDump], { type: 'text/sql;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

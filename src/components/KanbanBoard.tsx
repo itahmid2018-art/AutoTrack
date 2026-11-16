@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { JobCard, JobStatus, JobPriority } from '../types';
 import { SHOP_TECHNICIANS } from '../data/mockTechnicians';
 import { adjudicateWarranty } from '../utils/warrantyAdjudicator';
+import { getEffectiveJobBilling } from '../utils/billing';
 import { 
   Search, 
   Wrench, 
@@ -487,6 +488,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             </span>
           </div>
         </div>
+        {jobCards.some(j => j.status === 'Cancelled') && (
+          <div className="flex items-center justify-end text-[11px] font-mono">
+            <span className="px-2.5 py-1 rounded-lg bg-rose-950/30 border border-rose-800/60 text-rose-300">
+              Cancelled: {jobCards.filter(j => j.status === 'Cancelled').length}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Kanban Board 7-Column Horizontal Track */}
@@ -740,7 +748,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             </div>
 
                             <span className="font-mono text-[11px] font-bold text-white shrink-0">
-                              ${job.totalAmount.toFixed(0)}
+                              ${getEffectiveJobBilling(job).totalAmount.toFixed(0)}
                             </span>
                           </div>
 

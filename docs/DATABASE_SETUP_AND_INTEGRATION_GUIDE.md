@@ -30,7 +30,7 @@ AutoTrack Pro supports 4 storage backends: live Cloud Firestore sync, PostgreSQL
 - `/users/{uid}`: Non-PII operator metadata (`uid`, `displayName`, `role`, `workshopId`).
 - `/users/{uid}/private/{docId}`: Isolated PII email profile restricted to owner or admin.
 - `/admins/{uid}`: Admin membership allowlist (plus bootstrapped admin `gurujiytube@gmail.com`).
-- `/jobCards/{jobId}`: Live repair intakes, parts, time logs, audit entries, `publicAccessToken`, `feedbackSmsSentAt`, and `customerFeedback`.
+- `/jobCards/{jobId}`: Live repair intakes, parts, time logs, audit entries, `publicAccessToken`, `stockDeductedAt`, `partsDeducted`, `customFieldValues` (up to 30 keys), `feedbackSmsSentAt`, and `customerFeedback`.
 - `/inventory/{itemId}`: Spare part SKU stock levels and bin locations.
 - `/schedules/{scheduleId}`: Recurring preventive maintenance schedules.
 - `/settings/{settingId}`: Shared center settings including `analyticsMetrics` toggles and `autoSendFeedbackSms`.
@@ -98,7 +98,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const pgDb = drizzle(pool);
 ```
-Column definitions in `database.postgres.sql` map 1-to-1 to `JobCard` (including `customer_feedback_rating`, `customer_feedback_comment`, `customer_feedback_submitted_at`, `customer_feedback_json`, and `feedback_sms_sent_at`), `InventoryItem`, `RecurringMaintenance`, `BusinessSettings` (including `auto_send_feedback_sms` and `analytics_metrics`), and `CustomField` in `src/types/index.ts`.
+Column definitions in `database.postgres.sql` map 1-to-1 to `JobCard` (including `stock_deducted_at`, `parts_deducted_json`, `custom_field_values_json`, `customer_feedback_rating`, `customer_feedback_comment`, `customer_feedback_submitted_at`, `customer_feedback_json`, and `feedback_sms_sent_at`), `InventoryItem`, `RecurringMaintenance`, `BusinessSettings` (including `auto_send_feedback_sms` and `analytics_metrics`), and `CustomField` in `src/types/index.ts`. Both `database.postgres.sql` and `database.sql` use canonical bcrypt hash `$2b$10$32i.0QG3W55o8K6A4GgVMe/2vH98gO.X1Mv1qQe4u6aY0g7l.0q5i` for the demo `admin / 123456` account.
 
 ---
 
@@ -117,14 +117,14 @@ docker run -d \
 mysql -h 127.0.0.1 -u root -prootpass < database.sql
 ```
 
-### 4.2 Verifying MySQL Syntax Without Running a Server
+### 4.2 Verifying MySQL & PostgreSQL Syntax Without Running a Server
 ```bash
-node scripts/validate_sql.js
+npm run validate:sql
 ```
-The validator parses `/database.sql` and checks balanced quotes, backticks, and statement terminators across all 11 tables and seed statements.
+`scripts/validate_sql.js` runs a state-machine SQL lexer over both `/database.sql` (MySQL) and `/database.postgres.sql` (PostgreSQL), verifying balanced quotes, backticks, dollar-quoted blocks, parentheses, and statement terminators across all 11 tables and seed statements.
 
 ### 4.3 Exporting Live UI State to MySQL `.sql`
-Inside **1,000 SKUs** (`InventoryManager`) or **Business Settings** (`TransitionView`), click **Export Local MySQL DB (.sql)** to download a fresh SQL script containing `CREATE TABLE IF NOT EXISTS` statements and `INSERT INTO` dumps for active records.
+Inside **1,000 SKUs** (`InventoryManager`) or **Business Settings** (`TransitionView`), click **Export Local MySQL DB (.sql)** to download a fresh SQL script containing `CREATE TABLE IF NOT EXISTS` statements (all 11 tables including `custom_fields`) and `INSERT INTO` dumps for active records.
 
 ---
 

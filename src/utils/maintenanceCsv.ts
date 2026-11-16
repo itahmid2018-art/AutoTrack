@@ -1,4 +1,5 @@
 import { RecurringMaintenance, ToolBrand, ToolCategory } from '../types';
+import { nextScheduleSequenceStart } from './jobId';
 
 export interface ParsedMaintenanceRow {
   rowNumber: number;
@@ -270,8 +271,11 @@ export function parseMaintenanceCsv(
   const validRows: ParsedMaintenanceRow[] = [];
   const invalidRows: ParsedMaintenanceRow[] = [];
 
-  let sequenceCursor = existingCount + 10;
   const usedIds = new Set<string>(existingIds);
+  let sequenceCursor = Math.max(
+    existingCount + 1,
+    nextScheduleSequenceStart(usedIds, 'MAINT-2026-')
+  );
 
   for (let r = 1; r < rows.length; r++) {
     const rowValues = rows[r];

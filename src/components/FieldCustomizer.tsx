@@ -44,6 +44,7 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [editingField, setEditingField] = useState<CustomField | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pendingDeleteField, setPendingDeleteField] = useState<CustomField | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Form State for Add / Edit Modal
@@ -148,9 +149,16 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
       showToast('System core fields cannot be permanently deleted. You can disable them instead.');
       return;
     }
-    const updated = customFields.filter((f) => f.id !== field.id);
+    setPendingDeleteField(field);
+  };
+
+  const confirmDeleteField = () => {
+    if (!pendingDeleteField) return;
+    const target = pendingDeleteField;
+    const updated = customFields.filter((f) => f.id !== target.id);
     onUpdateFields(updated);
-    showToast(`Removed custom field "${field.label}".`);
+    setPendingDeleteField(null);
+    showToast(`Removed custom field "${target.label}". Existing ticket values remain preserved as read-only metadata.`);
   };
 
   const getTypeBadgeClass = (type: FieldDataType) => {
@@ -195,6 +203,39 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
           <span>+ Add Custom Field</span>
         </button>
       </div>
+
+      {/* Inline Delete Confirmation Banner */}
+      {pendingDeleteField && (
+        <div className="p-4 bg-amber-950/40 border border-amber-700/80 rounded-2xl text-xs text-amber-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-bold text-white">
+                Delete custom field &quot;{pendingDeleteField.label}&quot; ({pendingDeleteField.key})?
+              </div>
+              <p className="text-[11px] text-amber-200/90 font-sans mt-0.5">
+                Removing this definition stops showing it on new intakes and leaves previously recorded values on existing job cards without an active field definition.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setPendingDeleteField(null)}
+              className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-200 hover:text-white font-bold"
+            >
+              Keep Field
+            </button>
+            <button
+              type="button"
+              onClick={confirmDeleteField}
+              className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold"
+            >
+              Confirm Delete
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Toast Notification */}
       {toastMessage && (

@@ -5,10 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build",
-    "start": "node dist/server.js",
-    "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "clean": "node -e \"const fs=require('fs');['dist','dist-server'].forEach((p)=>fs.rmSync(p,{recursive:true,force:true}))\"",
+    "build:client": "vite build",
+    "build:server": "esbuild server.ts --platform=node --format=cjs --target=node20 --bundle --packages=external --outfile=dist-server/server.cjs",
+    "build": "npm run clean && npm run build:client && npm run build:server",
+    "start": "node dist-server/server.cjs",
+    "lint": "tsc --noEmit",
+    "validate:sql": "node scripts/validate_sql.js",
+    "test": "npx tsx --test tests/*.test.ts",
+    "smoke": "node scripts/smoke_prod.mjs"
   },
   "dependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",

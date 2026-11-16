@@ -55,6 +55,10 @@ service cloud.firestore {
       return arr is list && arr.size() <= maxLen;
     }
 
+    function isValidCustomFieldValues(cfv) {
+      return cfv is map && cfv.keys().size() <= 30;
+    }
+
     function isValidUserPublic(data) {
       return data.keys().hasAll(['uid', 'displayName', 'role', 'workshopId', 'createdAt', 'updatedAt'])
         && data.keys().hasOnly(['uid', 'displayName', 'role', 'workshopId', 'createdAt', 'updatedAt'])
@@ -113,7 +117,8 @@ service cloud.firestore {
           'customerSignature', 'technicianSignature', 'technicianSignOffBy',
           'technicianSignOffAt', 'technicianSignOffNotes', 'attachments',
           'messageLogs', 'timeLogs', 'auditLogs', 'photos', 'subletRecords',
-          'publicAccessToken', 'customerFeedback', 'feedbackSmsSentAt',
+          'publicAccessToken', 'stockDeductedAt', 'partsDeducted', 'customFieldValues',
+          'customerFeedback', 'feedbackSmsSentAt',
           'stageEnteredAt', 'stageHistory',
           'createdAtIso', 'updatedAtIso', 'createdAt', 'updatedAt'
         ])
@@ -155,6 +160,9 @@ service cloud.firestore {
         && (!('auditLogs' in data) || isValidBoundedList(data.auditLogs, 50))
         && (!('photos' in data) || isValidBoundedList(data.photos, 6))
         && (!('subletRecords' in data) || isValidBoundedList(data.subletRecords, 20))
+        && (!('stockDeductedAt' in data) || (data.stockDeductedAt is string && data.stockDeductedAt.size() <= 40))
+        && (!('partsDeducted' in data) || isValidBoundedList(data.partsDeducted, 50))
+        && (!('customFieldValues' in data) || isValidCustomFieldValues(data.customFieldValues))
         && (!('customerFeedback' in data) || isValidCustomerFeedback(data.customerFeedback))
         && (!('feedbackSmsSentAt' in data) || (data.feedbackSmsSentAt is string && data.feedbackSmsSentAt.size() <= 40))
         && (!('stageEnteredAt' in data) || (data.stageEnteredAt is string && data.stageEnteredAt.size() <= 40))
@@ -417,7 +425,8 @@ service cloud.firestore {
             'operationalExpenses', 'totalAmount', 'customerSignature',
             'technicianSignature', 'technicianSignOffBy', 'technicianSignOffAt',
             'technicianSignOffNotes', 'attachments', 'messageLogs', 'timeLogs',
-            'auditLogs', 'photos', 'subletRecords', 'customerFeedback',
+            'auditLogs', 'photos', 'subletRecords', 'stockDeductedAt',
+            'partsDeducted', 'customFieldValues', 'customerFeedback',
             'feedbackSmsSentAt', 'stageEnteredAt', 'stageHistory',
             'promisedCompletion', 'tool', 'serviceReq', 'staffUids',
             'updatedAtIso', 'updatedAt'

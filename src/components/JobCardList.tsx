@@ -3,13 +3,27 @@ import { JobCard, JobStatus } from '../types';
 import { adjudicateWarranty } from '../utils/warrantyAdjudicator';
 import { SerialBarcodeScannerModal } from './SerialBarcodeScannerModal';
 import { BarcodeScanResult, findMatchingToolHistory, parseProductQrPayload } from '../utils/barcodeSerialParser';
-import { Search, Wrench, MessageSquare, ChevronRight, User, Plus, Printer, FileText, X, Filter, Sparkles, ShieldCheck, ShieldAlert, QrCode, Star } from 'lucide-react';
+import { getEffectiveJobBilling } from '../utils/billing';
+import { Search, Wrench, MessageSquare, ChevronRight, User, Plus, Printer, FileText, X, Filter, Sparkles, ShieldCheck, ShieldAlert, QrCode, Star, CheckSquare } from 'lucide-react';
+
+const BULK_STATUS_OPTIONS: JobStatus[] = [
+  'Intake',
+  'Diagnosis',
+  'Awaiting Approval',
+  'Awaiting Parts',
+  'In Repair',
+  'In Service',
+  'Ready for Pickup',
+  'Completed',
+  'Cancelled',
+];
 
 interface JobCardListProps {
   jobCards: JobCard[];
   onSelectJob: (job: JobCard) => void;
   onOpenNewJobModal: () => void;
   onQuickStatusChange: (jobId: string, newStatus: JobStatus) => void;
+  onBulkStatusChange?: (jobIds: string[], newStatus: JobStatus) => void;
   onOpenWhatsApp: (job: JobCard) => void;
   onPrintJobCard: (job: JobCard) => void;
   onSendPdfToCustomer: (job: JobCard) => void;
@@ -21,6 +35,7 @@ export const JobCardList: React.FC<JobCardListProps> = ({
   onSelectJob,
   onOpenNewJobModal,
   onQuickStatusChange,
+  onBulkStatusChange,
   onOpenWhatsApp,
   onPrintJobCard,
   onSendPdfToCustomer,
@@ -30,6 +45,9 @@ export const JobCardList: React.FC<JobCardListProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [brandFilter, setBrandFilter] = useState<string>('All');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkStatus, setBulkStatus] = useState<JobStatus>('Ready for Pickup');
+  const [bulkNotice, setBulkNotice] = useState<string | null>(null);
 
   const handleScanJobFilter = (result: BarcodeScanResult) => {
     const parsed = parseProductQrPayload(result.rawValue);
@@ -74,6 +92,68 @@ export const JobCardList: React.FC<JobCardListProps> = ({
     return matchesSearch && matchesStatus && matchesBrand;
   });
 
+  const existingJobIds = new Set(jobCards.map((j) => j.id));
+  const activeSelectedIds = new Set(
+    Array.from(selectedIds).filter((id) => existingJobIds.has(id))
+  );
+  const selectedCount = activeSelectedIds.size;
+  const allFilteredSelected =
+    filteredJobs.length > 0 && filteredJobs.every((j) => activeSelectedIds.has(j.id));
+
+  const toggleSelectJob = (jobId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(Array.from(prev).filter((id) => existingJobIds.has(id)));
+      if (next.has(jobId)) {
+        next.delete(jobId);
+      } else {
+        next.add(jobId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAllFiltered = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(Array.from(prev).filter((id) => existingJobIds.has(id)));
+      if (allFilteredSelected) {
+        filteredJobs.forEach((j) => next.delete(j.id));
+      } else {
+        filteredJobs.forEach((j) => next.add(j.id));
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkUpdateStatus = () => {
+    const targetIds = Array.from(activeSelectedIds);
+    if (targetIds.length === 0) return;
+
+    const changedCount = targetIds.filter(
+      (id) => jobCards.find((j) => j.id === id)?.status !== bulkStatus
+    ).length;
+
+    if (changedCount > 0) {
+      if (onBulkStatusChange) {
+        onBulkStatusChange(targetIds, bulkStatus);
+      } else {
+        targetIds.forEach((id) => onQuickStatusChange(id, bulkStatus));
+      }
+      setBulkNotice(
+        `Updated ${changedCount} job card${changedCount === 1 ? '' : 's'} to ${bulkStatus}.`
+      );
+    } else {
+      setBulkNotice(
+        `Selected job card${targetIds.length === 1 ? '' : 's'} already have status ${bulkStatus}.`
+      );
+    }
+
+    setSelectedIds(new Set());
+  };
+
   const getStatusBadgeClass = (status: JobStatus) => {
     switch (status) {
       case 'Intake':
@@ -91,6 +171,8 @@ export const JobCardList: React.FC<JobCardListProps> = ({
         return 'bg-white text-zinc-950 border-white font-extrabold';
       case 'Completed':
         return 'bg-zinc-950 text-zinc-500 border-zinc-800';
+      case 'Cancelled':
+        return 'bg-rose-950/80 text-rose-300 border-rose-800 font-bold';
       default:
         return 'bg-zinc-900 text-zinc-400 border-zinc-800';
     }
@@ -191,6 +273,7 @@ export const JobCardList: React.FC<JobCardListProps> = ({
             { id: 'In Service', label: 'In Repair / Service', count: jobCards.filter(j => j.status === 'In Service' || j.status === 'In Repair').length },
             { id: 'Ready for Pickup', label: 'Ready for Pickup', count: jobCards.filter(j => j.status === 'Ready for Pickup').length },
             { id: 'Completed', label: 'Completed', count: jobCards.filter(j => j.status === 'Completed').length },
+            { id: 'Cancelled', label: 'Cancelled', count: jobCards.filter(j => j.status === 'Cancelled').length },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -210,6 +293,83 @@ export const JobCardList: React.FC<JobCardListProps> = ({
             </button>
           ))}
         </div>
+
+        {/* Bulk Selection & Header Status Action Bar */}
+        <div className="mt-4 pt-4 border-t border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <label className="inline-flex items-center gap-2 cursor-pointer text-zinc-200 hover:text-white select-none">
+              <input
+                type="checkbox"
+                checked={allFilteredSelected}
+                onChange={toggleSelectAllFiltered}
+                disabled={filteredJobs.length === 0}
+                aria-label="Select all visible job cards"
+                className="w-4 h-4 rounded border-zinc-700 bg-zinc-950 text-emerald-400 accent-emerald-400 cursor-pointer disabled:opacity-40"
+              />
+              <span className="font-semibold">
+                Select All ({filteredJobs.length})
+              </span>
+            </label>
+
+            <span className="px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-[11px] text-zinc-300 tabular-nums">
+              {selectedCount} selected
+            </span>
+
+            {selectedCount > 0 && (
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="text-[11px] text-zinc-400 hover:text-white underline font-semibold"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={bulkStatus}
+              onChange={(e) => setBulkStatus(e.target.value as JobStatus)}
+              aria-label="Bulk update target status"
+              className="bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-zinc-500 font-medium"
+            >
+              {BULK_STATUS_OPTIONS.map((statusOption) => (
+                <option key={statusOption} value={statusOption}>
+                  {statusOption}
+                </option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              onClick={handleBulkUpdateStatus}
+              disabled={selectedCount === 0}
+              className={`px-3.5 py-2 text-xs font-bold rounded-xl shadow flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 ${
+                selectedCount > 0
+                  ? 'bg-emerald-400 hover:bg-emerald-300 text-zinc-950 active:scale-95 cursor-pointer'
+                  : 'bg-zinc-800 text-zinc-500 border border-zinc-700 cursor-not-allowed'
+              }`}
+            >
+              <CheckSquare className="w-4 h-4" />
+              <span>
+                Bulk Update Status{selectedCount > 0 ? ` (${selectedCount})` : ''}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {bulkNotice && (
+          <div className="mt-3 bg-emerald-950/60 border border-emerald-700/70 rounded-xl px-3 py-2 text-xs text-emerald-200 flex items-center justify-between gap-2">
+            <span>{bulkNotice}</span>
+            <button
+              type="button"
+              onClick={() => setBulkNotice(null)}
+              className="text-emerald-300 hover:text-white font-bold"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Cards Grid */}
@@ -230,17 +390,32 @@ export const JobCardList: React.FC<JobCardListProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredJobs.map((job) => (
+          {filteredJobs.map((job) => {
+            const isSelected = activeSelectedIds.has(job.id);
+            return (
             <div
               key={job.id}
-              className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-5 shadow-lg flex flex-col justify-between group transition-all"
+              className={`bg-zinc-900 border rounded-2xl p-5 shadow-lg flex flex-col justify-between group transition-all ${
+                isSelected
+                  ? 'border-emerald-400/80 ring-1 ring-emerald-400/40'
+                  : 'border-zinc-800 hover:border-zinc-700'
+              }`}
             >
               <div>
                 {/* Card Header */}
                 <div className="flex items-center justify-between gap-2 mb-3">
-                  <span className="font-mono text-xs font-bold text-white bg-zinc-950 px-2.5 py-0.5 rounded border border-zinc-800">
-                    {job.id}
-                  </span>
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelectJob(job.id)}
+                      aria-label={`Select job card ${job.id}`}
+                      className="w-4 h-4 rounded border-zinc-700 bg-zinc-950 text-emerald-400 accent-emerald-400 cursor-pointer"
+                    />
+                    <span className="font-mono text-xs font-bold text-white bg-zinc-950 px-2.5 py-0.5 rounded border border-zinc-800">
+                      {job.id}
+                    </span>
+                  </label>
 
                   <div className="flex items-center gap-1.5">
                     {job.customerFeedback && (
@@ -312,7 +487,7 @@ export const JobCardList: React.FC<JobCardListProps> = ({
                 <div>
                   <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Total Estimate</div>
                   <div className="text-base font-extrabold font-mono text-white">
-                    ${job.totalAmount.toFixed(2)}
+                    ${getEffectiveJobBilling(job).totalAmount.toFixed(2)}
                   </div>
                 </div>
 
@@ -355,7 +530,8 @@ export const JobCardList: React.FC<JobCardListProps> = ({
               </div>
 
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

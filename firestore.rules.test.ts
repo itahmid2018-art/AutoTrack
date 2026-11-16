@@ -95,9 +95,32 @@ export function isValidFeedbackInput(rating: unknown, comment: unknown): boolean
   );
 }
 
+export function isValidCustomFieldValuesInput(values: unknown): boolean {
+  return (
+    values !== null &&
+    typeof values === 'object' &&
+    !Array.isArray(values) &&
+    Object.keys(values as Record<string, unknown>).length <= 30
+  );
+}
+
+export function isValidPartsDeductedInput(parts: unknown): boolean {
+  return Array.isArray(parts) && parts.length <= 50;
+}
+
 assert.equal(isValidFeedbackInput(5, 'Fast repair and clean workbench pickup.'), true);
 assert.equal(isValidFeedbackInput(6, 'Out of range star'), false);
 assert.equal(isValidFeedbackInput(0, 'Zero rating invalid'), false);
 assert.equal(isValidFeedbackInput(4, 'x'.repeat(1001)), false);
 
-console.log(`Verified ${DIRTY_DOZEN_PAYLOADS.length} Dirty Dozen payloads and customer feedback bounds.`);
+assert.equal(isValidCustomFieldValuesInput({ poNumber: 'PO-101', voltageVerified: true }), true);
+assert.equal(
+  isValidCustomFieldValuesInput(
+    Object.fromEntries(Array.from({ length: 31 }, (_, i) => [`k${i}`, `v${i}`]))
+  ),
+  false
+);
+assert.equal(isValidPartsDeductedInput([{ partId: 'item-1001', qty: 2 }]), true);
+assert.equal(isValidPartsDeductedInput(new Array(51).fill({ partId: 'item-1', qty: 1 })), false);
+
+console.log(`Verified ${DIRTY_DOZEN_PAYLOADS.length} Dirty Dozen payloads, feedback bounds, and custom field/stock snapshot limits.`);

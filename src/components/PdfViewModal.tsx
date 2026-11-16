@@ -1,16 +1,37 @@
 import React, { useState } from 'react';
-import { JobCard } from '../types';
+import { BusinessSettings, CustomField, JobCard } from '../types';
 import { generateJobCardPdf } from '../utils/generatePdf';
+import { getEffectiveJobBilling } from '../utils/billing';
 import { FileText, Download, MessageSquare, Phone, X, CheckCircle2, ArrowUpRight, Share2 } from 'lucide-react';
 
 interface PdfViewModalProps {
   job: JobCard;
+  settings?: BusinessSettings;
+  customFields?: CustomField[];
   onClose: () => void;
   onLogMessageSent?: (jobId: string, channel: 'WhatsApp' | 'SMS', text: string) => void;
 }
 
-export const PdfViewModal: React.FC<PdfViewModalProps> = ({ job, onClose, onLogMessageSent }) => {
-  const { doc, filename, dataUrl } = generateJobCardPdf(job);
+export const PdfViewModal: React.FC<PdfViewModalProps> = ({
+  job,
+  settings,
+  customFields = [],
+  onClose,
+  onLogMessageSent,
+}) => {
+  const brandMeta = settings
+    ? {
+        centerName: settings.centerName,
+        phone: settings.phone,
+        email: settings.email,
+        address: settings.address,
+        appOrigin: typeof window !== 'undefined' ? window.location.origin : undefined,
+      }
+    : undefined;
+  const centerPhone = settings?.phone || '(555) 019-2831';
+  const centerName = settings?.centerName || 'Bosch Service Center';
+  const effectiveTotal = getEffectiveJobBilling(job).totalAmount;
+  const { doc, filename, dataUrl } = generateJobCardPdf(job, brandMeta, customFields);
   const [sentSuccess, setSentSuccess] = useState(false);
 
   const handleDownloadPdf = () => {
@@ -19,7 +40,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({ job, onClose, onLogM
 
   const handleSendWhatsAppPdf = () => {
     const cleanPhone = job.customerPhone.replace(/[^0-9]/g, '');
-    const message = `Hi ${job.customerName}, your official PDF Job Card for ${job.tool.brand} ${job.tool.modelNumber} (${job.id}) has been issued. Total Estimate: $${job.totalAmount.toFixed(2)}. Service Bay Contact: (555) 019-2831.`;
+    const message = `Hi ${job.customerName}, your official PDF Job Card for ${job.tool.brand} ${job.tool.modelNumber} (${job.id}) has been issued. Total Estimate: $${effectiveTotal.toFixed(2)}. Service Bay Contact: ${centerPhone}.`;
     
     const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
     
@@ -37,7 +58,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({ job, onClose, onLogM
   };
 
   const handleSendSmsPdf = () => {
-    const message = `Hi ${job.customerName}, your PDF Job Card for ${job.tool.modelNumber} (${job.id}) is issued. Total: $${job.totalAmount.toFixed(2)}. Bosch Service Center.`;
+    const message = `Hi ${job.customerName}, your PDF Job Card for ${job.tool.modelNumber} (${job.id}) is issued. Total: $${effectiveTotal.toFixed(2)}. ${centerName}.`;
     const smsUrl = `sms:${job.customerPhone}?body=${encodeURIComponent(message)}`;
     
     doc.save(filename);

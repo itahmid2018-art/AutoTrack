@@ -9,6 +9,8 @@ import { TransactionalDb } from './utils/localStorageDb';
 import { DEFAULT_ANALYTICS_METRICS } from './utils/analyticsConfig';
 import { autoAdjudicateJobCard } from './utils/warrantyAdjudicator';
 import { buildCustomerFeedbackUrl, ensurePublicAccessToken } from './utils/customerPortalUrl';
+import { nextJobCardId } from './utils/jobId';
+import { applyStockLifecycleTransition, InventoryDelta } from './utils/stockDeduction';
 import { resolveApiUrl } from './utils/apiBase';
 import {
   readOfflineCachedAllRecords,
@@ -56,7 +58,7 @@ import { PrintableJobCardModal } from './components/PrintableJobCardModal';
 import { PdfViewModal } from './components/PdfViewModal';
 import { InventoryNotificationToast } from './components/InventoryNotificationToast';
 import { FeedbackSmsToast, FeedbackSmsDispatchNotice } from './components/FeedbackSmsToast';
-import { CustomerView, sanitizeJobForCustomer, PublicJobStatusSummary } from './components/CustomerView';
+import { CustomerView, sanitizeJobForCustomer, CustomerLookupResult } from './components/CustomerView';
 import { SerialBarcodeScannerModal } from './components/SerialBarcodeScannerModal';
 import { GlobalScanResultModal } from './components/GlobalScanResultModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
@@ -458,7 +460,7 @@ export default function App() {
         recipientPhone: normalizedJob.customerPhone,
         text: smsText,
         channel: 'SMS',
-        status: sentViaTwilio ? 'Delivered' : 'Sent',
+        status: sentViaTwilio ? 'Sent' : 'Pending',
       };
 
       let updatedForCloud: JobCard | null = null;
@@ -594,6 +596,7 @@ export default function App() {
     );
     const nowIso = new Date().toISOString();
     let changedJob: JobCard | null = null;
+    let pendingDeltas: InventoryDelta[] = [];
     const updated = jobCards.map(j => {
       if (j.id === jobId) {
         if (j.status === newStatus) return j;
@@ -610,18 +613,28 @@ export default function App() {
             newState: `Status: ${newStatus}`,
           },
         ];
-        changedJob = normalizeJobCard({
+        const draftJob: JobCard = {
           ...j,
           status: newStatus,
           stageEnteredAt: nowIso,
           stageHistory: [...prevHistory, { status: newStatus, enteredAt: nowIso }],
           auditLogs: nextAudit,
           updatedAt: nowIso,
+        };
+        const stockResult = applyStockLifecycleTransition(draftJob, newStatus, settings.deductStockOn, {
+          actorName: j.technician || 'Workshop Operator',
+          actorRole: j.technician ? 'Technician' : 'Technician / Counter',
+          nowIso,
         });
+        pendingDeltas = stockResult.inventoryDeltas;
+        changedJob = normalizeJobCard(stockResult.updatedJob);
         return changedJob;
       }
       return j;
     });
+    if (pendingDeltas.length > 0) {
+      handleApplyInventoryDeltas(pendingDeltas);
+    }
     setJobCards(updated);
     if (selectedJob && selectedJob.id === jobId) {
       const matched = updated.find(j => j.id === jobId);
@@ -635,23 +648,109 @@ export default function App() {
     }
   };
 
-  const handleDeductInventoryStock = (partId: string, qty: number) => {
-    let changedItem: InventoryItem | null = null;
-    setInventory(prev => prev.map(item => {
-      if (item.id === partId) {
-        changedItem = {
-          ...item,
-          stockQty: Math.max(0, item.stockQty - qty),
-        };
-        return changedItem;
+  const handleBulkStatusChange = (jobIds: string[], newStatus: JobStatus) => {
+    const idSet = new Set(jobIds);
+    if (idSet.size === 0) return;
+
+    const nowIso = new Date().toISOString();
+    const changedJobs: JobCard[] = [];
+    const completedTransitions: JobCard[] = [];
+    const pendingDeltas: InventoryDelta[] = [];
+
+    const updated = jobCards.map((j, idx) => {
+      if (!idSet.has(j.id) || j.status === newStatus) {
+        return j;
       }
-      return item;
-    }));
-    if (changedItem && authUser?.emailVerified) {
-      void upsertInventoryItemsInFirestore([changedItem], authUser).catch((err) =>
-        console.warn('Stock deduction sync failed:', err)
+
+      const wasCompleted = j.status === 'Completed';
+      const prevHistory = j.stageHistory || [{ status: j.status, enteredAt: j.stageEnteredAt || j.createdAt }];
+      const nextAudit = [
+        ...(j.auditLogs || []),
+        {
+          id: `aud-${Date.now()}-${idx}`,
+          timestamp: nowIso.slice(0, 16).replace('T', ' '),
+          userName: j.technician || 'Workshop Operator',
+          userRole: j.technician ? 'Technician' : 'Technician / Counter',
+          action: 'STAGE_CHANGED',
+          previousState: j.status,
+          newState: `Bulk Status: ${newStatus}`,
+        },
+      ];
+      const draftJob: JobCard = {
+        ...j,
+        status: newStatus,
+        stageEnteredAt: nowIso,
+        stageHistory: [...prevHistory, { status: newStatus, enteredAt: nowIso }],
+        auditLogs: nextAudit,
+        updatedAt: nowIso,
+      };
+      const stockResult = applyStockLifecycleTransition(draftJob, newStatus, settings.deductStockOn, {
+        actorName: j.technician || 'Workshop Operator',
+        actorRole: j.technician ? 'Technician' : 'Technician / Counter',
+        nowIso,
+      });
+      if (stockResult.inventoryDeltas.length > 0) {
+        pendingDeltas.push(...stockResult.inventoryDeltas);
+      }
+      const normalizedChanged = normalizeJobCard(stockResult.updatedJob);
+      changedJobs.push(normalizedChanged);
+      if (!wasCompleted && newStatus === 'Completed') {
+        completedTransitions.push(normalizedChanged);
+      }
+      return normalizedChanged;
+    });
+
+    if (changedJobs.length === 0) return;
+
+    if (pendingDeltas.length > 0) {
+      handleApplyInventoryDeltas(pendingDeltas);
+    }
+
+    setJobCards(updated);
+    if (selectedJob && idSet.has(selectedJob.id)) {
+      const matched = updated.find((j) => j.id === selectedJob.id);
+      if (matched) setSelectedJob(matched);
+    }
+
+    changedJobs.forEach((job) => {
+      syncJobToCloud(job);
+    });
+    completedTransitions.forEach((job) => {
+      triggerFeedbackSmsForJob(job);
+    });
+  };
+
+  const handleApplyInventoryDeltas = (deltas: InventoryDelta[]) => {
+    if (!deltas || deltas.length === 0) return;
+    const deltaByPart = new Map<string, number>();
+    for (const d of deltas) {
+      if (!d.partId || !Number.isFinite(d.deltaQty) || d.deltaQty === 0) continue;
+      deltaByPart.set(d.partId, (deltaByPart.get(d.partId) || 0) + d.deltaQty);
+    }
+    if (deltaByPart.size === 0) return;
+
+    const changedItems: InventoryItem[] = [];
+    setInventory((prev) =>
+      prev.map((item) => {
+        const delta = deltaByPart.get(item.id);
+        if (!delta) return item;
+        const nextItem: InventoryItem = {
+          ...item,
+          stockQty: Math.max(0, item.stockQty + delta),
+        };
+        changedItems.push(nextItem);
+        return nextItem;
+      })
+    );
+    if (changedItems.length > 0 && authUser?.emailVerified) {
+      void upsertInventoryItemsInFirestore(changedItems, authUser).catch((err) =>
+        console.warn('Inventory stock adjustment sync failed:', err)
       );
     }
+  };
+
+  const handleDeductInventoryStock = (partId: string, qty: number) => {
+    handleApplyInventoryDeltas([{ partId, deltaQty: -Math.abs(qty) }]);
   };
 
   const handleAddInventoryItem = (newItem: InventoryItem) => {
@@ -729,7 +828,7 @@ export default function App() {
       recipientPhone: jobCards.find(j => j.id === jobId)?.customerPhone || '',
       text,
       channel,
-      status: 'Sent',
+      status: 'Pending',
     };
     handleLogMessageSent(jobId, log);
   };
@@ -755,7 +854,7 @@ export default function App() {
   };
 
   const handleCreateJobCardFromSchedule = (schedule: RecurringMaintenance) => {
-    const generatedId = `${settings.jobCardPrefix}${(jobCards.length + 45).toString().padStart(4, '0')}`;
+    const generatedId = nextJobCardId(jobCards, settings.jobCardPrefix);
     const nowIso = new Date().toISOString();
     const newJob: JobCard = {
       id: generatedId,
@@ -811,29 +910,37 @@ export default function App() {
   const unreadInventoryCount = inventoryNotifications.filter((n) => !n.read).length;
   const dueMaintenanceCount = schedules.filter(s => s.status === 'Due Soon' || s.status === 'Overdue').length;
 
-  const handleLookupCustomerJob = (query: string, phoneLast4?: string): PublicJobStatusSummary | null => {
+  const handleLookupCustomerJob = (query: string, phoneLast4?: string): CustomerLookupResult => {
     const q = query.trim().toLowerCase();
-    if (!q) return null;
+    if (!q) return { status: 'not-found' };
 
     const matchedByToken = jobCards.find(
       (j) => j.publicAccessToken && j.publicAccessToken.toLowerCase() === q
     );
     if (matchedByToken) {
-      return sanitizeJobForCustomer(matchedByToken, true);
+      return {
+        status: 'found',
+        summary: sanitizeJobForCustomer(matchedByToken, true),
+      };
     }
 
     const matchedById = jobCards.find((j) => j.id.toLowerCase() === q);
-    if (!matchedById) return null;
+    if (!matchedById) return { status: 'not-found' };
 
     const cleanLast4 = (phoneLast4 || '').replace(/\D/g, '').slice(-4);
     const jobPhoneLast4 = (matchedById.customerPhone || '').replace(/\D/g, '').slice(-4);
 
-    if (cleanLast4) {
-      if (cleanLast4 !== jobPhoneLast4) return null;
-      return sanitizeJobForCustomer(matchedById, true);
+    if (!cleanLast4) {
+      return { status: 'needs-verification', jobId: matchedById.id };
+    }
+    if (cleanLast4 !== jobPhoneLast4) {
+      return { status: 'invalid-phone', jobId: matchedById.id };
     }
 
-    return sanitizeJobForCustomer(matchedById, false);
+    return {
+      status: 'found',
+      summary: sanitizeJobForCustomer(matchedById, true),
+    };
   };
 
   if (isCustomerViewActive) {
@@ -911,12 +1018,15 @@ export default function App() {
           <JobCardDetail
             job={selectedJob}
             inventory={inventory}
+            settings={settings}
+            customFields={customFields}
             onUpdateJob={handleUpdateJobCard}
             onClose={() => setSelectedJob(null)}
             onOpenWhatsApp={handleOpenWhatsAppForJob}
             onPrintJobCard={(jobToPrint) => setPrintableJob(jobToPrint)}
             deductStockOn={settings.deductStockOn}
             onDeductInventoryStock={handleDeductInventoryStock}
+            onApplyInventoryDeltas={handleApplyInventoryDeltas}
             onOpenCustomerFeedback={(j) => openCustomerSurvey(j)}
             onSendFeedbackSms={(j) => triggerFeedbackSmsForJob(j, { forceResend: true })}
           />
@@ -946,6 +1056,7 @@ export default function App() {
                 onSelectJob={(job) => setSelectedJob(job)}
                 onOpenNewJobModal={() => setIsNewJobModalOpen(true)}
                 onQuickStatusChange={handleQuickStatusChange}
+                onBulkStatusChange={handleBulkStatusChange}
                 onOpenWhatsApp={handleOpenWhatsAppForJob}
                 onPrintJobCard={(jobToPrint) => setPrintableJob(jobToPrint)}
                 onSendPdfToCustomer={(jobForPdf) => setPdfModalJob(jobForPdf)}
@@ -1012,6 +1123,7 @@ export default function App() {
                 jobCards={jobCards}
                 schedules={schedules}
                 settings={settings}
+                customFields={customFields}
                 notifications={inventoryNotifications}
                 onMarkNotificationRead={handleMarkNotificationRead}
                 onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
@@ -1125,6 +1237,8 @@ export default function App() {
       {pdfModalJob && (
         <PdfViewModal
           job={pdfModalJob}
+          settings={settings}
+          customFields={customFields}
           onClose={() => setPdfModalJob(null)}
           onLogMessageSent={handleLogMessageFromPdf}
         />

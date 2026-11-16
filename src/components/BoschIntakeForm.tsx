@@ -10,7 +10,8 @@ import {
   parseProductQrPayload,
 } from '../utils/barcodeSerialParser';
 import { resolveApiUrl } from '../utils/apiBase';
-import { Wrench, User, Phone, ShieldCheck, ShieldAlert, FileText, Sparkles, Printer, MessageSquare, Plus, PenTool, CheckCircle2, AlertCircle, Sliders, ScanBarcode, QrCode, History, Package, ExternalLink } from 'lucide-react';
+import { nextJobCardId } from '../utils/jobId';
+import { Wrench, User, Phone, ShieldCheck, ShieldAlert, FileText, Sparkles, Printer, MessageSquare, Plus, PenTool, CheckCircle2, AlertCircle, Sliders, ScanBarcode, QrCode, History, Package, ExternalLink, X } from 'lucide-react';
 
 interface BoschIntakeFormProps {
   onAddJob: (job: JobCard) => void;
@@ -37,7 +38,43 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
   onSelectExistingJob,
   externalScanPrefill,
 }) => {
-  const generatedId = `${settings.jobCardPrefix}${(existingCount + 45).toString().padStart(4, '0')}`;
+  const generatedId = nextJobCardId(jobCards, settings.jobCardPrefix);
+
+  const getFieldConfig = (
+    key: string,
+    defaults: { label: string; placeholder?: string; required: boolean; enabled?: boolean }
+  ) => {
+    const match = customFields.find((f) => f.key === key);
+    if (!match) {
+      return {
+        label: defaults.label,
+        placeholder: defaults.placeholder,
+        required: defaults.required,
+        enabled: defaults.enabled !== false,
+        options: undefined as string[] | undefined,
+      };
+    }
+    return {
+      label: match.label || defaults.label,
+      placeholder: match.placeholder ?? defaults.placeholder,
+      required: match.required,
+      enabled: match.enabled,
+      options: match.options,
+    };
+  };
+
+  const customerNameCfg = getFieldConfig('customerName', { label: 'Customer / Client Name', placeholder: 'e.g. Apex Construction / John Smith', required: true });
+  const customerPhoneCfg = getFieldConfig('customerPhone', { label: 'Mobile Phone (WhatsApp)', placeholder: 'e.g. +1 (555) 234-5678', required: true });
+  const customerCompanyCfg = getFieldConfig('customerCompany', { label: 'Company Name (Optional)', placeholder: 'e.g. Apex Industrial Infrastructure', required: false });
+  const gstOrTaxIdCfg = getFieldConfig('gstOrTaxId', { label: 'GSTIN / Tax Registration ID', placeholder: 'TAX-8920194', required: false });
+  const preApprovedLimitCfg = getFieldConfig('preApprovedLimit', { label: 'Pre-Approved Auto Repair Limit ($)', placeholder: '50.00', required: false });
+  const toolBrandCfg = getFieldConfig('toolBrand', { label: 'Tool Brand', required: true });
+  const modelNumberCfg = getFieldConfig('modelNumber', { label: 'Model Number / Code', placeholder: 'e.g. GBH 2-26 DFR / GWS 900', required: true });
+  const serialNumberCfg = getFieldConfig('serialNumber', { label: 'Serial Number / Bare Tool ID', placeholder: 'e.g. SN-3611B54300', required: false });
+  const voltageRatingCfg = getFieldConfig('voltageRating', { label: 'Voltage / Power Source', required: true });
+  const warrantyStatusCfg = getFieldConfig('warrantyStatus', { label: 'Warranty Status', required: true });
+  const grievanceCategoryCfg = getFieldConfig('grievanceCategory', { label: 'Primary Defect Category', required: true });
+  const detailedComplaintCfg = getFieldConfig('detailedComplaint', { label: 'Detailed Customer Complaint / Symptoms', placeholder: 'Describe exact customer grievance (e.g. sparks inside casing, lost hammer impact)...', required: true });
 
   // Customer Details State
   const [customerName, setCustomerName] = useState('');
@@ -58,7 +95,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
   const [selectedAccessories, setSelectedAccessories] = useState<string[]>(['Auxiliary Handle', 'Depth Stop Rod']);
 
   // Grievances & Custom Field Values State
-  const [customValues, setCustomValues] = useState<Record<string, any>>({});
+  const [customValues, setCustomValues] = useState<Record<string, string | number | boolean>>({});
   const [grievanceCategory, setGrievanceCategory] = useState<GrievanceCategory>('Motor Sparking / Excessive Smoke');
   const [detailedComplaint, setDetailedComplaint] = useState('');
   const [serviceType, setServiceType] = useState<'Diagnostic & Repair' | 'Standard Overhaul' | 'Carbon Brush & Maintenance' | 'Armature Replacement' | 'Warranty Claim'>('Diagnostic & Repair');
@@ -66,11 +103,13 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
   // AI Diagnostic Assistant
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   // Canvas Signature State
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
+  const [signatureError, setSignatureError] = useState<string | null>(null);
 
   // Camera Serial / Product QR Scanner State & Lookup Results
   const [isSerialScannerOpen, setIsSerialScannerOpen] = useState(false);
@@ -189,6 +228,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
   const handleRunAiDiagnosis = async () => {
     if (!detailedComplaint && !grievanceCategory) return;
     setIsAiLoading(true);
+    setAiError(null);
 
     try {
       const res = await fetch(resolveApiUrl('/api/ai/diagnose'), {
@@ -202,12 +242,16 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
         }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setAiSuggestions(`Probable Fault: ${data.probableCause}\nRecommended Actions:\n${(data.recommendedSteps || []).map((s: string) => `• ${s}`).join('\n')}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAiError(data?.error || data?.details || `AI diagnosis failed (HTTP ${res.status}). Check server Gemini API key and model configuration.`);
+        return;
       }
-    } catch (err) {
+
+      setAiSuggestions(`Probable Fault: ${data.probableCause}\nRecommended Actions:\n${(data.recommendedSteps || []).map((s: string) => `• ${s}`).join('\n')}`);
+    } catch (err: any) {
       console.error(err);
+      setAiError(err?.message || 'Unable to reach AI diagnosis endpoint. Check server connection and GEMINI_API_KEY.');
     } finally {
       setIsAiLoading(false);
     }
@@ -246,6 +290,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
     if (!isDrawing) return;
     setIsDrawing(false);
     setHasSignature(true);
+    setSignatureError(null);
   };
 
   const clearSignature = () => {
@@ -259,7 +304,52 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerName || !customerPhone || !modelNumber || !detailedComplaint) return;
+    setSignatureError(null);
+
+    if (customerNameCfg.enabled && customerNameCfg.required && !customerName.trim()) return;
+    if (customerPhoneCfg.enabled && customerPhoneCfg.required && !customerPhone.trim()) return;
+    if (modelNumberCfg.enabled && modelNumberCfg.required && !modelNumber.trim()) return;
+    if (detailedComplaintCfg.enabled && detailedComplaintCfg.required && !detailedComplaint.trim()) return;
+
+    const enabledCustomFields = customFields.filter((f) => !f.isSystem && f.enabled);
+    const cleanedCustomFieldValues: Record<string, string | number | boolean> = {};
+    for (const field of enabledCustomFields) {
+      const rawVal = customValues[field.key];
+      if (field.dataType === 'boolean') {
+        const boolVal = Boolean(rawVal);
+        if (field.required && !boolVal) {
+          setSignatureError(`Please check required custom field "${field.label}" before saving.`);
+          return;
+        }
+        if (rawVal !== undefined) {
+          cleanedCustomFieldValues[field.key] = boolVal;
+        }
+      } else if (field.dataType === 'number') {
+        const strVal = rawVal !== undefined && rawVal !== null ? String(rawVal).trim() : '';
+        if (field.required && !strVal) {
+          setSignatureError(`Please enter a value for required custom field "${field.label}".`);
+          return;
+        }
+        if (strVal !== '') {
+          const parsedNum = Number(strVal);
+          cleanedCustomFieldValues[field.key] = Number.isFinite(parsedNum) ? parsedNum : strVal;
+        }
+      } else {
+        const strVal = rawVal !== undefined && rawVal !== null ? String(rawVal).trim() : '';
+        if (field.required && !strVal) {
+          setSignatureError(`Please fill required custom field "${field.label}".`);
+          return;
+        }
+        if (strVal !== '') {
+          cleanedCustomFieldValues[field.key] = strVal;
+        }
+      }
+    }
+
+    if (settings.requireSignature && !hasSignature) {
+      setSignatureError('Client intake signature is required by Business Rules before saving this service ticket.');
+      return;
+    }
 
     let signatureDataUrl: string | undefined = undefined;
     if (canvasRef.current && hasSignature) {
@@ -271,15 +361,15 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
 
     const newJob: JobCard = {
       id: generatedId,
-      customerName,
+      customerName: customerName.trim() || 'Walk-in Client',
       customerCompany,
-      customerPhone,
+      customerPhone: customerPhone.trim() || 'N/A',
       customerEmail,
       gstOrTaxId,
       tool: {
         brand,
         category,
-        modelNumber,
+        modelNumber: modelNumber.trim() || 'Unspecified Model',
         serialNumber: serialNumber || 'N/A',
         voltageRating,
         warrantyStatus,
@@ -290,7 +380,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
       },
       serviceReq: {
         grievanceCategory,
-        detailedComplaint,
+        detailedComplaint: detailedComplaint.trim() || grievanceCategory,
         serviceType,
         preApprovedLimit,
       },
@@ -308,6 +398,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
       operationalExpenses: [],
       totalAmount: settings.laborRate * (1 + settings.taxRate / 100),
       customerSignature: signatureDataUrl,
+      customFieldValues: Object.keys(cleanedCustomFieldValues).length > 0 ? cleanedCustomFieldValues : undefined,
       attachments: [],
       messageLogs: [
         {
@@ -315,7 +406,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
           timestamp: new Date().toLocaleString(),
           type: 'Intake',
           recipientPhone: customerPhone,
-          text: `Hi ${customerName}, your ${brand} ${modelNumber} (Job Card ${generatedId}) is received for service. Bosch Service Center.`,
+          text: `Hi ${customerName}, your ${brand} ${modelNumber} (Job Card ${generatedId}) is received for service. ${settings.centerName}.`,
           channel: 'WhatsApp',
           status: 'Pending',
         },
@@ -375,40 +466,53 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
-            <div>
-              <label className="block text-zinc-400 mb-1 font-medium">Customer / Client Name *</label>
-              <input
-                type="text"
-                required
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="e.g. Apex Construction / John Smith"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
-              />
-            </div>
+            {customerNameCfg.enabled && (
+              <div>
+                <label className="block text-zinc-400 mb-1 font-medium">
+                  {customerNameCfg.label} {customerNameCfg.required && '*'}
+                </label>
+                <input
+                  type="text"
+                  required={customerNameCfg.required}
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder={customerNameCfg.placeholder}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+                />
+              </div>
+            )}
 
-            <div>
-              <label className="block text-zinc-400 mb-1 font-medium">Company Name (Optional)</label>
-              <input
-                type="text"
-                value={customerCompany}
-                onChange={(e) => setCustomerCompany(e.target.value)}
-                placeholder="e.g. Apex Industrial Infrastructure"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
-              />
-            </div>
+            {customerCompanyCfg.enabled && (
+              <div>
+                <label className="block text-zinc-400 mb-1 font-medium">
+                  {customerCompanyCfg.label} {customerCompanyCfg.required && '*'}
+                </label>
+                <input
+                  type="text"
+                  required={customerCompanyCfg.required}
+                  value={customerCompany}
+                  onChange={(e) => setCustomerCompany(e.target.value)}
+                  placeholder={customerCompanyCfg.placeholder}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+                />
+              </div>
+            )}
 
-            <div>
-              <label className="block text-zinc-400 mb-1 font-medium">Mobile Phone (WhatsApp) *</label>
-              <input
-                type="text"
-                required
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="e.g. +1 (555) 234-5678"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
-              />
-            </div>
+            {customerPhoneCfg.enabled && (
+              <div>
+                <label className="block text-zinc-400 mb-1 font-medium">
+                  {customerPhoneCfg.label} {customerPhoneCfg.required && '*'}
+                </label>
+                <input
+                  type="text"
+                  required={customerPhoneCfg.required}
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder={customerPhoneCfg.placeholder}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-zinc-400 mb-1 font-medium">Email Address</label>
@@ -421,28 +525,38 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
               />
             </div>
 
-            <div>
-              <label className="block text-zinc-400 mb-1 font-medium">GSTIN / Tax Registration ID</label>
-              <input
-                type="text"
-                value={gstOrTaxId}
-                onChange={(e) => setGstOrTaxId(e.target.value)}
-                placeholder="TAX-8920194"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
-              />
-            </div>
+            {gstOrTaxIdCfg.enabled && (
+              <div>
+                <label className="block text-zinc-400 mb-1 font-medium">
+                  {gstOrTaxIdCfg.label} {gstOrTaxIdCfg.required && '*'}
+                </label>
+                <input
+                  type="text"
+                  required={gstOrTaxIdCfg.required}
+                  value={gstOrTaxId}
+                  onChange={(e) => setGstOrTaxId(e.target.value)}
+                  placeholder={gstOrTaxIdCfg.placeholder}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+                />
+              </div>
+            )}
 
-            <div>
-              <label className="block text-zinc-400 mb-1 font-medium">Pre-Approved Auto Repair Limit ($)</label>
-              <input
-                type="number"
-                value={preApprovedLimit}
-                onChange={(e) => setPreApprovedLimit(parseFloat(e.target.value) || 0)}
-                placeholder="50.00"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
-              />
-              <span className="text-[10px] text-zinc-500">Auto-approve repair if estimate &lt; limit</span>
-            </div>
+            {preApprovedLimitCfg.enabled && (
+              <div>
+                <label className="block text-zinc-400 mb-1 font-medium">
+                  {preApprovedLimitCfg.label} {preApprovedLimitCfg.required && '*'}
+                </label>
+                <input
+                  type="number"
+                  required={preApprovedLimitCfg.required}
+                  value={preApprovedLimit}
+                  onChange={(e) => setPreApprovedLimit(parseFloat(e.target.value) || 0)}
+                  placeholder={preApprovedLimitCfg.placeholder}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+                />
+                <span className="text-[10px] text-zinc-500">Auto-approve repair if estimate &lt; limit</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -465,25 +579,25 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-            <div>
-              <label className="block text-zinc-400 mb-1 font-medium">Tool Brand</label>
-              <select
-                value={brand}
-                onChange={(e) => setBrand(e.target.value as any)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none"
-              >
-                <option value="Bosch Professional">Bosch Professional (Blue)</option>
-                <option value="Bosch DIY (Green)">Bosch Home &amp; Garden (Green)</option>
-                <option value="Makita">Makita</option>
-                <option value="DeWalt">DeWalt</option>
-                <option value="Milwaukee">Milwaukee</option>
-                <option value="Hilti">Hilti</option>
-                <option value="Metabo">Metabo</option>
-                <option value="Festool">Festool</option>
-                <option value="Stihl">Stihl</option>
-                <option value="Other Vendor">Other Vendor Tool</option>
-              </select>
-            </div>
+            {toolBrandCfg.enabled && (
+              <div>
+                <label className="block text-zinc-400 mb-1 font-medium">
+                  {toolBrandCfg.label} {toolBrandCfg.required && '*'}
+                </label>
+                <select
+                  value={brand}
+                  onChange={(e) => setBrand(e.target.value as any)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none"
+                >
+                  {(toolBrandCfg.options && toolBrandCfg.options.length > 0
+                    ? toolBrandCfg.options
+                    : ['Bosch Professional', 'Bosch DIY (Green)', 'Makita', 'DeWalt', 'Milwaukee', 'Hilti', 'Metabo', 'Festool', 'Stihl', 'Other Vendor']
+                  ).map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-zinc-400 mb-1 font-medium">Tool Category</label>
@@ -505,90 +619,109 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
               </select>
             </div>
 
-            <div>
-              <label className="block text-zinc-400 mb-1 font-medium">Model Number / Code *</label>
-              <input
-                type="text"
-                required
-                value={modelNumber}
-                onChange={(e) => setModelNumber(e.target.value)}
-                placeholder="e.g. GBH 2-26 DFR / GWS 900"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono placeholder-zinc-600 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-zinc-400 mb-1 font-medium">Serial Number / Bare Tool ID</label>
-              <div className="flex items-stretch gap-1.5">
+            {modelNumberCfg.enabled && (
+              <div>
+                <label className="block text-zinc-400 mb-1 font-medium">
+                  {modelNumberCfg.label} {modelNumberCfg.required && '*'}
+                </label>
                 <input
                   type="text"
-                  value={serialNumber}
-                  onChange={(e) => {
-                    setSerialNumber(e.target.value);
-                    if (scanResultBadge && e.target.value !== scanResultBadge.serialNumber) {
-                      setScanResultBadge(null);
-                    }
-                  }}
-                  placeholder="e.g. SN-3611B54300"
-                  className="w-full min-w-0 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+                  required={modelNumberCfg.required}
+                  value={modelNumber}
+                  onChange={(e) => setModelNumber(e.target.value)}
+                  placeholder={modelNumberCfg.placeholder}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono placeholder-zinc-600 focus:outline-none"
                 />
-                <button
-                  type="button"
-                  onClick={() => setIsSerialScannerOpen(true)}
-                  title="Scan tool serial barcode with device camera"
-                  aria-label="Scan tool serial barcode with camera"
-                  className="px-3 py-2 bg-zinc-950 hover:bg-zinc-800 text-emerald-400 hover:text-emerald-300 border border-emerald-700/60 rounded-xl font-mono text-[11px] font-bold flex items-center gap-1.5 shrink-0 transition-colors active:scale-95"
-                >
-                  <ScanBarcode className="w-4 h-4" />
-                  <span>Scan</span>
-                </button>
               </div>
-              {scanResultBadge && (
-                <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1.5 text-[10px] font-mono text-emerald-300 bg-emerald-950/40 border border-emerald-800/60 rounded-lg px-2 py-1">
-                  <span>
-                    Scanned ({scanResultBadge.format}) via {scanResultBadge.method}
-                  </span>
-                  {scanResultBadge.detectedModelNumber && scanResultBadge.detectedModelNumber !== modelNumber && (
-                    <button
-                      type="button"
-                      onClick={() => setModelNumber(scanResultBadge.detectedModelNumber!)}
-                      className="underline font-bold text-white hover:text-emerald-200"
-                    >
-                      Use model {scanResultBadge.detectedModelNumber}
-                    </button>
-                  )}
+            )}
+
+            {serialNumberCfg.enabled && (
+              <div>
+                <label className="block text-zinc-400 mb-1 font-medium">
+                  {serialNumberCfg.label} {serialNumberCfg.required && '*'}
+                </label>
+                <div className="flex items-stretch gap-1.5">
+                  <input
+                    type="text"
+                    required={serialNumberCfg.required}
+                    value={serialNumber}
+                    onChange={(e) => {
+                      setSerialNumber(e.target.value);
+                      if (scanResultBadge && e.target.value !== scanResultBadge.serialNumber) {
+                        setScanResultBadge(null);
+                      }
+                    }}
+                    placeholder={serialNumberCfg.placeholder}
+                    className="w-full min-w-0 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsSerialScannerOpen(true)}
+                    title="Scan tool serial barcode with device camera"
+                    aria-label="Scan tool serial barcode with camera"
+                    className="px-3 py-2 bg-zinc-950 hover:bg-zinc-800 text-emerald-400 hover:text-emerald-300 border border-emerald-700/60 rounded-xl font-mono text-[11px] font-bold flex items-center gap-1.5 shrink-0 transition-colors active:scale-95"
+                  >
+                    <ScanBarcode className="w-4 h-4" />
+                    <span>Scan</span>
+                  </button>
                 </div>
-              )}
-            </div>
+                {scanResultBadge && (
+                  <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1.5 text-[10px] font-mono text-emerald-300 bg-emerald-950/40 border border-emerald-800/60 rounded-lg px-2 py-1">
+                    <span>
+                      Scanned ({scanResultBadge.format}) via {scanResultBadge.method}
+                    </span>
+                    {scanResultBadge.detectedModelNumber && scanResultBadge.detectedModelNumber !== modelNumber && (
+                      <button
+                        type="button"
+                        onClick={() => setModelNumber(scanResultBadge.detectedModelNumber!)}
+                        className="underline font-bold text-white hover:text-emerald-200"
+                      >
+                        Use model {scanResultBadge.detectedModelNumber}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
-            <div>
-              <label className="block text-zinc-400 mb-1 font-medium">Voltage / Power Source</label>
-              <select
-                value={voltageRating}
-                onChange={(e) => setVoltageRating(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none"
-              >
-                <option value="230V AC">230V AC Mains</option>
-                <option value="110V Site">110V Transformer Site</option>
-                <option value="18V Lithium">18V Cordless Battery</option>
-                <option value="12V Lithium">12V Cordless Battery</option>
-                <option value="36V Heavy Duty">36V Bi-Battery / Heavy Duty</option>
-              </select>
-            </div>
+            {voltageRatingCfg.enabled && (
+              <div>
+                <label className="block text-zinc-400 mb-1 font-medium">
+                  {voltageRatingCfg.label} {voltageRatingCfg.required && '*'}
+                </label>
+                <select
+                  value={voltageRating}
+                  onChange={(e) => setVoltageRating(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none"
+                >
+                  <option value="230V AC">230V AC Mains</option>
+                  <option value="110V Site">110V Transformer Site</option>
+                  <option value="18V Lithium">18V Cordless Battery</option>
+                  <option value="12V Lithium">12V Cordless Battery</option>
+                  <option value="36V Heavy Duty">36V Bi-Battery / Heavy Duty</option>
+                </select>
+              </div>
+            )}
 
-            <div>
-              <label className="block text-zinc-400 mb-1 font-medium">Warranty Status</label>
-              <select
-                value={warrantyStatus}
-                onChange={(e) => setWarrantyStatus(e.target.value as any)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none"
-              >
-                <option value="Bosch Heavy Duty 3-Year Extended">Bosch Heavy Duty 3-Year Extended</option>
-                <option value="Standard 1-Year">Standard 1-Year Warranty</option>
-                <option value="Out of Warranty">Out of Warranty</option>
-                <option value="Unconfirmed">Unconfirmed / Proof Pending</option>
-              </select>
-            </div>
+            {warrantyStatusCfg.enabled && (
+              <div>
+                <label className="block text-zinc-400 mb-1 font-medium">
+                  {warrantyStatusCfg.label} {warrantyStatusCfg.required && '*'}
+                </label>
+                <select
+                  value={warrantyStatus}
+                  onChange={(e) => setWarrantyStatus(e.target.value as any)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none"
+                >
+                  {(warrantyStatusCfg.options && warrantyStatusCfg.options.length > 0
+                    ? warrantyStatusCfg.options
+                    : ['Bosch Heavy Duty 3-Year Extended', 'Standard 1-Year', 'Out of Warranty', 'Unconfirmed']
+                  ).map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="sm:col-span-2">
               <label className="block text-zinc-400 mb-1 font-medium">Physical Tool Condition</label>
@@ -843,23 +976,34 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div>
-              <label className="block text-zinc-400 mb-1 font-medium">Primary Defect Category *</label>
-              <select
-                value={grievanceCategory}
-                onChange={(e) => setGrievanceCategory(e.target.value as any)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none"
-              >
-                <option value="Motor Sparking / Excessive Smoke">Motor Sparking / Excessive Smoke</option>
-                <option value="No Power / Dead Switch">No Power / Dead Switch</option>
-                <option value="Chuck / SDS Lock Mechanism Jammed">Chuck / SDS Lock Mechanism Jammed</option>
-                <option value="Low Impact / No Hammering Action">Low Impact / No Hammering Action</option>
-                <option value="Gearbox Noise / Excessive Heat">Gearbox Noise / Excessive Heat</option>
-                <option value="Battery Not Charging / Fast Drain">Battery Not Charging / Fast Drain</option>
-                <option value="Cable Cut / Strain Relief Damaged">Cable Cut / Strain Relief Damaged</option>
-                <option value="Routine Maintenance / Carbon Brush Check">Routine Maintenance / Carbon Brush Check</option>
-              </select>
-            </div>
+            {grievanceCategoryCfg.enabled && (
+              <div>
+                <label className="block text-zinc-400 mb-1 font-medium">
+                  {grievanceCategoryCfg.label} {grievanceCategoryCfg.required && '*'}
+                </label>
+                <select
+                  value={grievanceCategory}
+                  onChange={(e) => setGrievanceCategory(e.target.value as any)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none"
+                >
+                  {(grievanceCategoryCfg.options && grievanceCategoryCfg.options.length > 0
+                    ? grievanceCategoryCfg.options
+                    : [
+                        'Motor Sparking / Excessive Smoke',
+                        'No Power / Dead Switch',
+                        'Chuck / SDS Lock Mechanism Jammed',
+                        'Low Impact / No Hammering Action',
+                        'Gearbox Noise / Excessive Heat',
+                        'Battery Not Charging / Fast Drain',
+                        'Cable Cut / Strain Relief Damaged',
+                        'Routine Maintenance / Carbon Brush Check',
+                      ]
+                  ).map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-zinc-400 mb-1 font-medium">Service Requirement Type</label>
@@ -878,34 +1022,55 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
           </div>
 
           {/* Detailed Complaint Input & Quick Presets */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-semibold text-zinc-400">Detailed Customer Complaint / Symptoms *</label>
-              <span className="text-[11px] text-zinc-500">Click a preset below to auto-fill</span>
-            </div>
-            
-            <textarea
-              required
-              rows={3}
-              value={detailedComplaint}
-              onChange={(e) => setDetailedComplaint(e.target.value)}
-              placeholder="Describe exact customer grievance (e.g. sparks inside casing, lost hammer impact)..."
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-zinc-500 font-mono leading-relaxed"
-            />
+          {detailedComplaintCfg.enabled && (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-zinc-400">
+                  {detailedComplaintCfg.label} {detailedComplaintCfg.required && '*'}
+                </label>
+                <span className="text-[11px] text-zinc-500">Click a preset below to auto-fill</span>
+              </div>
+              
+              <textarea
+                required={detailedComplaintCfg.required}
+                rows={3}
+                value={detailedComplaint}
+                onChange={(e) => setDetailedComplaint(e.target.value)}
+                placeholder={detailedComplaintCfg.placeholder}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-zinc-500 font-mono leading-relaxed"
+              />
 
-            <div className="flex items-center gap-1.5 overflow-x-auto mt-2 pb-1">
-              {complaintPresets.map((preset, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setDetailedComplaint(preset)}
-                  className="px-2.5 py-1 bg-zinc-950 border border-zinc-800 hover:border-zinc-600 rounded-lg text-[11px] text-zinc-400 hover:text-white whitespace-nowrap shrink-0 transition-colors"
-                >
-                  Preset {idx + 1}
-                </button>
-              ))}
+              <div className="flex items-center gap-1.5 overflow-x-auto mt-2 pb-1">
+                {complaintPresets.map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setDetailedComplaint(preset)}
+                    className="px-2.5 py-1 bg-zinc-950 border border-zinc-800 hover:border-zinc-600 rounded-lg text-[11px] text-zinc-400 hover:text-white whitespace-nowrap shrink-0 transition-colors"
+                  >
+                    Preset {idx + 1}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {aiError && (
+            <div className="p-3 bg-rose-950/40 border border-rose-800/70 rounded-xl text-xs font-mono text-rose-200 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{aiError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAiError(null)}
+                aria-label="Dismiss AI diagnosis error"
+                className="text-rose-300 hover:text-white p-1"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
           {/* AI Suggestions Box */}
           {aiSuggestions && (
@@ -933,7 +1098,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
 
                   {field.dataType === 'select' ? (
                     <select
-                      value={customValues[field.key] || ''}
+                      value={String(customValues[field.key] ?? '')}
                       onChange={(e) => setCustomValues({ ...customValues, [field.key]: e.target.value })}
                       required={field.required}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none"
@@ -946,16 +1111,29 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                   ) : field.dataType === 'textarea' ? (
                     <textarea
                       rows={2}
-                      value={customValues[field.key] || ''}
+                      value={String(customValues[field.key] ?? '')}
                       onChange={(e) => setCustomValues({ ...customValues, [field.key]: e.target.value })}
                       required={field.required}
                       placeholder={field.placeholder || ''}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-white font-mono focus:outline-none"
                     />
+                  ) : field.dataType === 'boolean' ? (
+                    <label className="flex items-center gap-2.5 p-2.5 bg-zinc-950 border border-zinc-800 rounded-xl cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(customValues[field.key])}
+                        onChange={(e) => setCustomValues({ ...customValues, [field.key]: e.target.checked })}
+                        required={field.required}
+                        className="w-4 h-4 accent-white rounded"
+                      />
+                      <span className="text-zinc-200 font-sans text-xs">
+                        {field.placeholder || 'Confirmed'}
+                      </span>
+                    </label>
                   ) : (
                     <input
                       type={field.dataType === 'number' ? 'number' : field.dataType === 'date' ? 'date' : 'text'}
-                      value={customValues[field.key] || ''}
+                      value={String(customValues[field.key] ?? '')}
                       onChange={(e) => setCustomValues({ ...customValues, [field.key]: e.target.value })}
                       required={field.required}
                       placeholder={field.placeholder || ''}
@@ -973,7 +1151,12 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
               <PenTool className="w-4 h-4 text-white" />
-              <span>4. Customer Intake Sign-off</span>
+              <span>
+                4. Customer Intake Sign-off{' '}
+                <span className={settings.requireSignature ? 'text-amber-300' : 'text-zinc-500'}>
+                  ({settings.requireSignature ? 'Required' : 'Optional'})
+                </span>
+              </span>
             </h2>
 
             {hasSignature && (
@@ -986,6 +1169,23 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
               </button>
             )}
           </div>
+
+          {signatureError && (
+            <div className="p-3 bg-rose-950/40 border border-rose-800/70 rounded-xl text-xs font-mono text-rose-200 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{signatureError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSignatureError(null)}
+                aria-label="Dismiss validation error"
+                className="text-rose-300 hover:text-white p-1"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
           <div className="border border-zinc-800 rounded-xl bg-zinc-950 overflow-hidden">
             <canvas

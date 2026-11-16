@@ -1,18 +1,21 @@
 import QRCode from 'qrcode';
 import { JobCard } from '../types';
 
-function hashTokenSeed(seed: string): string {
-  let hash = 2166136261;
-  for (let i = 0; i < seed.length; i++) {
-    hash ^= seed.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
+function generateRandomHex(byteLength: number = 6): string {
+  const bytes = new Uint8Array(byteLength);
+  if (typeof globalThis !== 'undefined' && globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < byteLength; i++) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
   }
-  return (hash >>> 0).toString(36).padStart(6, '0');
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**
- * Returns the job card's public access token or generates a deterministic,
- * unique-per-job token so QR codes and shared Customer View links always resolve.
+ * Returns the job card's stored `publicAccessToken`, or creates a fresh
+ * CSPRNG-backed token matching `^[a-zA-Z0-9_-]{1,128}$` when none exists yet.
  */
 export function ensurePublicAccessToken(
   job: Pick<JobCard, 'id' | 'createdAt' | 'publicAccessToken'>
@@ -23,9 +26,10 @@ export function ensurePublicAccessToken(
   const idSlug = (job.id || 'job')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-  const digest = hashTokenSeed(`${job.id}|${job.createdAt || ''}|bosch-portal`);
-  return `tok-${idSlug}-${digest}`;
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 40);
+  const randomSuffix = generateRandomHex(6);
+  return `tok-${idSlug}-${randomSuffix}`.slice(0, 128);
 }
 
 /**

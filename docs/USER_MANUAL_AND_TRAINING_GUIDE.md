@@ -41,7 +41,7 @@ It digitizes tool servicing across leading brands—including **Bosch Profession
 #### Key Objectives & Core Capabilities:
 1. **Accelerated Intake & Camera Scanning**: Complete check-in under 60 seconds with camera barcode/QR scanning (8 UI entry points), digital client signature capture, and automatic Job Card IDs (`BOSCH-2026-0041`).
 2. **Real-Time Multi-Client Sync & Offline Service Worker**: Powered by **Firebase Auth (Google Sign-In)** and **Cloud Firestore** (`onSnapshot`), **Express SSE/REST API** (with `VITE_API_BASE_URL` for Android Capacitor builds), and `/sw.js` offline asset + Job Card caching.
-3. **Zero-PII Public Client Delivery Portal & Feedback**: Secret-token repair tracking (`#status?token=...` via `publicDeliveries` + SSE) shows repair stages and collects post-service 1–5 star feedback (`&feedback=1`) without exposing client phone numbers, email, or internal notes.
+3. **Zero-PII Public Client Delivery Portal & Feedback**: Secret-token repair tracking (`/?view=customer&token=...` via `publicDeliveries` + SSE, or `jobId` + last-4 phone verification) shows repair stages and collects post-service 1–5 star feedback (`&feedback=1`) without exposing client phone numbers, email, or internal notes.
 4. **Server-Side Gemini AI Diagnosis & Vision**: Uses `@google/genai` for repair troubleshooting, spare-part matching, response suggestions, voice transcription, and fallback serial label extraction (`/api/ai/scan-serial`).
 5. **Predictive Revenue & Configurable Analytics Dashboard**: Includes Recharts `LineChart` monthly revenue forecasting (seasonal indices + scenario selector), Customer Satisfaction (CSAT) analytics, and Business Settings visibility toggles across 8 core KPIs.
 6. **Twilio SMS & Meta WhatsApp API Integration**: Automated completion feedback SMS triggers and server-side dispatch with 1-click browser deep-link fallback.
@@ -123,7 +123,7 @@ It digitizes tool servicing across leading brands—including **Bosch Profession
 8. The system assigns a Job Ticket ID (e.g., `BOSCH-2026-0041`), generates a `publicAccessToken`, syncs to Cloud Firestore, and updates the live client delivery portal.
 9. **Voice Note Dictation**: Click `Record Voice Note` to transcribe spoken bench observations directly into Detailed Complaint or Internal Notes with timestamped audit entries.
 10. **Technician Repair Sign-Off**: Once repairs conclude, bench technicians sign off using the HTML5 canvas signature pad before marking tickets `Completed`.
-11. **Unique QR Code Receipts**: Printed PDF job cards embed a QR matrix linking directly to `#status?token=...`.
+11. **Unique QR Code Receipts**: Printed PDF job cards embed a QR matrix linking directly to `/?view=customer&token=...`.
 
 #### 4.2 Global Real-Time Search, Scanner & Multi-Client Sync
 Located in the center and right header navigation bar:
@@ -173,7 +173,7 @@ Located in the center and right header navigation bar:
 2. Select target client job ticket and optionally use **AI Response Assistant** (`Status Update`, `Pricing / Estimate`, `Completion Notice`, `Parts Delay`) or Milestone Templates (`Intake`, `Estimate`, `Ready`, `Invoice`, `Feedback`) to populate the composer.
 3. Click **`Send Twilio SMS API`**, **`Send WhatsApp API`**, or open WhatsApp Web deep links (`wa.me/`).
 4. **Automated Completion Feedback SMS**: When a job ticket moves to `Completed` (and **Auto-Send Customer Feedback SMS** is enabled in Business Setup), the system automatically dispatches an SMS with a direct survey link (`?token=...&feedback=1`) and opens `FeedbackSmsToast`.
-5. **Public Client Delivery Portal & Survey (`CustomerView`)**: Share `#status?token=<publicAccessToken>` (or the receipt QR code). Clients can track live repair stages and submit 1–5 star feedback ratings without logging in and without exposing PII (`customerPhone`, `customerEmail`, `internalRepairNotes`).
+5. **Public Client Delivery Portal & Survey (`CustomerView`)**: Share `/?view=customer&token=<publicAccessToken>` (or the receipt QR code). Clients can also look up by `jobId` after verifying the last 4 digits of their phone number, track live repair stages, download verified receipts, and submit 1–5 star feedback ratings without logging in.
 
 #### 4.10 Predictive Revenue Forecast, CSAT Analytics & CSV Reporting
 1. Click **`Analytics`**.
@@ -186,7 +186,7 @@ Located in the center and right header navigation bar:
 1. Open **`Business Setup`** (`TransitionView`).
 2. **Analytics Dashboard Metrics Visibility**: Toggle any of the 8 analytics widgets individually or apply presets (`Enable All`, `Core 4 Only`, `Reset Defaults`).
 3. **Completion Feedback SMS Toggle**: Toggle `Auto-Send Customer Feedback SMS Survey upon Job Completion` under Shop Rules.
-4. **UI & Field Customizer**: Add custom intake form fields, toggle required flags, or hide non-essential fields.
+4. **UI & Field Customizer**: Add custom intake form fields, toggle required flags, customize system field labels/visibility (`customFields`), and persist captured values onto tickets and SQL/Firestore exports.
 
 #### 4.12 Automatic Daily Database Backups, PostgreSQL & MySQL Export
 1. Under **`Business Setup`**, enable **Automatic Daily Backups** (`LocalStorage Snapshot`, `Downloadable JSON File`, or `Both`).
@@ -253,7 +253,7 @@ See [`docs/DATABASE_SETUP_AND_INTEGRATION_GUIDE.md`](DATABASE_SETUP_AND_INTEGRAT
 - [ ] **Step 2**: Open **`+ Intake Form`** and click `Scan Serial / QR` to capture the tool nameplate barcode.
 - [ ] **Step 3**: Record client details, accessories received, grievance category, and detailed complaint.
 - [ ] **Step 4**: Capture client digital signature on the intake touch canvas and click `Submit & Generate Job Ticket`.
-- [ ] **Step 5**: Print the PDF traveler receipt with QR code (`#status?token=...`) so the client can track live repair status.
+- [ ] **Step 5**: Print the PDF traveler receipt with QR code (`/?view=customer&token=...`) so the client can track live repair status.
 
 #### 8.2 Bench Repair Technician Workflow
 - [ ] **Step 1**: Open assigned ticket in **`Service Cards`** or **`Kanban Board`**.

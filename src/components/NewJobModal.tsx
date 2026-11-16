@@ -8,6 +8,7 @@ import {
   findMatchingToolHistory,
   parseProductQrPayload,
 } from '../utils/barcodeSerialParser';
+import { nextJobCardId } from '../utils/jobId';
 import { X, ShieldCheck, ShieldAlert, ScanBarcode, QrCode } from 'lucide-react';
 
 interface NewJobModalProps {
@@ -27,7 +28,7 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
   inventory = [],
   jobCards = [],
 }) => {
-  const generatedId = `${settings.jobCardPrefix}${(existingCount + 45).toString().padStart(4, '0')}`;
+  const generatedId = nextJobCardId(jobCards, settings.jobCardPrefix);
 
   const [customerName, setCustomerName] = useState('');
   const [customerCompany, setCustomerCompany] = useState('');
@@ -306,6 +307,11 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
                 className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-white focus:outline-none font-mono"
               />
             </div>
+          </div>
+
+          <div className="text-[11px] font-mono text-zinc-400 bg-zinc-950 px-3 py-2 rounded-xl border border-zinc-800">
+            Quick intake — client signature collected at counter
+            {settings.requireSignature ? ' (full Intake Form enforces intake signature).' : '.'}
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800">

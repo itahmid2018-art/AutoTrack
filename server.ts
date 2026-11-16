@@ -1,13 +1,19 @@
-import express from 'express';
+import crypto from 'crypto';
+import fs from 'fs';
 import http from 'http';
-import { createServer as createViteServer } from 'vite';
+import path from 'path';
+import express from 'express';
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { adminAuth, adminDb } from './src/lib/firebase-admin.ts';
 import { AuthRequest, requireAuth } from './src/middleware/auth.ts';
+import { getEffectiveJobBilling } from './src/utils/billing.ts';
 
 dotenv.config();
+
+export const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL?.trim() || 'gemini-4-hydrogen';
+export const GEMINI_AUDIO_MODEL = process.env.GEMINI_AUDIO_MODEL?.trim() || 'gemini-3.5-transcribe';
 
 function resolveCliArg(flag: string): string | undefined {
   const index = process.argv.indexOf(flag);
@@ -19,16 +25,18 @@ function resolveCliArg(flag: string): string | undefined {
 }
 
 function resolveServerPort(): number {
-  const cliPort = Number(resolveCliArg('--port'));
-  if (Number.isInteger(cliPort) && cliPort > 0) {
-    return cliPort;
+  const candidates = [
+    resolveCliArg('--port'),
+    process.env.PORT,
+    process.env.DEFAULT_APP_PORT,
+  ];
+  for (const raw of candidates) {
+    const parsed = Number(raw);
+    if (Number.isInteger(parsed) && parsed > 0) {
+      return parsed;
+    }
   }
-  if (process.env.NODE_ENV !== 'production') {
-    const devPort = Number(process.env.DEFAULT_APP_PORT);
-    return Number.isInteger(devPort) && devPort > 0 ? devPort : 3000;
-  }
-  const prodPort = Number(process.env.PORT);
-  return Number.isInteger(prodPort) && prodPort > 0 ? prodPort : 3000;
+  return 3000;
 }
 
 function resolveServerHost(): string {
@@ -111,6 +119,61 @@ const ai = new GoogleGenAI({
   },
 });
 
+async function validateConfiguredGeminiModels() {
+  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+  const shouldValidate =
+    process.env.NODE_ENV === 'production' ||
+    process.env.VALIDATE_GEMINI_MODELS_ON_START === 'true';
+
+  if (!shouldValidate || !apiKey || apiKey === 'MY_GEMINI_API_KEY') {
+    return;
+  }
+
+  const configured = [
+    { envKey: 'GEMINI_TEXT_MODEL', modelId: GEMINI_TEXT_MODEL },
+    { envKey: 'GEMINI_AUDIO_MODEL', modelId: GEMINI_AUDIO_MODEL },
+  ];
+
+  const invalid: Array<{ envKey: string; modelId: string; error: string }> = [];
+
+  for (const entry of configured) {
+    try {
+      await ai.models.get({ model: entry.modelId });
+    } catch (err: any) {
+      invalid.push({
+        envKey: entry.envKey,
+        modelId: entry.modelId,
+        error: err?.message || String(err),
+      });
+    }
+  }
+
+  if (invalid.length > 0) {
+    let alternatives: string[] = [];
+    try {
+      const pager = await ai.models.list();
+      for await (const m of pager) {
+        const clean = String(m.name || '').replace(/^models\//, '');
+        if (clean) alternatives.push(clean);
+        if (alternatives.length >= 12) break;
+      }
+    } catch {
+      alternatives = [];
+    }
+
+    console.error('[startup] Invalid or inaccessible Gemini model configuration:');
+    invalid.forEach((item) => {
+      console.error(`  - ${item.envKey}="${item.modelId}" failed verification (${item.error})`);
+    });
+    if (alternatives.length > 0) {
+      console.error(`  Valid models visible for this API key: ${alternatives.join(', ')}`);
+    } else {
+      console.error('  Run `node scripts/check_gemini_models.mjs` to inspect valid model IDs for your key.');
+    }
+    process.exit(1);
+  }
+}
+
 // Server-side Gemini Power Tool Fault Diagnosis Endpoint
 app.post('/api/ai/diagnose', async (req, res) => {
   try {
@@ -141,7 +204,7 @@ Diagnose the fault and return structured JSON:
 5. Technical Notes for Service Ticket`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: GEMINI_TEXT_MODEL,
       contents: prompt,
       config: {
         systemInstruction: 'Respond ONLY with valid structured JSON matching the declared schema.',
@@ -200,12 +263,12 @@ Job Ticket Info:
 - Customer: ${jobCard?.customerName}
 - Tool: ${jobCard?.tool?.brand} ${jobCard?.tool?.modelNumber}
 - Status: ${jobCard?.status}
-- Estimate Total: $${jobCard?.totalAmount?.toFixed(2) || '0.00'}
+- Estimate Total: $${jobCard ? getEffectiveJobBilling(jobCard as any).totalAmount.toFixed(2) : '0.00'}
 
 Keep under 220 characters. Include clear call to action.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: GEMINI_TEXT_MODEL,
       contents: prompt,
     });
 
@@ -249,7 +312,8 @@ app.post('/api/ai/response-assistant', async (req, res) => {
     const laborSubtotal = billingSummary?.laborSubtotal ?? ((jobCard.laborHours || 0) * (jobCard.laborRate || 0));
     const opExSubtotal = billingSummary?.operationalExpensesSubtotal ?? (Array.isArray(jobCard.operationalExpenses) ? jobCard.operationalExpenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0) : 0);
     const taxAmount = billingSummary?.taxAmount ?? 0;
-    const totalAmount = billingSummary?.totalAmount ?? jobCard.totalAmount ?? 0;
+    const effectiveBilling = jobCard ? getEffectiveJobBilling(jobCard as any) : null;
+    const totalAmount = billingSummary?.totalAmount ?? effectiveBilling?.totalAmount ?? jobCard.totalAmount ?? 0;
 
     const warrantySummary = jobCard.tool?.warrantyAdjudication
       ? `${jobCard.tool.warrantyAdjudication.flag} (${jobCard.tool.warrantyAdjudication.reason})`
@@ -289,7 +353,7 @@ Instructions:
 3. List up to 4 concise "keyFactsCited" referencing exact data points used from the JobCard.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-4-hydrogen',
+      model: GEMINI_TEXT_MODEL,
       contents: prompt,
       config: {
         systemInstruction: 'Respond ONLY with valid structured JSON matching the schema. Ground all figures and statuses strictly in the supplied JobCard facts.',
@@ -371,7 +435,7 @@ Instructions:
     }));
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: GEMINI_TEXT_MODEL,
       contents: [
         { role: 'user', parts: [{ text: `[SYSTEM CONTEXT]: Tool Model: ${tool.brand} ${tool.modelNumber}. Grievance: ${serviceReq.grievanceCategory} - ${serviceReq.detailedComplaint}` }] },
         ...contents,
@@ -428,7 +492,7 @@ Task & Failure Pattern Analysis Rules:
 3. Recommend exact reorder quantities, urgency levels (CRITICAL, HIGH, MEDIUM, LOW), reasoning based on tool symptoms, and estimated PO cost.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: GEMINI_TEXT_MODEL,
       contents: prompt,
       config: {
         systemInstruction: 'You are a Senior Bosch Master Service Inventory Specialist. Respond ONLY with valid structured JSON matching the declared schema.',
@@ -573,7 +637,7 @@ Rules:
 3. Recommend realistic replacement quantities (usually 1, or 2 for paired bearings/brushes if applicable).`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-4-hydrogen',
+      model: GEMINI_TEXT_MODEL,
       contents: prompt,
       config: {
         systemInstruction: 'Respond ONLY with valid structured JSON matching the declared schema. Only cite partId and sku values present in the provided catalog.',
@@ -677,7 +741,7 @@ app.post('/api/ai/transcribe', async (req, res) => {
     };
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-transcribe',
+      model: GEMINI_AUDIO_MODEL,
       contents: {
         parts: [
           audioPart,
@@ -723,7 +787,7 @@ app.post('/api/ai/scan-serial', async (req, res) => {
     };
 
     const response = await ai.models.generateContent({
-      model: 'gemini-4-hydrogen',
+      model: GEMINI_TEXT_MODEL,
       contents: {
         parts: [
           imagePart,
@@ -1078,7 +1142,7 @@ function buildSanitizedPublicSummary(
     promisedCompletion: String(job.promisedCompletion || ''),
     status: String(job.status || 'Intake'),
     priority: String(job.priority || 'Routine'),
-    estimatedTotal: Number(job.totalAmount || 0),
+    estimatedTotal: getEffectiveJobBilling(job as any).totalAmount,
     partsCount: Array.isArray(job.parts) ? job.parts.length : 0,
     stageHistory: Array.isArray(job.stageHistory)
       ? job.stageHistory
@@ -1212,9 +1276,10 @@ app.post('/api/jobs', requireAuth, async (req: AuthRequest, res) => {
     }
     const jobId = sanitizeDocId(job.id);
     const uid = req.user!.uid;
+    const generatedFallbackToken = `tok-${jobId.toLowerCase().slice(0, 48)}-${crypto.randomBytes(6).toString('hex')}`;
     const token = sanitizeDocId(
-      job.publicAccessToken || `tok-${jobId.toLowerCase()}`,
-      `tok-${jobId.toLowerCase()}`
+      job.publicAccessToken || generatedFallbackToken,
+      generatedFallbackToken
     );
     const staffUids = Array.from(
       new Set([uid, ...(Array.isArray(job.staffUids) ? job.staffUids : [])])
@@ -1581,14 +1646,22 @@ app.get('/api/customer-portal/lookup', async (req, res) => {
 
     const jobData = jobSnap.data()!;
     const jobPhoneLast4 = String(jobData.customerPhone || '').replace(/\D/g, '').slice(-4);
-    if (phoneLast4) {
-      if (phoneLast4 !== jobPhoneLast4) {
-        return res.status(404).json({ error: 'Verification digits do not match ticket.' });
-      }
-      return res.json({ summary: buildSanitizedPublicSummary(jobData, true) });
+    if (!phoneLast4) {
+      return res.status(403).json({
+        error: 'Phone verification (last 4 digits) is required to view a ticket by Job ID.',
+        requiresPhoneVerification: true,
+        jobId: String(jobData.id || cleanId),
+      });
     }
-
-    return res.json({ summary: buildSanitizedPublicSummary(jobData, false) });
+    if (phoneLast4 !== jobPhoneLast4) {
+      return res.status(403).json({
+        error: 'Verification digits do not match ticket.',
+        requiresPhoneVerification: true,
+        invalidPhone: true,
+        jobId: String(jobData.id || cleanId),
+      });
+    }
+    return res.json({ summary: buildSanitizedPublicSummary(jobData, true) });
   } catch (error: any) {
     console.error('Customer portal lookup error:', error);
     return res.status(503).json({
@@ -1695,11 +1768,21 @@ app.post('/api/customer-portal/feedback', async (req, res) => {
 
     const existingJob = targetJobSnap.data()!;
     const jobPhoneLast4 = String(existingJob.customerPhone || '').replace(/\D/g, '').slice(-4);
-    if (!verifiedByToken && phoneLast4 && jobPhoneLast4 && phoneLast4 !== jobPhoneLast4) {
-      return res.status(403).json({
-        success: false,
-        error: 'Phone last 4 digits do not match the service ticket.',
-      });
+    if (!verifiedByToken) {
+      if (!phoneLast4) {
+        return res.status(403).json({
+          success: false,
+          error: 'Phone verification (last 4 digits) is required when submitting feedback by Job ID.',
+          requiresPhoneVerification: true,
+        });
+      }
+      if (jobPhoneLast4 && phoneLast4 !== jobPhoneLast4) {
+        return res.status(403).json({
+          success: false,
+          error: 'Phone last 4 digits do not match the service ticket.',
+          invalidPhone: true,
+        });
+      }
     }
 
     const feedbackPayload: Record<string, unknown> = {
@@ -1825,10 +1908,26 @@ app.get('/api/customer-portal/stream', (req, res) => {
   });
 });
 
+function resolveStaticDistDir(): string {
+  const candidates: string[] = [];
+  if (typeof __dirname !== 'undefined') {
+    candidates.push(path.resolve(__dirname, '..', 'dist'));
+    candidates.push(path.resolve(__dirname, 'dist'));
+  }
+  candidates.push(path.resolve(process.cwd(), 'dist'));
+  return (
+    candidates.find((candidate) => fs.existsSync(path.join(candidate, 'index.html'))) ||
+    candidates[0]
+  );
+}
+
 async function startServer() {
+  await validateConfiguredGeminiModels();
+
   const httpServer = http.createServer(app);
 
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
@@ -1838,7 +1937,21 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static('dist'));
+    const distDir = resolveStaticDistDir();
+    if (!fs.existsSync(path.join(distDir, 'index.html'))) {
+      console.warn(`[startup] Static frontend bundle not found at ${distDir}. Run "npm run build" first.`);
+    }
+    app.use(express.static(distDir));
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api/')) {
+        return next();
+      }
+      const indexPath = path.join(distDir, 'index.html');
+      if (!fs.existsSync(indexPath)) {
+        return res.status(404).send('Frontend build not found. Run npm run build.');
+      }
+      return res.sendFile(indexPath);
+    });
   }
 
   httpServer.on('error', (err: NodeJS.ErrnoException) => {
@@ -1847,7 +1960,8 @@ async function startServer() {
   });
 
   httpServer.listen(PORT, HOST, () => {
-    console.log(`BOSCH Service Center Server running on http://${HOST}:${PORT}`);
+    const mode = process.env.NODE_ENV || 'development';
+    console.log(`BOSCH Service Center Server (${mode}) running on http://${HOST}:${PORT}`);
   });
 }
 

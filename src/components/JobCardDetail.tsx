@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { JobCard, JobStatus, InventoryItem, JobPart, TimeLog, OperationalExpense, OperationalExpenseCategory } from '../types';
+import { BusinessSettings, CustomField, JobCard, JobStatus, InventoryItem, JobPart, TimeLog, OperationalExpense, OperationalExpenseCategory } from '../types';
 import { SHOP_TECHNICIANS } from '../data/mockTechnicians';
 import { adjudicateWarranty, autoAdjudicateJobCard } from '../utils/warrantyAdjudicator';
 import { calculateJobBilling } from '../utils/billing';
+import { applyStockLifecycleTransition, InventoryDelta } from '../utils/stockDeduction';
 import { generateJobCardPdf } from '../utils/generatePdf';
 import { buildCustomerFeedbackUrl, buildCustomerPortalUrl } from '../utils/customerPortalUrl';
 import { resolveApiUrl } from '../utils/apiBase';
@@ -53,6 +54,9 @@ interface JobCardDetailProps {
   onPrintJobCard: (job: JobCard) => void;
   deductStockOn: 'Approval' | 'InService' | 'Completion';
   onDeductInventoryStock: (partId: string, qty: number) => void;
+  onApplyInventoryDeltas?: (deltas: InventoryDelta[]) => void;
+  settings?: BusinessSettings;
+  customFields?: CustomField[];
   onOpenCustomerFeedback?: (job: JobCard) => void;
   onSendFeedbackSms?: (job: JobCard) => void;
 }
@@ -88,9 +92,13 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
   onPrintJobCard,
   deductStockOn,
   onDeductInventoryStock,
+  onApplyInventoryDeltas,
+  settings,
+  customFields = [],
   onOpenCustomerFeedback,
   onSendFeedbackSms,
 }) => {
+  const requireSignaturePolicy = settings?.requireSignature !== false;
   const [currentJob, setCurrentJob] = useState<JobCard>(job);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -399,19 +407,33 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
     setSignOffError(null);
   };
 
+  const applyDeltasToInventory = (deltas: InventoryDelta[]) => {
+    if (deltas.length === 0) return;
+    if (onApplyInventoryDeltas) {
+      onApplyInventoryDeltas(deltas);
+    } else {
+      deltas.forEach((d) => {
+        if (d.deltaQty < 0) {
+          onDeductInventoryStock(d.partId, Math.abs(d.deltaQty));
+        }
+      });
+    }
+  };
+
   const handleCommitTechnicianSignOff = (finalizeStatus?: 'Completed' | 'Ready for Pickup') => {
     setSignOffError(null);
     let signatureDataUrl = currentJob.technicianSignature;
 
     if (isEditingSignature) {
-      if (!hasSignOffStroke || !signOffCanvasRef.current) {
+      if (hasSignOffStroke && signOffCanvasRef.current) {
+        signatureDataUrl = signOffCanvasRef.current.toDataURL('image/png');
+      } else if (requireSignaturePolicy) {
         setSignOffError('Draw the technician signature on the pad before signing off.');
         return;
       }
-      signatureDataUrl = signOffCanvasRef.current.toDataURL('image/png');
     }
 
-    if (!signatureDataUrl) {
+    if (requireSignaturePolicy && !signatureDataUrl) {
       setSignOffError('A technician digital signature is required to sign off this repair.');
       return;
     }
@@ -446,13 +468,7 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
       },
     ];
 
-    if (deductStockOn === 'Completion' && targetStatus === 'Completed' && currentJob.status !== 'Completed') {
-      currentJob.parts.forEach((p) => {
-        onDeductInventoryStock(p.partId, p.quantity);
-      });
-    }
-
-    const updated: JobCard = {
+    const baseUpdated: JobCard = {
       ...currentJob,
       status: targetStatus,
       technicianSignature: signatureDataUrl,
@@ -464,6 +480,14 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
       auditLogs: nextAudit,
       updatedAt: nowIso,
     };
+
+    const stockTransition = applyStockLifecycleTransition(baseUpdated, targetStatus, deductStockOn, {
+      actorName: signerName.split(' (')[0],
+      actorRole: 'Technician',
+      nowIso,
+    });
+    applyDeltasToInventory(stockTransition.inventoryDeltas);
+    const updated = stockTransition.updatedJob;
 
     setCurrentJob(updated);
     onUpdateJob(updated);
@@ -627,7 +651,7 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
         newState: `Status: ${newStatus}`,
       },
     ];
-    const updated: JobCard = {
+    const baseUpdated: JobCard = {
       ...currentJob,
       status: newStatus,
       stageEnteredAt: currentJob.status === newStatus ? currentJob.stageEnteredAt : nowIso,
@@ -635,16 +659,14 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
       auditLogs: currentJob.status === newStatus ? currentJob.auditLogs : nextAudit,
       updatedAt: nowIso,
     };
-    
-    if (
-      (deductStockOn === 'InService' && newStatus === 'In Service') ||
-      (deductStockOn === 'Approval' && newStatus === 'Awaiting Approval') ||
-      (deductStockOn === 'Completion' && newStatus === 'Completed')
-    ) {
-      updated.parts.forEach((p) => {
-        onDeductInventoryStock(p.partId, p.quantity);
-      });
-    }
+
+    const stockTransition = applyStockLifecycleTransition(baseUpdated, newStatus, deductStockOn, {
+      actorName: currentJob.technician || 'Bench Technician',
+      actorRole: 'Technician',
+      nowIso,
+    });
+    applyDeltasToInventory(stockTransition.inventoryDeltas);
+    const updated = stockTransition.updatedJob;
 
     setCurrentJob(updated);
     onUpdateJob(updated);
@@ -1712,7 +1734,16 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
   })();
 
   const handleDownloadPdf = () => {
-    const { doc, filename } = generateJobCardPdf(currentJob);
+    const brandMeta = settings
+      ? {
+          centerName: settings.centerName,
+          phone: settings.phone,
+          email: settings.email,
+          address: settings.address,
+          appOrigin: typeof window !== 'undefined' ? window.location.origin : undefined,
+        }
+      : undefined;
+    const { doc, filename } = generateJobCardPdf(currentJob, brandMeta, customFields);
     doc.save(filename);
 
     const nowIso = new Date().toISOString();
@@ -1847,16 +1878,56 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
 
         {/* Workflow Lifecycle Stepper */}
         <div className="mt-6 pt-6 border-t border-zinc-800">
-          <div className="text-xs font-semibold text-zinc-400 mb-3 flex items-center justify-between font-mono">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-zinc-400 mb-3 font-mono">
             <span className="uppercase tracking-wider">JOB STATUS LIFECYCLE</span>
-            <span className="text-[11px] text-zinc-400">{timeInStageLabel} · Click a stage to update progress</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] text-zinc-400">{timeInStageLabel} · Click a stage to update progress</span>
+              <button
+                type="button"
+                onClick={() => handleStatusChange('In Repair')}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+                  currentJob.status === 'In Repair'
+                    ? 'bg-white text-zinc-950 border-white'
+                    : 'bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-zinc-600'
+                }`}
+              >
+                Mark In Repair
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStatusChange('Cancelled')}
+                title="Cancel ticket and restore any deducted spare-part stock back to inventory"
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+                  currentJob.status === 'Cancelled'
+                    ? 'bg-rose-600 text-white border-rose-500'
+                    : 'bg-rose-950/30 text-rose-300 border-rose-800/70 hover:bg-rose-950/60'
+                }`}
+              >
+                {currentJob.status === 'Cancelled' ? 'Ticket Cancelled' : 'Cancel Ticket'}
+              </button>
+            </div>
           </div>
+
+          {currentJob.status === 'Cancelled' && (
+            <div className="mb-3 p-3 rounded-xl bg-rose-950/40 border border-rose-800/70 text-xs font-mono text-rose-200 flex items-center justify-between gap-2">
+              <span>
+                This service ticket is marked <strong>Cancelled</strong>. Previously deducted spare-part stock is automatically restored to inventory on cancellation.
+              </span>
+              <button
+                type="button"
+                onClick={() => handleStatusChange('Intake')}
+                className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white font-bold shrink-0"
+              >
+                Reopen Intake
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
             {statuses.map((st, idx) => {
               const effectiveCurrent = currentJob.status === 'In Repair' ? 'In Service' : currentJob.status;
               const isActive = effectiveCurrent === st;
-              const isPast = statuses.indexOf(effectiveCurrent) > idx;
+              const isPast = effectiveCurrent !== 'Cancelled' && statuses.indexOf(effectiveCurrent) > idx;
               return (
                 <button
                   key={st}
@@ -1870,7 +1941,7 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
                   }`}
                 >
                   <div className="text-[10px] opacity-70">Step 0{idx + 1}</div>
-                  <div className="truncate font-medium">{st}</div>
+                  <div className="truncate font-medium">{st === 'In Service' && currentJob.status === 'In Repair' ? 'In Repair' : st}</div>
                 </button>
               );
             })}
@@ -1930,6 +2001,27 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
                 </div>
               </div>
             </div>
+
+            {currentJob.customFieldValues && Object.keys(currentJob.customFieldValues).length > 0 && (
+              <div className="bg-zinc-950 p-3.5 rounded-xl border border-zinc-800 space-y-2">
+                <span className="text-zinc-500 block text-[10px] font-bold uppercase font-mono">
+                  Captured Custom Intake Fields
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 text-xs font-mono">
+                  {Object.entries(currentJob.customFieldValues).map(([key, value]) => {
+                    const def = customFields.find((f) => f.key === key);
+                    const displayLabel = def?.label || key;
+                    const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
+                    return (
+                      <div key={key} className="bg-zinc-900/70 px-3 py-2 rounded-lg border border-zinc-800">
+                        <div className="text-[10px] text-zinc-400 truncate">{displayLabel}</div>
+                        <div className="text-zinc-100 font-bold truncate mt-0.5">{displayValue}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3351,10 +3443,18 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
               </h2>
               <span
                 className={`text-[11px] font-semibold font-sans ${
-                  currentJob.technicianSignature ? 'text-emerald-400' : 'text-amber-400'
+                  currentJob.technicianSignature
+                    ? 'text-emerald-400'
+                    : requireSignaturePolicy
+                    ? 'text-amber-400'
+                    : 'text-zinc-400'
                 }`}
               >
-                {currentJob.technicianSignature ? 'Signed & Verified' : 'Pending Sign-Off'}
+                {currentJob.technicianSignature
+                  ? 'Signed & Verified'
+                  : requireSignaturePolicy
+                  ? 'Pending Sign-Off (Required)'
+                  : 'Optional Sign-Off'}
               </span>
             </div>
 

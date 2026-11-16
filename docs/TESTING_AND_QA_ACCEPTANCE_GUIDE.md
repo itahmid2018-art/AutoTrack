@@ -100,7 +100,7 @@ This guide defines acceptance tests for the AutoTrack Pro service center applica
 ### Test Cases
 
 #### TC-TP-01: Turnaround Time Calculation Verification
-- **Preconditions**: At least 3 job cards exist with audit logs containing `JOB_INTAKE_CREATED` and `STATUS_CHANGE` to `Completed` or `Delivered`.
+- **Preconditions**: At least 3 job cards exist with audit logs containing `JOB_INTAKE_CREATED` and `STAGE_CHANGED` or `STATUS_CHANGE` to `Completed`.
 - **Steps**:
   1. Navigate to the `Analytics` tab.
   2. Scroll down to `Technician Performance`.
@@ -183,7 +183,7 @@ This guide defines acceptance tests for the AutoTrack Pro service center applica
   - A 28mm high-density QR code appears inside the receipt bounding box.
   - Header text reads: `SCAN FOR LIVE STATUS`.
   - Displays human-readable token string below the code.
-  - Code contains embedded hyperlink targeting `#status?token=pat-7741-f09b` or `/track?token=pat-7741-f09b`.
+  - Code contains embedded hyperlink targeting `/?view=customer&token=pat-7741-f09b`.
 
 #### TC-QR-02: Mobile Camera Scan & Status Portal Navigation
 - **Steps**:
@@ -227,7 +227,7 @@ This guide defines acceptance tests for the AutoTrack Pro service center applica
 - **Expected Outcome**:
   - Text copies directly into the active message composer.
   - Launches `https://wa.me/{phone}?text=...` with URL-encoded message text.
-  - Logs outgoing transmission in message history ledger.
+  - Logs outgoing handoff in message history ledger with honest `'Pending'` status badge (and `'Sent'` only when a real Twilio/Meta API returns `success: true`).
 
 ---
 
@@ -508,7 +508,7 @@ This guide defines acceptance tests for the AutoTrack Pro service center applica
 ### Location
 - **Live Cloud Database**: Firebase Auth (`Google Sign-In`) + Cloud Firestore (`ai-studio-autotrackservice-2eac3d40-310f-46ba-a293-99682d0a94d7`).
 - **Server Endpoints**: `server.ts` on Port `3000` (`/api/jobs`, `/api/inventory`, `/api/schedules`, `/api/sync/stream`, `/api/customer-portal/lookup`, `/api/customer-portal/stream`).
-- **Public Portal**: `CustomerView` (`#status?token=...`).
+- **Public Portal**: `CustomerView` (`/?view=customer&token=...`).
 
 ### Test Cases
 
@@ -522,13 +522,14 @@ This guide defines acceptance tests for the AutoTrack Pro service center applica
   - Both windows receive updated KPIs and inventory stock counts.
 
 #### TC-SYNC-02: Zero-PII Public Client Delivery Portal (`CustomerView`)
-- **Preconditions**: Ticket possesses `publicAccessToken` (e.g. `pat-7741-f09b`).
+- **Preconditions**: Ticket possesses `publicAccessToken` (e.g. `tok-apex-2026-0041-sec`).
 - **Steps**:
-  1. Open an unauthenticated incognito window at `http://localhost:3000/#status?token=pat-7741-f09b`.
-  2. Verify lookup via `GET /api/customer-portal/lookup?token=pat-7741-f09b`.
-  3. Advance the same ticket in the signed-in operator session from `In Service` to `Delivered`.
+  1. Open an unauthenticated incognito window at `http://localhost:3000/?view=customer&token=tok-apex-2026-0041-sec`.
+  2. Test bare-ID gating: enter `BOSCH-2026-0041` without phone last-4 digits; confirm verification prompt and HTTP `403` on `/api/customer-portal/lookup`. Then enter the matching last-4 digits.
+  3. Advance the same ticket in the signed-in operator session from `In Service` to `Completed`.
 - **Expected Outcome**:
-  - Incognito portal loads tool model, masked serial, quote estimate, and live status stage via `publicDeliveries/{token}` and `/api/customer-portal/stream` SSE.
+  - Unverified bare-ID searches reveal zero tool specs, company names, or PDF receipts.
+  - Verified or token-based portal loads tool model, masked serial, quote estimate, PDF download, and live status stage via `publicDeliveries/{token}` and `/api/customer-portal/stream` SSE.
   - Response JSON contains zero client phone numbers, email addresses, internal technician notes, or GST tax IDs.
   - Stage badge updates live in the incognito portal when the operator changes status.
 
@@ -610,9 +611,9 @@ Registered globally via `src/main.tsx` (`public/sw.js` + `src/utils/offlineCache
   - Bottom-left badge displays `Offline Mode · N Cached Job Cards Readable`.
   - App shell loads from `autotrack-static-v1`; Job Cards and Inventory remain searchable and readable without server connectivity.
 
-#### TC-SW-03: Cache Recovery When `localStorage` Is Cleared Offline
+#### TC-SW-03: Cache Recovery When Local Browser Keys Are Removed Offline
 - **Steps**:
-  1. While remaining offline, run `localStorage.clear()` in DevTools Console and reload the page.
+  1. While remaining offline, remove `autotrack_db_*` keys from browser storage (keeping `autotrack-data-v1` intact) and reload the page.
 - **Expected Outcome**:
   - `readOfflineCachedAllRecords()` hydrates `jobCards`, `inventory`, `schedules`, and `settings` back into React state from `autotrack-data-v1`.
 
@@ -718,7 +719,7 @@ Perform this 15-minute flow to verify workshop system health:
    - Mark status `Completed`. Sign the technician sign-off pad and save.
    - Verify `FeedbackSmsToast` renders and `Feedback` SMS entry appends to `messageLogs`.
 7. **PDF Receipt, Delivery Portal & Customer Rating**:
-   - Generate PDF receipt, copy the survey link (`#status?token=...&feedback=1`), open it in an incognito window, and submit a 5-star rating with comment.
+   - Generate PDF receipt, copy the survey link (`/?view=customer&token=...&feedback=1`), open it in an incognito window, and submit a 5-star rating with comment.
    - Confirm `★ 5/5` badge appears in List & Kanban views and updates CSAT in `Analytics`.
 8. **Analytics Forecast & Metric Toggles**:
    - Open `Analytics` and switch Predictive Revenue Forecast between `3M`, `6M`, and `12M` horizons.
@@ -728,7 +729,7 @@ Perform this 15-minute flow to verify workshop system health:
    - Toggle DevTools `Network -> Offline`, reload page, and confirm cached Job Cards remain viewable with the `Offline Mode` badge.
 10. **Fleet Maintenance CSV & Build Validation**:
     - Open `Servicing`, click `Bulk Import CSV`, and import `docs/samples/recurring_maintenance_standard.csv` (10 rows).
-    - Run `node scripts/validate_sql.js && npx eslint firestore.rules && npx tsx firestore.rules.test.ts && npm run lint && npm run build`.
+    - Run `npm test && npm run validate:sql && npx eslint firestore.rules && npx tsx firestore.rules.test.ts && npm run lint && npm run build && npm run smoke`.
 
 ---
 

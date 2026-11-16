@@ -16,6 +16,7 @@ import { BulkMaintenanceImportModal } from './BulkMaintenanceImportModal';
 import { MaintenanceCsvInstructionModal } from './MaintenanceCsvInstructionModal';
 import { SerialBarcodeScannerModal } from './SerialBarcodeScannerModal';
 import { BarcodeScanResult, parseProductQrPayload } from '../utils/barcodeSerialParser';
+import { nextScheduleId } from '../utils/jobId';
 import { QrCode, ScanBarcode } from 'lucide-react';
 
 interface RecurringMaintenanceViewProps {
@@ -170,7 +171,7 @@ export const RecurringMaintenanceView: React.FC<RecurringMaintenanceViewProps> =
       recipientPhone: schedule.customerPhone,
       text,
       channel: 'WhatsApp',
-      status: 'Sent',
+      status: 'Pending',
     };
 
     onLogMessageSent(schedule.id, log);
@@ -182,6 +183,7 @@ export const RecurringMaintenanceView: React.FC<RecurringMaintenanceViewProps> =
       updatedAt: new Date().toISOString(),
     };
     onUpdateSchedule(updated);
+    showNotification('Queued via WhatsApp Web (Pending confirmation)');
 
     window.open(whatsappUrl, '_blank');
   };
@@ -447,7 +449,7 @@ export const RecurringMaintenanceView: React.FC<RecurringMaintenanceViewProps> =
             onAddSchedule(newSchedule);
             setIsAddModalOpen(false);
           }}
-          existingCount={schedules.length}
+          existingSchedules={schedules}
         />
       )}
 
@@ -477,11 +479,11 @@ export const RecurringMaintenanceView: React.FC<RecurringMaintenanceViewProps> =
 interface RegisterScheduleModalProps {
   onClose: () => void;
   onAdd: (schedule: RecurringMaintenance) => void;
-  existingCount: number;
+  existingSchedules: RecurringMaintenance[];
 }
 
-const RegisterScheduleModal: React.FC<RegisterScheduleModalProps> = ({ onClose, onAdd, existingCount }) => {
-  const generatedId = `MAINT-2026-${(existingCount + 5).toString().padStart(3, '0')}`;
+const RegisterScheduleModal: React.FC<RegisterScheduleModalProps> = ({ onClose, onAdd, existingSchedules }) => {
+  const generatedId = nextScheduleId(existingSchedules, 'MAINT-2026-');
 
   const [customerName, setCustomerName] = useState('');
   const [customerCompany, setCustomerCompany] = useState('');

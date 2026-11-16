@@ -26,9 +26,13 @@ This technical manual covers setup, security policies, database management, and 
 
 #### Multi-Counter Architecture Model:
 - **Client Frontend (React 19 + Vite 8 + Tailwind v4)**: High-contrast workshop interface for counter intake, camera barcode/QR scanning, Kanban dispatch, Recharts monthly revenue forecasting, Excel/CSV inventory import, and post-service feedback ratings. Combines `localStorage` (`TransactionalDb`) with a Service Worker (`public/sw.js` `autotrack-static-v1` & `autotrack-data-v1`) so cached Job Cards remain viewable offline.
-- **Express Backend Server (`server.ts`)**: Listens on Port `3000`, enforces Bearer token verification via `firebase-admin` (`requireAuth`), serves Gemini AI diagnosis/vision endpoints, handles Twilio SMS/WhatsApp + `/api/customer-portal/feedback`, and broadcasts SSE updates (`/api/sync/stream`, `/api/customer-portal/stream`) with CORS headers for native Android/Capacitor tablet clients (configured via `VITE_API_BASE_URL` or `resolveApiUrl()`).
+- **Express Backend Server (`server.ts`)**: Listens on Port `3000` (compiled to `dist-server/server.cjs` for production), enforces Bearer token verification via `firebase-admin` (`requireAuth`) on sync APIs, serves Gemini AI diagnosis/vision endpoints, handles Twilio SMS/WhatsApp + `/api/customer-portal/feedback`, and broadcasts SSE updates (`/api/sync/stream`, `/api/customer-portal/stream`) with CORS headers for native Android/Capacitor tablet clients (configured via `VITE_API_BASE_URL` or `resolveApiUrl()`).
 - **Cloud Firestore Live Store (`firebase-applet-config.json`)**: Named Enterprise database (`ai-studio-autotrackservice-2eac3d40-310f-46ba-a293-99682d0a94d7`) synchronizing job cards, inventory deltas, maintenance schedules, business settings, and `publicDeliveries`.
 - **Relational SQL Schemas (`database.postgres.sql` & `database.sql`)**: Complete 11-table schemas with demonstration seed data (including completed feedback ticket `BOSCH-2026-0046`) for PostgreSQL 16+ and MySQL 8.0+ deployments.
+
+#### Architecture Reality & Operational Limits:
+- **Local-First Mode Without Sign-In**: When operators do not sign in with Google, all job cards, spare parts, settings, and schedules live strictly inside the local browser profile (`localStorage` + `/sw.js` cache), and Express acts purely as a stateless AI/messaging proxy. QR portal links entered manually by bare Job ID resolve only against the active browser store unless Firestore sync is enabled.
+- **Cancelled Stock Reversal Policy**: Transitioning any job card with prior stock deductions (`stockDeductedAt` / `partsDeducted`) to `Cancelled` automatically restores deducted quantities to spare parts inventory, clears deduction markers, and writes an `INVENTORY_STOCK_RESTORED` audit entry. Moving back into an active trigger stage deducts once cleanly.
 
 ---
 
@@ -56,6 +60,8 @@ State transitions, price adjustments, diagnostic applications, feedback submissi
 #### 2.5 Zero-PII Public Client Status Tokens & Feedback (`publicDeliveries`)
 Clients track repair progress and submit 1–5 star ratings at `/?view=customer&token=tok-...` using `publicDeliveries/{deliveryToken}`, `GET /api/customer-portal/lookup`, and `POST /api/customer-portal/feedback`:
 - `allow list: if false;` on `publicDeliveries` prevents enumeration.
+- Looking up by bare Job ID without a valid `publicAccessToken` or matching last-4 phone digits returns HTTP `403` from `/api/customer-portal/lookup` and triggers a phone verification prompt in `CustomerView` with zero PII or PDF access until verified.
+- Note: Without server-backed sessions on offline localStorage profiles, local phone-last-4 gating mitigates casual enumeration (~10^4 keyspace); always share printed `/?view=customer&token=...` QR links as the primary Client tracking method.
 - Responses strip client emails, full phone numbers, tax IDs, and internal bench notes.
 - Feedback submissions validate `rating` (`1–5` integer) and `comment` (`<= 1000` characters) server-side before returning HTTP `200` or `400`.
 
@@ -69,8 +75,14 @@ cp .env.example .env
 ```
 
 ```env
-# GEMINI AI API KEY (Diagnosis, Vision Barcode/QR Scan, Response Assistant, Voice Transcription)
+# GEMINI AI API KEY & CONFIGURABLE MODELS
 GEMINI_API_KEY="AIzaSyYourSecretGeminiKeyHere"
+GEMINI_TEXT_MODEL="gemini-4-hydrogen"
+GEMINI_AUDIO_MODEL="gemini-3.5-transcribe"
+VALIDATE_GEMINI_MODELS_ON_START=true
+
+# SERVER PORT
+PORT=3000
 
 # TWILIO SMS & WHATSAPP API (Optional)
 TWILIO_ACCOUNT_SID="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -97,9 +109,11 @@ npm install
 # 2. Launch Express + Vite server on Port 3000
 npm run dev
 
-# 3. Validate Firestore rules & TypeScript types
+# 3. Validate Firestore rules, SQL lexing, unit tests & TypeScript types
 npx eslint firestore.rules
 npx tsx firestore.rules.test.ts
+npm run validate:sql
+npm test
 npm run lint
 ```
 
@@ -111,15 +125,18 @@ Refer to [`DATABASE_SETUP_AND_INTEGRATION_GUIDE.md`](DATABASE_SETUP_AND_INTEGRAT
 
 - **Firestore Live Sync**: Click **Sign In** in the app header; initial seed populates starter tickets, core SKUs, schedules, settings, custom fields, and `publicDeliveries`.
 - **PostgreSQL 16**: Run `psql "<CONNECTION_URL>" -f database.postgres.sql` to create and seed all 11 relational tables.
-- **MySQL 8.0+ / MariaDB 10.5+**: Run `mysql -u root -p bosch_service_db < database.sql` and validate syntax with `node scripts/validate_sql.js`.
+- **MySQL 8.0+ / MariaDB 10.5+**: Run `mysql -u root -p bosch_service_db < database.sql` and validate syntax with `npm run validate:sql`.
 
 ---
 
 ### 6. PRODUCTION BUILD & SERVER DEPLOYMENT
 
 ```bash
-# Compile client Vite SPA assets
+# Clean dist/ and dist-server/, build Vite SPA + dist-server/server.cjs
 npm run build
+
+# Run offline production smoke test (PORT=3199)
+npm run smoke
 
 # Start production Express server
 npm start

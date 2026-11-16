@@ -1,4 +1,4 @@
-import { JobCard, InventoryItem, BusinessSettings, RecurringMaintenance } from '../types';
+import { JobCard, InventoryItem, BusinessSettings, RecurringMaintenance, CustomField } from '../types';
 
 export function generateMySqlSchema(): string {
   return `-- ============================================================
@@ -53,6 +53,21 @@ CREATE TABLE IF NOT EXISTS \`business_settings\` (
   \`last_auto_backup_date\` DATE NULL,
   \`analytics_metrics\` JSON NULL,
   \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 3B. CUSTOM FIELDS CONFIGURATION TABLE
+CREATE TABLE IF NOT EXISTS \`custom_fields\` (
+  \`id\` VARCHAR(64) PRIMARY KEY,
+  \`label\` VARCHAR(100) NOT NULL,
+  \`field_key\` VARCHAR(100) NOT NULL UNIQUE,
+  \`data_type\` ENUM('text', 'number', 'select', 'date', 'boolean', 'textarea') NOT NULL,
+  \`category\` VARCHAR(100) NOT NULL,
+  \`required\` TINYINT(1) NOT NULL DEFAULT 0,
+  \`placeholder\` VARCHAR(255) NULL,
+  \`options_json\` JSON NULL,
+  \`is_system\` TINYINT(1) NOT NULL DEFAULT 0,
+  \`enabled\` TINYINT(1) NOT NULL DEFAULT 1,
+  \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 4. SPARE PARTS INVENTORY TABLE
@@ -113,6 +128,9 @@ CREATE TABLE IF NOT EXISTS \`job_cards\` (
   \`total_amount\` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
 
   \`public_access_token\` VARCHAR(128) NULL UNIQUE,
+  \`stock_deducted_at\` VARCHAR(40) NULL,
+  \`parts_deducted_json\` JSON NULL,
+  \`custom_field_values_json\` JSON NULL,
   \`feedback_sms_sent_at\` VARCHAR(40) NULL,
   \`customer_feedback_rating\` TINYINT NULL,
   \`customer_feedback_comment\` TEXT NULL,
@@ -212,7 +230,8 @@ export function generateMySqlDump(
   jobCards: JobCard[],
   inventory: InventoryItem[],
   settings: BusinessSettings,
-  schedules: RecurringMaintenance[] = []
+  schedules: RecurringMaintenance[] = [],
+  customFields: CustomField[] = []
 ): string {
   const schema = generateMySqlSchema();
 
@@ -235,6 +254,16 @@ export function generateMySqlDump(
   dump += `-- BUSINESS SETTINGS SEED DATA\n`;
   dump += `INSERT INTO \`business_settings\` (\`center_name\`, \`address\`, \`phone\`, \`email\`, \`tax_rate\`, \`labor_rate\`, \`job_card_prefix\`, \`deduct_stock_on\`, \`require_signature\`, \`auto_send_feedback_sms\`, \`auto_daily_backup_enabled\`, \`auto_daily_backup_destination\`, \`analytics_metrics\`) VALUES (\n  ${escapeSql(settings.centerName)},\n  ${escapeSql(settings.address)},\n  ${escapeSql(settings.phone)},\n  ${escapeSql(settings.email)},\n  ${settings.taxRate},\n  ${settings.laborRate},\n  ${escapeSql(settings.jobCardPrefix)},\n  ${escapeSql(settings.deductStockOn)},\n  ${settings.requireSignature ? 1 : 0},\n  ${settings.autoSendFeedbackSms === false ? 0 : 1},\n  ${settings.autoDailyBackupEnabled ? 1 : 0},\n  ${escapeSql(settings.autoDailyBackupDestination || 'localStorage')},\n  ${escapeSql(settings.analyticsMetrics ? JSON.stringify(settings.analyticsMetrics) : null)}\n);\n\n`;
 
+  // Insert Custom Fields
+  if (customFields.length > 0) {
+    dump += `-- CUSTOM INTAKE FIELDS (${customFields.length} Definitions)\n`;
+    customFields.forEach((f) => {
+      const optionsJson = f.options && f.options.length > 0 ? JSON.stringify(f.options) : null;
+      dump += `INSERT INTO \`custom_fields\` (\`id\`, \`label\`, \`field_key\`, \`data_type\`, \`category\`, \`required\`, \`placeholder\`, \`options_json\`, \`is_system\`, \`enabled\`) VALUES (${escapeSql(f.id)}, ${escapeSql(f.label)}, ${escapeSql(f.key)}, ${escapeSql(f.dataType)}, ${escapeSql(f.category)}, ${f.required ? 1 : 0}, ${escapeSql(f.placeholder)}, ${escapeSql(optionsJson)}, ${f.isSystem ? 1 : 0}, ${f.enabled ? 1 : 0}) ON DUPLICATE KEY UPDATE \`label\`=${escapeSql(f.label)}, \`required\`=${f.required ? 1 : 0}, \`placeholder\`=${escapeSql(f.placeholder)}, \`options_json\`=${escapeSql(optionsJson)}, \`enabled\`=${f.enabled ? 1 : 0};\n`;
+    });
+    dump += `\n`;
+  }
+
   // Insert Inventory Items
   dump += `-- INVENTORY ITEMS (${inventory.length} SKUs)\n`;
   inventory.forEach((i) => {
@@ -245,10 +274,15 @@ export function generateMySqlDump(
   dump += `\n-- JOB CARDS & PARTS (${jobCards.length} Cards)\n`;
   jobCards.forEach((j) => {
     const accJson = JSON.stringify(j.tool.accessoriesReceived || []);
+    const partsDeductedJson = j.partsDeducted && j.partsDeducted.length > 0 ? JSON.stringify(j.partsDeducted) : null;
+    const customFieldValuesJson =
+      j.customFieldValues && Object.keys(j.customFieldValues).length > 0
+        ? JSON.stringify(j.customFieldValues)
+        : null;
     const fb = j.customerFeedback;
     const fbJson = fb ? JSON.stringify(fb) : null;
     const fbRating = fb && typeof fb.rating === 'number' ? fb.rating : 'NULL';
-    dump += `INSERT INTO \`job_cards\` (\`id\`, \`customer_name\`, \`customer_company\`, \`customer_phone\`, \`customer_email\`, \`gst_or_tax_id\`, \`tool_brand\`, \`tool_category\`, \`tool_model_number\`, \`tool_serial_number\`, \`tool_voltage_rating\`, \`tool_warranty_status\`, \`tool_physical_condition\`, \`tool_accessories_json\`, \`grievance_category\`, \`detailed_complaint\`, \`service_type\`, \`pre_approved_limit\`, \`intake_date\`, \`promised_completion\`, \`status\`, \`priority\`, \`technician\`, \`diagnostic_notes\`, \`labor_hours\`, \`labor_rate\`, \`discount\`, \`tax_rate\`, \`total_amount\`, \`public_access_token\`, \`feedback_sms_sent_at\`, \`customer_feedback_rating\`, \`customer_feedback_comment\`, \`customer_feedback_submitted_at\`, \`customer_feedback_json\`) VALUES (${escapeSql(j.id)}, ${escapeSql(j.customerName)}, ${escapeSql(j.customerCompany)}, ${escapeSql(j.customerPhone)}, ${escapeSql(j.customerEmail)}, ${escapeSql(j.gstOrTaxId)}, ${escapeSql(j.tool.brand)}, ${escapeSql(j.tool.category)}, ${escapeSql(j.tool.modelNumber)}, ${escapeSql(j.tool.serialNumber)}, ${escapeSql(j.tool.voltageRating)}, ${escapeSql(j.tool.warrantyStatus)}, ${escapeSql(j.tool.physicalCondition)}, ${escapeSql(accJson)}, ${escapeSql(j.serviceReq.grievanceCategory)}, ${escapeSql(j.serviceReq.detailedComplaint)}, ${escapeSql(j.serviceReq.serviceType)}, ${j.serviceReq.preApprovedLimit}, ${escapeSql(j.intakeDate)}, ${escapeSql(j.promisedCompletion)}, ${escapeSql(j.status)}, ${escapeSql(j.priority)}, ${escapeSql(j.technician)}, ${escapeSql(j.diagnosticNotes)}, ${j.laborHours}, ${j.laborRate}, ${j.discount}, ${j.taxRate}, ${j.totalAmount}, ${escapeSql(j.publicAccessToken)}, ${escapeSql(j.feedbackSmsSentAt)}, ${fbRating}, ${escapeSql(fb?.comment)}, ${escapeSql(fb?.submittedAt)}, ${escapeSql(fbJson)});\n`;
+    dump += `INSERT INTO \`job_cards\` (\`id\`, \`customer_name\`, \`customer_company\`, \`customer_phone\`, \`customer_email\`, \`gst_or_tax_id\`, \`tool_brand\`, \`tool_category\`, \`tool_model_number\`, \`tool_serial_number\`, \`tool_voltage_rating\`, \`tool_warranty_status\`, \`tool_physical_condition\`, \`tool_accessories_json\`, \`grievance_category\`, \`detailed_complaint\`, \`service_type\`, \`pre_approved_limit\`, \`intake_date\`, \`promised_completion\`, \`status\`, \`priority\`, \`technician\`, \`diagnostic_notes\`, \`labor_hours\`, \`labor_rate\`, \`discount\`, \`tax_rate\`, \`total_amount\`, \`public_access_token\`, \`stock_deducted_at\`, \`parts_deducted_json\`, \`custom_field_values_json\`, \`feedback_sms_sent_at\`, \`customer_feedback_rating\`, \`customer_feedback_comment\`, \`customer_feedback_submitted_at\`, \`customer_feedback_json\`) VALUES (${escapeSql(j.id)}, ${escapeSql(j.customerName)}, ${escapeSql(j.customerCompany)}, ${escapeSql(j.customerPhone)}, ${escapeSql(j.customerEmail)}, ${escapeSql(j.gstOrTaxId)}, ${escapeSql(j.tool.brand)}, ${escapeSql(j.tool.category)}, ${escapeSql(j.tool.modelNumber)}, ${escapeSql(j.tool.serialNumber)}, ${escapeSql(j.tool.voltageRating)}, ${escapeSql(j.tool.warrantyStatus)}, ${escapeSql(j.tool.physicalCondition)}, ${escapeSql(accJson)}, ${escapeSql(j.serviceReq.grievanceCategory)}, ${escapeSql(j.serviceReq.detailedComplaint)}, ${escapeSql(j.serviceReq.serviceType)}, ${j.serviceReq.preApprovedLimit}, ${escapeSql(j.intakeDate)}, ${escapeSql(j.promisedCompletion)}, ${escapeSql(j.status)}, ${escapeSql(j.priority)}, ${escapeSql(j.technician)}, ${escapeSql(j.diagnosticNotes)}, ${j.laborHours}, ${j.laborRate}, ${j.discount}, ${j.taxRate}, ${j.totalAmount}, ${escapeSql(j.publicAccessToken)}, ${escapeSql(j.stockDeductedAt)}, ${escapeSql(partsDeductedJson)}, ${escapeSql(customFieldValuesJson)}, ${escapeSql(j.feedbackSmsSentAt)}, ${fbRating}, ${escapeSql(fb?.comment)}, ${escapeSql(fb?.submittedAt)}, ${escapeSql(fbJson)});\n`;
 
     j.parts.forEach((p) => {
       dump += `INSERT INTO \`job_card_parts\` (\`job_card_id\`, \`part_id\`, \`sku\`, \`name\`, \`unit_price\`, \`quantity\`, \`total\`) VALUES (${escapeSql(j.id)}, ${escapeSql(p.partId)}, ${escapeSql(p.sku)}, ${escapeSql(p.name)}, ${p.unitPrice}, ${p.quantity}, ${p.total});\n`;

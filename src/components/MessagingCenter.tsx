@@ -14,6 +14,7 @@ import {
   Bot,
   Loader2,
   AlertCircle,
+  X,
 } from 'lucide-react';
 
 interface AiReplyVariant {
@@ -75,6 +76,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
   const [templateType, setTemplateType] = useState<'Intake' | 'Estimate' | 'Ready' | 'Invoice' | 'Feedback'>('Intake');
   const [customMessage, setCustomMessage] = useState('');
   const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [polishError, setPolishError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [aiLanguage, setAiLanguage] = useState('English');
   const [aiTone, setAiTone] = useState('Professional & Direct');
@@ -116,16 +118,17 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
     if (!job) return '';
     const toolName = `${job.tool?.brand || 'Bosch'} ${job.tool?.modelNumber || 'Tool'}`;
     const serial = job.tool?.serialNumber || 'N/A';
+    const effectiveTotal = getEffectiveJobBilling(job).totalAmount;
 
     switch (type) {
       case 'Intake':
-        return `Hi ${job.customerName}, your ${toolName} (SN: ${serial}) is checked in under Job Card ${job.id}. We will notify you once diagnostic inspection is complete. Bosch Service Center.`;
+        return `Hi ${job.customerName}, your ${toolName} (SN: ${serial}) is checked in under Job Card ${job.id}. We will notify you once diagnostic inspection is complete. ${settings.centerName}.`;
       case 'Estimate':
-        return `Hi ${job.customerName}, estimate for Job Card ${job.id} (${toolName}) is ready: $${job.totalAmount.toFixed(2)}. Includes spare parts & labor. Reply YES to approve.`;
+        return `Hi ${job.customerName}, estimate for Job Card ${job.id} (${toolName}) is ready: $${effectiveTotal.toFixed(2)}. Includes spare parts & labor. Reply YES to approve.`;
       case 'Ready':
-        return `Great news ${job.customerName}! Your ${toolName} (Job Card ${job.id}) is READY FOR PICKUP. Total: $${job.totalAmount.toFixed(2)}. Bosch Service Bay.`;
+        return `Great news ${job.customerName}! Your ${toolName} (Job Card ${job.id}) is READY FOR PICKUP. Total: $${effectiveTotal.toFixed(2)}. ${settings.centerName}.`;
       case 'Invoice':
-        return `Hi ${job.customerName}, thank you for choosing Bosch Service! Receipt for Job Card ${job.id}. Total Paid: $${job.totalAmount.toFixed(2)}. Work safe!`;
+        return `Hi ${job.customerName}, thank you for choosing ${settings.centerName}! Receipt for Job Card ${job.id}. Total Paid: $${effectiveTotal.toFixed(2)}. Work safe!`;
       case 'Feedback':
         return `Hi ${job.customerName}, your ${toolName} service (${job.id}) is completed! Please rate our work & leave feedback here: ${buildCustomerFeedbackUrl(job)}`;
       default:
@@ -138,6 +141,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
   const handleAiPolish = async () => {
     if (!activeJob) return;
     setIsAiGenerating(true);
+    setPolishError(null);
 
     try {
       const res = await fetch(resolveApiUrl('/api/ai/generate-message'), {
@@ -150,12 +154,17 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
           tone: aiTone,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPolishError(data?.error || data?.details || `AI message polish failed (HTTP ${res.status}). Check server Gemini credentials.`);
+        return;
+      }
       if (data.message) {
         setCustomMessage(data.message);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setPolishError(err?.message || 'Unable to reach AI message polish service.');
     } finally {
       setIsAiGenerating(false);
     }
@@ -277,11 +286,25 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
         recipientPhone: activeJob.customerPhone,
         text: messageText,
         channel: 'WhatsApp',
-        status: data.success ? 'Sent' : 'Sent',
+        status: data.success ? 'Sent' : 'Pending',
       };
       onLogMessageSent(activeJob.id, log);
     } catch (err: any) {
       console.error(err);
+      const log: MessageLog = {
+        id: `msg-${Date.now()}`,
+        timestamp: new Date().toLocaleString(),
+        type: templateType,
+        recipientPhone: activeJob.customerPhone,
+        text: messageText,
+        channel: 'WhatsApp',
+        status: 'Pending',
+      };
+      onLogMessageSent(activeJob.id, log);
+      setSendFeedback({
+        type: 'info',
+        text: 'WhatsApp API unreachable — opened WhatsApp Web fallback and logged as Pending.',
+      });
       window.open(whatsappUrl, '_blank');
     } finally {
       setIsSending(false);
@@ -328,11 +351,25 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
         recipientPhone: activeJob.customerPhone,
         text: messageText,
         channel: 'SMS',
-        status: data.success ? 'Sent' : 'Sent',
+        status: data.success ? 'Sent' : 'Pending',
       };
       onLogMessageSent(activeJob.id, log);
     } catch (err: any) {
       console.error(err);
+      const log: MessageLog = {
+        id: `msg-${Date.now()}`,
+        timestamp: new Date().toLocaleString(),
+        type: templateType,
+        recipientPhone: activeJob.customerPhone,
+        text: messageText,
+        channel: 'SMS',
+        status: 'Pending',
+      };
+      onLogMessageSent(activeJob.id, log);
+      setSendFeedback({
+        type: 'info',
+        text: 'SMS API unreachable — opened device SMS fallback and logged as Pending.',
+      });
       window.location.href = smsUrl;
     } finally {
       setIsSending(false);
@@ -642,7 +679,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                 </div>
 
                 <div className="text-xs font-mono font-bold text-white">
-                  {activeJob.id} (${activeJob.totalAmount.toFixed(2)})
+                  {activeJob.id} (${getEffectiveJobBilling(activeJob).totalAmount.toFixed(2)})
                 </div>
               </div>
 
@@ -707,6 +744,23 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                 />
               </div>
 
+              {polishError && (
+                <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800/70 text-xs font-mono text-rose-200 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                    <span>{polishError}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPolishError(null)}
+                    aria-label="Dismiss AI polish error"
+                    className="text-rose-300 hover:text-white p-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               {sendFeedback && (
                 <div className={`p-3 rounded-xl border text-xs font-mono flex items-center gap-2 ${
                   sendFeedback.type === 'success' 
@@ -756,10 +810,15 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
 
             {/* Logs */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3">
-              <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2 font-mono">
-                <Clock className="w-4 h-4 text-white" />
-                <span>Message History Logs ({activeJob.messageLogs.length})</span>
-              </h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2 font-mono">
+                  <Clock className="w-4 h-4 text-white" />
+                  <span>Message History Logs ({activeJob.messageLogs.length})</span>
+                </h3>
+                <span className="text-[11px] text-zinc-500 font-mono">
+                  Pending = handed to WhatsApp/SMS client, not confirmed delivered.
+                </span>
+              </div>
 
               {activeJob.messageLogs.length === 0 ? (
                 <p className="text-xs text-zinc-500 py-2 text-center font-mono">No messages sent yet.</p>
@@ -767,8 +826,24 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                 <div className="space-y-2">
                   {activeJob.messageLogs.map((log) => (
                     <div key={log.id} className="p-3 bg-zinc-950 rounded-xl border border-zinc-800 text-xs space-y-1">
-                      <div className="flex items-center justify-between text-zinc-400 font-mono">
-                        <span className="font-bold text-white">{log.channel} ({log.type})</span>
+                      <div className="flex items-center justify-between gap-2 text-zinc-400 font-mono">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white">{log.channel} ({log.type})</span>
+                          <span
+                            title={
+                              log.status === 'Sent'
+                                ? 'Dispatched via Twilio / WhatsApp API'
+                                : 'Pending = handed to WhatsApp/SMS client, not confirmed delivered.'
+                            }
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                              log.status === 'Sent'
+                                ? 'bg-emerald-950/70 text-emerald-300 border-emerald-700/70'
+                                : 'bg-amber-950/70 text-amber-300 border-amber-700/70'
+                            }`}
+                          >
+                            {log.status || 'Pending'}
+                          </span>
+                        </div>
                         <span className="text-[11px] text-zinc-500">{log.timestamp}</span>
                       </div>
                       <p className="text-zinc-300 leading-relaxed text-[11px] font-mono">{log.text}</p>
