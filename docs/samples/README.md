@@ -10,7 +10,7 @@ This folder contains compatible, production-tested CSV sample datasets for the A
 | :--- | :--- | :--- | :--- |
 | **`recurring_maintenance_standard.csv`** | Client Fleet Maintenance | 7 standard columns (`customerName`, `toolBrand`, `toolCategory`, `modelNumber`, `serialNumber`, `intervalMonths`, `recommendedServiceScope`) | `Recurring Maintenance` -> `Bulk Import CSV` |
 | **`recurring_maintenance_full.csv`** | Client Fleet Maintenance (Extended) | 12 full columns (`customerName`, `customerCompany`, `customerPhone`, `customerEmail`, `toolBrand`, `toolCategory`, `modelNumber`, `serialNumber`, `intervalMonths`, `lastServiceDate`, `recommendedServiceScope`, `notes`) | `Recurring Maintenance` -> `Bulk Import CSV` |
-| **`spare_parts_inventory_sample.csv`** | Spare Parts Catalog | 12 inventory columns (`sku`, `barcode`, `name`, `category`, `brand`, `compatibleModels`, `unitPrice`, `costPrice`, `stockQty`, `minStockThreshold`, `unit`, `binLocation`) | `1,000 SKUs` & `Transition / Database Restore` |
+| **`spare_parts_inventory_sample.csv`** | Spare Parts Catalog | 12 inventory columns (`sku`, `barcode`, `name`, `category`, `brand`, `compatibleModels`, `unitPrice`, `costPrice`, `stockQty`, `minStockThreshold`, `unit`, `binLocation`) | `1,000 SKUs` -> `Bulk Import Excel / CSV` & `Transition / Database Restore` |
 | **`service_job_cards_sample.csv`** | Workshop Job Cards | 12 job ticket columns (`jobCardId`, `customerName`, `customerPhone`, `toolBrand`, `modelNumber`, `serialNumber`, `grievanceCategory`, `detailedComplaint`, `serviceType`, `preApprovedLimit`, `status`, `priority`) | `Job Cards` & `Transition / Database Restore` |
 
 ---
@@ -38,17 +38,34 @@ customerName,toolBrand,toolCategory,modelNumber,serialNumber,intervalMonths,reco
 
 ## 2. Importing via UI
 
+### A. Recurring Maintenance Schedules (`Servicing`)
 1. Open AutoTrack Pro and select the **`Servicing`** (Recurring Maintenance) tab.
-2. Click **`Bulk Import CSV`** to launch the browser file dialog.
+2. Click **`Bulk Import CSV`** to launch the browser file dialog or paste text.
 3. Select `recurring_maintenance_standard.csv` or `recurring_maintenance_full.csv`.
 4. The system validates row completeness, calculates next due dates, and appends valid schedules directly to state.
 5. Alternatively, click **`CSV Format Guide`** on the toolbar to review formatting rules and download blank templates.
+
+### B. Spare Parts Catalog (`1,000 SKUs` -> `Bulk Import Excel / CSV`)
+1. Select the **`1,000 SKUs`** (`InventoryManager`) tab and click **`Bulk Import Excel / CSV`**.
+2. Copy cells directly from Excel/Google Sheets (tab-separated TSV), upload `docs/samples/spare_parts_inventory_sample.csv`, or click **`Load 10 Sample Bosch Parts`**.
+3. Pick a merge mode: **`Update + Add New`** (`upsert`), **`Add Qty to Stock`** (`replenish`), or **`New SKUs Only`** (`insertOnly`).
+4. Review the row preview table and click **`Apply Import`** to persist changes to `localStorage`, Service Worker cache, and Cloud Firestore.
 
 ---
 
 ## 3. Formatting Guidelines for Excel and Google Sheets
 
-- **Delimiter**: Comma (`,`). Do not use semicolons or tabs.
-- **Quoting**: Enclose values containing commas, slashes, or quotes in double quotes (`"..."`).
-- **Encoding**: UTF-8 without BOM.
+- **Delimiter**: Comma (`,`) for `.csv` uploads, or direct Tab (`\t`) copy-paste from Excel/Google Sheets inside **`Bulk Import Excel / CSV`**.
+- **Quoting**: Enclose CSV values containing commas, slashes, or quotes in double quotes (`"..."`).
+- **Encoding**: UTF-8 (with or without BOM).
 - **Dates**: Format dates as `YYYY-MM-DD` (e.g. `2026-11-15`).
+
+---
+
+## 4. Related Database & Testing Guides
+
+- **PostgreSQL 16 Schema & Dummy Seed**: [`/database.postgres.sql`](../../database.postgres.sql)
+- **MySQL 8.0+ Schema & Dummy Seed**: [`/database.sql`](../../database.sql)
+- **Database Setup & Multi-Client Integration**: [`../DATABASE_SETUP_AND_INTEGRATION_GUIDE.md`](../DATABASE_SETUP_AND_INTEGRATION_GUIDE.md)
+- **QA CSV & Database Verification Tests**: [`../TESTING_AND_QA_ACCEPTANCE_GUIDE.md`](../TESTING_AND_QA_ACCEPTANCE_GUIDE.md)
+

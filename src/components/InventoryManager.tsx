@@ -9,6 +9,7 @@ import {
 } from '../utils/inventoryNotifications';
 import { AiReorderRecommendations } from './AiReorderRecommendations';
 import { SerialBarcodeScannerModal } from './SerialBarcodeScannerModal';
+import { InventoryBulkImportModal } from './InventoryBulkImportModal';
 import {
   BarcodeScanResult,
   ToolHistoryMatch,
@@ -19,7 +20,7 @@ import {
 import { 
   Search, Plus, Package, AlertTriangle, Download, Barcode, 
   RefreshCw, Database, FileCode, CheckCircle2, ShoppingCart, ShieldAlert, Sparkles, BrainCircuit,
-  Bell, CheckCheck, Minus, PackageX, ChevronDown, ChevronUp, QrCode, History, ExternalLink, Camera
+  Bell, CheckCheck, Minus, PackageX, ChevronDown, ChevronUp, QrCode, History, ExternalLink, Camera, FileSpreadsheet
 } from 'lucide-react';
 
 interface InventoryManagerProps {
@@ -88,6 +89,7 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
   }, [initialShowLowStockOnly]);
 
   const [scanModalOpen, setScanModalOpen] = useState(false);
+  const [bulkImportModalOpen, setBulkImportModalOpen] = useState(false);
   const [cameraQrScannerOpen, setCameraQrScannerOpen] = useState(false);
   const [scannedSku, setScannedSku] = useState('');
   const [scanResult, setScanResult] = useState<InventoryItem | null>(null);
@@ -337,6 +339,16 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
             >
               <Plus className="w-4 h-4" />
               <span>+ Add Part SKU</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setBulkImportModalOpen(true)}
+              className="px-3.5 py-2 text-xs font-bold text-zinc-100 bg-zinc-950 hover:bg-zinc-800 border border-zinc-700 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
+              title="Paste Excel or CSV rows to seed or update inventory SKUs"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+              <span>Bulk Import Excel / CSV</span>
             </button>
           </div>
         </div>
@@ -1099,6 +1111,24 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
           prioritizeQr
           onDetected={handleCameraQrDetected}
           onClose={() => setCameraQrScannerOpen(false)}
+        />
+      )}
+
+      {bulkImportModalOpen && (
+        <InventoryBulkImportModal
+          inventory={inventory}
+          onClose={() => setBulkImportModalOpen(false)}
+          onCommitInventory={(nextInventory, { addedCount, updatedCount, skippedCount }) => {
+            onUpdateInventory(nextInventory);
+            setBulkImportModalOpen(false);
+            setCurrentPage(1);
+            setRestockFeedback(
+              `Bulk import complete: ${addedCount} new SKUs added, ${updatedCount} existing SKUs updated${
+                skippedCount > 0 ? `, ${skippedCount} skipped` : ''
+              }.`
+            );
+            setTimeout(() => setRestockFeedback(null), 5000);
+          }}
         />
       )}
 

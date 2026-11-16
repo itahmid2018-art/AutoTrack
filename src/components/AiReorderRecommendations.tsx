@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { InventoryItem, JobCard } from '../types';
+import { resolveApiUrl } from '../utils/apiBase';
 import { 
   Sparkles, 
   RefreshCw, 
@@ -61,7 +62,7 @@ export const AiReorderRecommendations: React.FC<AiReorderRecommendationsProps> =
     setRestockSuccessMsg(null);
 
     try {
-      const response = await fetch('/api/ai/recommend-reorders', {
+      const response = await fetch(resolveApiUrl('/api/ai/recommend-reorders'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobCards, inventory }),

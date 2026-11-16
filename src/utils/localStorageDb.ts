@@ -181,6 +181,8 @@ export const TransactionalDb = {
       'Parts Subtotal ($)',
       'Tax Rate (%)',
       'Total Amount ($)',
+      'Customer Rating (1-5)',
+      'Customer Feedback',
       'Created At',
       'Updated At',
     ];
@@ -211,6 +213,8 @@ export const TransactionalDb = {
         escapeCsv(partsSubtotal.toFixed(2)),
         escapeCsv(j.taxRate),
         escapeCsv(j.totalAmount.toFixed(2)),
+        escapeCsv(j.customerFeedback ? j.customerFeedback.rating : ''),
+        escapeCsv(j.customerFeedback ? j.customerFeedback.comment : ''),
         escapeCsv(j.createdAt),
         escapeCsv(j.updatedAt),
       ].join(',');

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { JobCard, MessageLog, BusinessSettings } from '../types';
 import { getEffectiveJobBilling } from '../utils/billing';
-import { buildCustomerPortalUrl } from '../utils/customerPortalUrl';
+import { buildCustomerFeedbackUrl, buildCustomerPortalUrl } from '../utils/customerPortalUrl';
+import { resolveApiUrl } from '../utils/apiBase';
 import {
   MessageSquare,
   Copy,
@@ -71,7 +72,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
 }) => {
   const activeJob = selectedJob || jobCards[0] || null;
   
-  const [templateType, setTemplateType] = useState<'Intake' | 'Estimate' | 'Ready' | 'Invoice'>('Intake');
+  const [templateType, setTemplateType] = useState<'Intake' | 'Estimate' | 'Ready' | 'Invoice' | 'Feedback'>('Intake');
   const [customMessage, setCustomMessage] = useState('');
   const [isAiGenerating, setIsAiGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -105,7 +106,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
   });
 
   React.useEffect(() => {
-    fetch('/api/messaging/status')
+    fetch(resolveApiUrl('/api/messaging/status'))
       .then((res) => res.json())
       .then((data) => setApiStatus(data))
       .catch((err) => console.error('Failed to fetch messaging API status:', err));
@@ -125,6 +126,8 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
         return `Great news ${job.customerName}! Your ${toolName} (Job Card ${job.id}) is READY FOR PICKUP. Total: $${job.totalAmount.toFixed(2)}. Bosch Service Bay.`;
       case 'Invoice':
         return `Hi ${job.customerName}, thank you for choosing Bosch Service! Receipt for Job Card ${job.id}. Total Paid: $${job.totalAmount.toFixed(2)}. Work safe!`;
+      case 'Feedback':
+        return `Hi ${job.customerName}, your ${toolName} service (${job.id}) is completed! Please rate our work & leave feedback here: ${buildCustomerFeedbackUrl(job)}`;
       default:
         return '';
     }
@@ -137,7 +140,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
     setIsAiGenerating(true);
 
     try {
-      const res = await fetch('/api/ai/generate-message', {
+      const res = await fetch(resolveApiUrl('/api/ai/generate-message'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -183,7 +186,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
       const billingSummary = getEffectiveJobBilling(activeJob);
       const portalUrl = buildCustomerPortalUrl(activeJob);
 
-      const res = await fetch('/api/ai/response-assistant', {
+      const res = await fetch(resolveApiUrl('/api/ai/response-assistant'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -243,7 +246,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
     const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encoded}`;
 
     try {
-      const res = await fetch('/api/messaging/send-whatsapp', {
+      const res = await fetch(resolveApiUrl('/api/messaging/send-whatsapp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -294,7 +297,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
     const smsUrl = `sms:${activeJob.customerPhone}?body=${encoded}`;
 
     try {
-      const res = await fetch('/api/messaging/send-sms', {
+      const res = await fetch(resolveApiUrl('/api/messaging/send-sms'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -645,12 +648,13 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-zinc-400 mb-2 font-mono">Milestone Template</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   {[
                     { id: 'Intake', label: '1. Intake Received' },
                     { id: 'Estimate', label: '2. Estimate Ready' },
                     { id: 'Ready', label: '3. Ready for Pickup' },
                     { id: 'Invoice', label: '4. Service Invoice' },
+                    { id: 'Feedback', label: '5. Feedback Survey' },
                   ].map((t) => (
                     <button
                       key={t.id}

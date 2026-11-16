@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { JobCard, InventoryItem, BusinessSettings, CriticalQuestionnaire, MessageLog, JobStatus, RecurringMaintenance, CustomField } from './types';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { JobCard, InventoryItem, BusinessSettings, CriticalQuestionnaire, MessageLog, JobStatus, RecurringMaintenance, CustomField, CustomerFeedback } from './types';
 import { INITIAL_JOB_CARDS } from './data/initialJobCards';
 import { INITIAL_INVENTORY } from './data/mockInventory';
 import { INITIAL_RECURRING_MAINTENANCE } from './data/initialRecurringMaintenance';
@@ -7,7 +8,29 @@ import { INITIAL_CUSTOM_FIELDS } from './data/initialCustomFields';
 import { TransactionalDb } from './utils/localStorageDb';
 import { DEFAULT_ANALYTICS_METRICS } from './utils/analyticsConfig';
 import { autoAdjudicateJobCard } from './utils/warrantyAdjudicator';
-import { ensurePublicAccessToken } from './utils/customerPortalUrl';
+import { buildCustomerFeedbackUrl, ensurePublicAccessToken } from './utils/customerPortalUrl';
+import { resolveApiUrl } from './utils/apiBase';
+import {
+  readOfflineCachedAllRecords,
+  syncRecordsToServiceWorker,
+} from './utils/offlineCache';
+import {
+  auth,
+  signInWithGoogle,
+  signOutWorkshopUser,
+  testFirestoreConnection,
+} from './lib/firebase';
+import {
+  seedWorkshopIfEmpty,
+  subscribeWorkshopData,
+  upsertCustomFieldsInFirestore,
+  upsertInventoryItemsInFirestore,
+  upsertJobCardInFirestore,
+  upsertScheduleInFirestore,
+  upsertSchedulesBatchInFirestore,
+  upsertSettingsInFirestore,
+  upsertWorkshopUser,
+} from './utils/firestoreSync';
 import {
   InventoryNotification,
   buildInventoryNotification,
@@ -32,9 +55,11 @@ import { AddInventoryModal } from './components/AddInventoryModal';
 import { PrintableJobCardModal } from './components/PrintableJobCardModal';
 import { PdfViewModal } from './components/PdfViewModal';
 import { InventoryNotificationToast } from './components/InventoryNotificationToast';
+import { FeedbackSmsToast, FeedbackSmsDispatchNotice } from './components/FeedbackSmsToast';
 import { CustomerView, sanitizeJobForCustomer, PublicJobStatusSummary } from './components/CustomerView';
 import { SerialBarcodeScannerModal } from './components/SerialBarcodeScannerModal';
 import { GlobalScanResultModal } from './components/GlobalScanResultModal';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import {
   BarcodeScanResult,
   findMatchingInventoryItem,
@@ -66,8 +91,11 @@ export default function App() {
     urlParams && (urlParams.get('view') === 'customer' || urlParams.get('token'))
   );
   const initialCustomerQuery = urlParams?.get('token') || urlParams?.get('job') || '';
+  const initialShowFeedbackParam = Boolean(urlParams && urlParams.get('feedback') === '1');
 
   const [isCustomerViewActive, setIsCustomerViewActive] = useState<boolean>(isLockedCustomerUrl);
+  const [customerPortalTarget, setCustomerPortalTarget] = useState<{ query: string; showFeedback: boolean } | null>(null);
+  const [feedbackSmsNotices, setFeedbackSmsNotices] = useState<FeedbackSmsDispatchNotice[]>([]);
   const [activeTab, setActiveTab] = useState<'intake' | 'jobs' | 'kanban' | 'maintenance' | 'inventory' | 'messaging' | 'analytics' | 'timetracking' | 'transition'>('intake');
   const [transitionSubTab, setTransitionSubTab] = useState<'fields' | 'backups' | 'rules' | 'manual'>('backups');
   
@@ -114,6 +142,7 @@ export default function App() {
     WhatsAppTemplateEstimate: 'Hi {{customer_name}}, estimate for {{job_id}} is ${{total_amount}}. Reply YES to approve.',
     deductStockOn: 'InService',
     requireSignature: true,
+    autoSendFeedbackSms: true,
     analyticsMetrics: DEFAULT_ANALYTICS_METRICS,
   }));
 
@@ -129,14 +158,34 @@ export default function App() {
 
   const [isNewJobModalOpen, setIsNewJobModalOpen] = useState(false);
   const [isAddInventoryModalOpen, setIsAddInventoryModalOpen] = useState(false);
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
-  // Persist Data on Changes
+  const initialSeedSnapshotRef = useRef({
+    jobCards,
+    inventory,
+    schedules,
+    settings,
+    customFields,
+  });
+  initialSeedSnapshotRef.current = {
+    jobCards,
+    inventory,
+    schedules,
+    settings,
+    customFields,
+  };
+
+  // Persist Data on Changes (localStorage + Service Worker Cache Storage for offline viewing)
   useEffect(() => {
     TransactionalDb.saveJobCards(jobCards);
+    void syncRecordsToServiceWorker({ jobCards });
   }, [jobCards]);
 
   useEffect(() => {
     TransactionalDb.saveInventory(inventory);
+    void syncRecordsToServiceWorker({ inventory });
 
     const prevMap = previousStockMapRef.current;
     const newlyTriggered: InventoryNotification[] = [];
@@ -167,6 +216,7 @@ export default function App() {
 
   useEffect(() => {
     TransactionalDb.saveSettings(settings);
+    void syncRecordsToServiceWorker({ settings });
   }, [settings]);
 
   useEffect(() => {
@@ -175,7 +225,31 @@ export default function App() {
 
   useEffect(() => {
     TransactionalDb.saveRecurringMaintenance(schedules);
+    void syncRecordsToServiceWorker({ schedules });
   }, [schedules]);
+
+  // Hydrate cached workshop records from Service Worker Cache Storage when localStorage is missing offline
+  useEffect(() => {
+    const hasLocalJobs = Boolean(localStorage.getItem('autotrack_db_job_cards_v1'));
+    const hasLocalInv = Boolean(localStorage.getItem('autotrack_db_inventory_v1'));
+    const hasLocalSched = Boolean(localStorage.getItem('autotrack_db_recurring_maintenance_v1'));
+    if (!hasLocalJobs || !hasLocalInv || !hasLocalSched) {
+      void readOfflineCachedAllRecords().then((cached) => {
+        if (!hasLocalJobs && cached.jobCards && cached.jobCards.length > 0) {
+          setJobCards(cached.jobCards.map(normalizeJobCard));
+        }
+        if (!hasLocalInv && cached.inventory && cached.inventory.length > 0) {
+          setInventory(cached.inventory);
+        }
+        if (!hasLocalSched && cached.schedules && cached.schedules.length > 0) {
+          setSchedules(cached.schedules);
+        }
+        if (!hasLocalJobs && cached.settings) {
+          setSettings((prev) => ({ ...prev, ...cached.settings }));
+        }
+      });
+    }
+  }, []);
 
   // Check and run automatic daily backup on startup
   useEffect(() => {
@@ -191,6 +265,123 @@ export default function App() {
     }
   }, []);
 
+  // Multi-client real-time sync subscription for verified operators
+  useEffect(() => {
+    let activeUnsub: (() => void) | null = null;
+    let cancelled = false;
+
+    const unsubAuth = onAuthStateChanged(auth, async (user) => {
+      if (activeUnsub) {
+        activeUnsub();
+        activeUnsub = null;
+      }
+      setAuthUser(user);
+      setAuthLoading(false);
+      setAuthError(null);
+
+      if (!user || !user.emailVerified) {
+        return;
+      }
+
+      try {
+        await testFirestoreConnection();
+        await upsertWorkshopUser(user);
+        const snap = initialSeedSnapshotRef.current;
+        await seedWorkshopIfEmpty(user, [user.uid], snap);
+        if (cancelled) return;
+
+        activeUnsub = subscribeWorkshopData(user, {
+          onJobCards: (remoteJobs) => {
+            const normalized = remoteJobs.map(normalizeJobCard);
+            setJobCards(normalized);
+            setSelectedJob((curr) =>
+              curr ? normalized.find((j) => j.id === curr.id) || curr : null
+            );
+          },
+          onInventoryItems: (remoteItems) => {
+            setInventory((prev) => {
+              const remoteById = new Map(remoteItems.map((item) => [item.id, item]));
+              const prevIds = new Set(prev.map((item) => item.id));
+              const extraRemote = remoteItems.filter((item) => !prevIds.has(item.id));
+              const mergedExisting = prev.map((item) => remoteById.get(item.id) || item);
+              return [...extraRemote, ...mergedExisting];
+            });
+          },
+          onSchedules: (remoteSchedules) => {
+            setSchedules(remoteSchedules);
+          },
+          onSettings: (remoteSettings) => {
+            setSettings((prev) => ({ ...prev, ...remoteSettings }));
+          },
+          onCustomFields: (remoteFields) => {
+            setCustomFields(remoteFields);
+          },
+          onError: (err) => {
+            console.warn('Live sync notice:', err.message);
+          },
+        });
+      } catch (err) {
+        console.warn('Live sync initialization warning:', err);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubAuth();
+      if (activeUnsub) activeUnsub();
+    };
+  }, []);
+
+  const handleOperatorSignIn = async () => {
+    setAuthError(null);
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Google sign-in cancelled or blocked.');
+    }
+  };
+
+  const handleOperatorSignOut = async () => {
+    setAuthError(null);
+    try {
+      await signOutWorkshopUser();
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Failed to sign out.');
+    }
+  };
+
+  const syncJobToCloud = (job: JobCard) => {
+    if (!authUser?.emailVerified) return;
+    void upsertJobCardInFirestore(job, authUser).catch((err) =>
+      console.warn('Job card sync failed:', err)
+    );
+  };
+
+  const syncInventoryDeltaToCloud = (nextInventory: InventoryItem[]) => {
+    if (!authUser?.emailVerified) return;
+    const prevById = new Map(inventory.map((i) => [i.id, i]));
+    const changed = nextInventory.filter((item) => {
+      const prevItem = prevById.get(item.id);
+      if (!prevItem) return true;
+      return (
+        prevItem.stockQty !== item.stockQty ||
+        prevItem.unitPrice !== item.unitPrice ||
+        prevItem.costPrice !== item.costPrice ||
+        prevItem.minStockThreshold !== item.minStockThreshold ||
+        prevItem.name !== item.name ||
+        prevItem.sku !== item.sku ||
+        prevItem.barcode !== item.barcode ||
+        prevItem.binLocation !== item.binLocation ||
+        prevItem.lastRestocked !== item.lastRestocked
+      );
+    });
+    if (changed.length > 0) {
+      void upsertInventoryItemsInFirestore(changed, authUser).catch((err) =>
+        console.warn('Inventory sync failed:', err)
+      );
+    }
+  };
+
   // Handlers
   const handleAddJobCard = (newJob: JobCard) => {
     const normalized = normalizeJobCard({
@@ -202,10 +393,176 @@ export default function App() {
     setSelectedJob(normalized);
     setActiveTab('jobs');
     setPdfModalJob(normalized);
+    syncJobToCloud(normalized);
+  };
+
+  const triggerFeedbackSmsForJob = (
+    job: JobCard,
+    options?: { forceResend?: boolean }
+  ) => {
+    const forceResend = Boolean(options?.forceResend);
+    if (!forceResend) {
+      if (settings.autoSendFeedbackSms === false) return;
+      if (job.feedbackSmsSentAt) return;
+      if (job.messageLogs?.some((m) => m.type === 'Feedback')) return;
+    }
+
+    const normalizedJob = normalizeJobCard(job);
+    const nowIso = new Date().toISOString();
+    const feedbackUrl = buildCustomerFeedbackUrl(normalizedJob);
+    const smsText = `Hi ${normalizedJob.customerName || 'Client'}, your ${normalizedJob.tool.brand} ${normalizedJob.tool.modelNumber} (${normalizedJob.id}) service is complete. Rate our work & leave feedback: ${feedbackUrl}`;
+    const fallbackSmsHref = `sms:${(normalizedJob.customerPhone || '').replace(/[^+\d]/g, '')}?body=${encodeURIComponent(smsText)}`;
+
+    // Optimistically stamp feedbackSmsSentAt so rapid consecutive status writes do not double-fire SMS
+    setJobCards((prev) =>
+      prev.map((j) =>
+        j.id === normalizedJob.id ? { ...j, feedbackSmsSentAt: nowIso, updatedAt: nowIso } : j
+      )
+    );
+    setSelectedJob((curr) =>
+      curr && curr.id === normalizedJob.id
+        ? { ...curr, feedbackSmsSentAt: nowIso, updatedAt: nowIso }
+        : curr
+    );
+
+    void (async () => {
+      let sentViaTwilio = false;
+      let sid: string | undefined;
+      let providerLabel = 'Workshop SMS Queue';
+
+      try {
+        const res = await fetch(resolveApiUrl('/api/messaging/send-sms'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: normalizedJob.customerPhone,
+            message: smsText,
+            jobId: normalizedJob.id,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        sentViaTwilio = Boolean(res.ok && data?.success);
+        sid = typeof data?.sid === 'string' ? data.sid : undefined;
+        providerLabel = sentViaTwilio
+          ? 'Twilio SMS Dispatch'
+          : data?.provider || 'Simulated / Native SMS Relay';
+      } catch {
+        providerLabel = 'Offline / Native SMS Relay';
+      }
+
+      const logTimestamp = new Date().toLocaleString();
+      const feedbackLog: MessageLog = {
+        id: `msg-fb-${Date.now()}`,
+        timestamp: logTimestamp,
+        type: 'Feedback',
+        recipientPhone: normalizedJob.customerPhone,
+        text: smsText,
+        channel: 'SMS',
+        status: sentViaTwilio ? 'Delivered' : 'Sent',
+      };
+
+      let updatedForCloud: JobCard | null = null;
+      setJobCards((prev) =>
+        prev.map((j) => {
+          if (j.id !== normalizedJob.id) return j;
+          updatedForCloud = {
+            ...j,
+            feedbackSmsSentAt: j.feedbackSmsSentAt || nowIso,
+            messageLogs: [feedbackLog, ...(j.messageLogs || [])],
+            updatedAt: new Date().toISOString(),
+          };
+          return updatedForCloud;
+        })
+      );
+      setSelectedJob((curr) => {
+        if (!curr || curr.id !== normalizedJob.id) return curr;
+        return {
+          ...curr,
+          feedbackSmsSentAt: curr.feedbackSmsSentAt || nowIso,
+          messageLogs: [feedbackLog, ...(curr.messageLogs || [])],
+          updatedAt: new Date().toISOString(),
+        };
+      });
+
+      if (updatedForCloud) {
+        syncJobToCloud(updatedForCloud);
+      }
+
+      const noticeId = `fb-sms-${normalizedJob.id}-${Date.now()}`;
+      setFeedbackSmsNotices((prev) =>
+        [
+          {
+            id: noticeId,
+            jobId: normalizedJob.id,
+            customerName: normalizedJob.customerName,
+            customerPhone: normalizedJob.customerPhone,
+            feedbackUrl,
+            smsMessage: smsText,
+            fallbackSmsHref,
+            sentViaTwilio,
+            providerLabel,
+            sid,
+          },
+          ...prev.filter((n) => n.jobId !== normalizedJob.id),
+        ].slice(0, 3)
+      );
+    })();
+  };
+
+  const openCustomerSurvey = (jobOrId: JobCard | string) => {
+    const matchedJob =
+      typeof jobOrId === 'string'
+        ? jobCards.find((j) => j.id === jobOrId)
+        : jobOrId;
+    const targetQuery = matchedJob
+      ? ensurePublicAccessToken(matchedJob) || matchedJob.id
+      : String(jobOrId);
+    setCustomerPortalTarget({ query: targetQuery, showFeedback: true });
+    setIsCustomerViewActive(true);
+  };
+
+  const handleSubmitCustomerFeedback = (jobId: string, feedback: CustomerFeedback) => {
+    const nowIso = new Date().toISOString();
+    const timestampLabel = nowIso.slice(0, 16).replace('T', ' ');
+    let updatedForCloud: JobCard | null = null;
+
+    setJobCards((prev) =>
+      prev.map((j) => {
+        if (j.id !== jobId) return j;
+        const auditEntry = {
+          id: `aud-fb-${Date.now()}`,
+          timestamp: timestampLabel,
+          userName: feedback.customerName || j.customerName || 'Client Portal',
+          userRole: 'Client Feedback Survey',
+          action: 'CUSTOMER_FEEDBACK_SUBMITTED',
+          previousState: j.customerFeedback ? `${j.customerFeedback.rating}/5 Stars` : 'No Rating Recorded',
+          newState: `${feedback.rating}/5 Stars${feedback.comment ? ` — ${feedback.comment.slice(0, 60)}` : ''}`,
+        };
+        updatedForCloud = normalizeJobCard({
+          ...j,
+          customerFeedback: feedback,
+          auditLogs: [...(j.auditLogs || []), auditEntry],
+          updatedAt: nowIso,
+        });
+        return updatedForCloud;
+      })
+    );
+
+    setSelectedJob((curr) => {
+      if (!curr || curr.id !== jobId) return curr;
+      return updatedForCloud || { ...curr, customerFeedback: feedback, updatedAt: nowIso };
+    });
+
+    if (updatedForCloud) {
+      syncJobToCloud(updatedForCloud);
+    }
   };
 
   const handleUpdateJobCard = (updatedJob: JobCard) => {
     const existing = jobCards.find(j => j.id === updatedJob.id);
+    const transitionedToCompleted = Boolean(
+      existing && existing.status !== 'Completed' && updatedJob.status === 'Completed'
+    );
     const nowIso = new Date().toISOString();
     let finalJob = updatedJob;
 
@@ -223,10 +580,20 @@ export default function App() {
     if (selectedJob && selectedJob.id === finalJob.id) {
       setSelectedJob(finalJob);
     }
+    syncJobToCloud(finalJob);
+
+    if (transitionedToCompleted) {
+      triggerFeedbackSmsForJob(finalJob);
+    }
   };
 
   const handleQuickStatusChange = (jobId: string, newStatus: JobStatus) => {
+    const existingBefore = jobCards.find(j => j.id === jobId);
+    const transitionedToCompleted = Boolean(
+      existingBefore && existingBefore.status !== 'Completed' && newStatus === 'Completed'
+    );
     const nowIso = new Date().toISOString();
+    let changedJob: JobCard | null = null;
     const updated = jobCards.map(j => {
       if (j.id === jobId) {
         if (j.status === newStatus) return j;
@@ -243,14 +610,15 @@ export default function App() {
             newState: `Status: ${newStatus}`,
           },
         ];
-        return {
+        changedJob = normalizeJobCard({
           ...j,
           status: newStatus,
           stageEnteredAt: nowIso,
           stageHistory: [...prevHistory, { status: newStatus, enteredAt: nowIso }],
           auditLogs: nextAudit,
           updatedAt: nowIso,
-        };
+        });
+        return changedJob;
       }
       return j;
     });
@@ -259,38 +627,64 @@ export default function App() {
       const matched = updated.find(j => j.id === jobId);
       if (matched) setSelectedJob(matched);
     }
+    if (changedJob) {
+      syncJobToCloud(changedJob);
+      if (transitionedToCompleted) {
+        triggerFeedbackSmsForJob(changedJob);
+      }
+    }
   };
 
   const handleDeductInventoryStock = (partId: string, qty: number) => {
+    let changedItem: InventoryItem | null = null;
     setInventory(prev => prev.map(item => {
       if (item.id === partId) {
-        return {
+        changedItem = {
           ...item,
           stockQty: Math.max(0, item.stockQty - qty),
         };
+        return changedItem;
       }
       return item;
     }));
+    if (changedItem && authUser?.emailVerified) {
+      void upsertInventoryItemsInFirestore([changedItem], authUser).catch((err) =>
+        console.warn('Stock deduction sync failed:', err)
+      );
+    }
   };
 
   const handleAddInventoryItem = (newItem: InventoryItem) => {
     setInventory([newItem, ...inventory]);
+    if (authUser?.emailVerified) {
+      void upsertInventoryItemsInFirestore([newItem], authUser).catch((err) =>
+        console.warn('New inventory item sync failed:', err)
+      );
+    }
   };
 
   const handleQuickReorderItem = (itemId: string, addQty: number) => {
     const today = new Date().toISOString().split('T')[0];
+    let changedItem: InventoryItem | null = null;
     setInventory((prev) =>
-      prev.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              stockQty: item.stockQty + addQty,
-              lastRestocked: today,
-            }
-          : item
-      )
+      prev.map((item) => {
+        if (item.id === itemId) {
+          changedItem = {
+            ...item,
+            stockQty: item.stockQty + addQty,
+            lastRestocked: today,
+          };
+          return changedItem;
+        }
+        return item;
+      })
     );
     setActiveStockToasts((prev) => prev.filter((t) => t.itemId !== itemId));
+    if (changedItem && authUser?.emailVerified) {
+      void upsertInventoryItemsInFirestore([changedItem], authUser).catch((err) =>
+        console.warn('Reorder sync failed:', err)
+      );
+    }
   };
 
   const handleMarkNotificationRead = (notifId: string) => {
@@ -310,15 +704,21 @@ export default function App() {
   };
 
   const handleLogMessageSent = (jobId: string, log: MessageLog) => {
+    let changedJob: JobCard | null = null;
     setJobCards(prev => prev.map(job => {
       if (job.id === jobId) {
-        return {
+        changedJob = {
           ...job,
           messageLogs: [log, ...job.messageLogs],
+          updatedAt: new Date().toISOString(),
         };
+        return changedJob;
       }
       return job;
     }));
+    if (changedJob) {
+      syncJobToCloud(changedJob);
+    }
   };
 
   const handleLogMessageFromPdf = (jobId: string, channel: 'WhatsApp' | 'SMS', text: string) => {
@@ -335,15 +735,23 @@ export default function App() {
   };
 
   const handleLogMaintenanceMessage = (scheduleId: string, log: MessageLog) => {
+    let changedSchedule: RecurringMaintenance | null = null;
     setSchedules(prev => prev.map(s => {
       if (s.id === scheduleId) {
-        return {
+        changedSchedule = {
           ...s,
           queuedReminders: [log, ...s.queuedReminders],
+          updatedAt: new Date().toISOString(),
         };
+        return changedSchedule;
       }
       return s;
     }));
+    if (changedSchedule && authUser?.emailVerified) {
+      void upsertScheduleInFirestore(changedSchedule, authUser).catch((err) =>
+        console.warn('Schedule log sync failed:', err)
+      );
+    }
   };
 
   const handleCreateJobCardFromSchedule = (schedule: RecurringMaintenance) => {
@@ -432,11 +840,20 @@ export default function App() {
     return (
       <CustomerView
         onLookupJob={handleLookupCustomerJob}
-        initialQuery={initialCustomerQuery}
+        initialQuery={customerPortalTarget?.query ?? initialCustomerQuery}
+        initialShowFeedback={customerPortalTarget?.showFeedback ?? initialShowFeedbackParam}
         sampleJobIds={jobCards.slice(0, 3).map((j) => j.id)}
         centerName={settings.centerName}
         centerPhone={settings.phone}
-        onExitCustomerView={isLockedCustomerUrl ? undefined : () => setIsCustomerViewActive(false)}
+        onSubmitFeedback={handleSubmitCustomerFeedback}
+        onExitCustomerView={
+          isLockedCustomerUrl
+            ? undefined
+            : () => {
+                setIsCustomerViewActive(false);
+                setCustomerPortalTarget(null);
+              }
+        }
       />
     );
   }
@@ -467,7 +884,24 @@ export default function App() {
         onQuickReorderItem={handleQuickReorderItem}
         onOpenInventoryAlerts={handleOpenInventoryAlerts}
         onOpenGlobalScanner={() => setIsGlobalScannerOpen(true)}
+        authUser={authUser}
+        authLoading={authLoading}
+        onSignIn={handleOperatorSignIn}
+        onSignOut={handleOperatorSignOut}
       />
+
+      {authError && (
+        <div className="bg-rose-950/80 border-b border-rose-800 px-4 py-2 text-xs font-mono text-rose-200 flex items-center justify-between gap-3">
+          <span>Sign-in notice: {authError}</span>
+          <button
+            type="button"
+            onClick={() => setAuthError(null)}
+            className="text-rose-300 hover:text-white font-bold"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Main View Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -483,6 +917,8 @@ export default function App() {
             onPrintJobCard={(jobToPrint) => setPrintableJob(jobToPrint)}
             deductStockOn={settings.deductStockOn}
             onDeductInventoryStock={handleDeductInventoryStock}
+            onOpenCustomerFeedback={(j) => openCustomerSurvey(j)}
+            onSendFeedbackSms={(j) => triggerFeedbackSmsForJob(j, { forceResend: true })}
           />
         ) : (
           <>
@@ -536,11 +972,30 @@ export default function App() {
             {activeTab === 'maintenance' && (
               <RecurringMaintenanceView
                 schedules={schedules}
-                onAddSchedule={(newSched) => setSchedules((prev) => [newSched, ...prev])}
-                onAddSchedules={(newScheds) => setSchedules((prev) => [...newScheds, ...prev])}
-                onUpdateSchedule={(upSched) =>
-                  setSchedules((prev) => prev.map((s) => (s.id === upSched.id ? upSched : s)))
-                }
+                onAddSchedule={(newSched) => {
+                  setSchedules((prev) => [newSched, ...prev]);
+                  if (authUser?.emailVerified) {
+                    void upsertScheduleInFirestore(newSched, authUser).catch((err) =>
+                      console.warn('Schedule create sync failed:', err)
+                    );
+                  }
+                }}
+                onAddSchedules={(newScheds) => {
+                  setSchedules((prev) => [...newScheds, ...prev]);
+                  if (authUser?.emailVerified) {
+                    void upsertSchedulesBatchInFirestore(newScheds, authUser).catch((err) =>
+                      console.warn('Schedule batch sync failed:', err)
+                    );
+                  }
+                }}
+                onUpdateSchedule={(upSched) => {
+                  setSchedules((prev) => prev.map((s) => (s.id === upSched.id ? upSched : s)));
+                  if (authUser?.emailVerified) {
+                    void upsertScheduleInFirestore(upSched, authUser).catch((err) =>
+                      console.warn('Schedule update sync failed:', err)
+                    );
+                  }
+                }}
                 onLogMessageSent={handleLogMaintenanceMessage}
                 onCreateJobCardFromSchedule={handleCreateJobCardFromSchedule}
               />
@@ -549,7 +1004,10 @@ export default function App() {
             {activeTab === 'inventory' && (
               <InventoryManager
                 inventory={inventory}
-                onUpdateInventory={(newInv) => setInventory(newInv)}
+                onUpdateInventory={(newInv) => {
+                  setInventory(newInv);
+                  syncInventoryDeltaToCloud(newInv);
+                }}
                 onOpenAddItemModal={() => setIsAddInventoryModalOpen(true)}
                 jobCards={jobCards}
                 schedules={schedules}
@@ -580,7 +1038,10 @@ export default function App() {
               <AnalyticsDashboard
                 jobCards={jobCards}
                 inventory={inventory}
-                onUpdateInventory={(newInv) => setInventory(newInv)}
+                onUpdateInventory={(newInv) => {
+                  setInventory(newInv);
+                  syncInventoryDeltaToCloud(newInv);
+                }}
                 settings={settings}
                 schedules={schedules}
                 onOpenAnalyticsSettings={() => {
@@ -604,11 +1065,25 @@ export default function App() {
             {activeTab === 'transition' && (
               <TransitionView
                 settings={settings}
-                onUpdateSettings={(newSettings) => setSettings(newSettings)}
+                onUpdateSettings={(newSettings) => {
+                  setSettings(newSettings);
+                  if (authUser?.emailVerified) {
+                    void upsertSettingsInFirestore(newSettings, authUser).catch((err) =>
+                      console.warn('Settings sync failed:', err)
+                    );
+                  }
+                }}
                 questionnaire={questionnaire}
                 onUpdateQuestionnaire={(newQ) => setQuestionnaire(newQ)}
                 customFields={customFields}
-                onUpdateCustomFields={(newFields) => setCustomFields(newFields)}
+                onUpdateCustomFields={(newFields) => {
+                  setCustomFields(newFields);
+                  if (authUser?.emailVerified) {
+                    void upsertCustomFieldsInFirestore(newFields, authUser).catch((err) =>
+                      console.warn('Custom fields sync failed:', err)
+                    );
+                  }
+                }}
                 jobCards={jobCards}
                 inventory={inventory}
                 schedules={schedules}
@@ -736,6 +1211,15 @@ export default function App() {
         onOpenInventoryAlerts={handleOpenInventoryAlerts}
       />
 
+      <FeedbackSmsToast
+        notices={feedbackSmsNotices}
+        onDismiss={(id) => setFeedbackSmsNotices((prev) => prev.filter((n) => n.id !== id))}
+        onOpenSurvey={(notice) => {
+          setFeedbackSmsNotices((prev) => prev.filter((n) => n.id !== notice.id));
+          openCustomerSurvey(notice.jobId);
+        }}
+      />
+
       {/* Monochrome Footer */}
       <footer className="border-t border-zinc-900 py-4 text-center text-xs text-zinc-500 font-mono no-print">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
@@ -748,6 +1232,8 @@ export default function App() {
           </button>
         </div>
       </footer>
+
+      <OfflineIndicator cachedJobCount={jobCards.length} />
 
     </div>
   );

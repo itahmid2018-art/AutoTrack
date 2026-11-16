@@ -370,15 +370,36 @@ export const INITIAL_JOB_CARDS: JobCard[] = [
       }
     ],
     totalAmount: 69.30,
-    messageLogs: [],
+    customerFeedback: {
+      rating: 5,
+      comment: 'Impact driver chuck runs smoothly now and SMS pickup link was super helpful.',
+      submittedAt: '2026-11-09T14:20:00Z',
+      channel: 'SMS',
+      customerName: 'Highland Carpentry & Joinery',
+      smsSentAt: '2026-11-09T11:46:00Z',
+      smsStatus: 'Sent',
+    },
+    feedbackSmsSentAt: '2026-11-09T11:46:00Z',
+    messageLogs: [
+      {
+        id: 'msg-46-fb',
+        timestamp: '2026-11-09 11:46',
+        type: 'Feedback',
+        recipientPhone: '+1 (555) 678-9012',
+        text: 'Hi Highland Carpentry & Joinery, thank you for servicing your Milwaukee M18 FUEL 1/4" Hex Impact Driver (BOSCH-2026-0046). Please share a quick rating & review: https://service.portal.local/?view=customer&token=tok-bosch-2026-0046&feedback=1',
+        channel: 'SMS',
+        status: 'Delivered',
+      },
+    ],
     auditLogs: [
       { id: 'aud-601', timestamp: '2026-11-08 10:00', userName: 'Front Desk Reception', userRole: 'Front Desk Receptionist', action: 'JOB_INTAKE_CREATED', newState: 'Status: Intake' },
       { id: 'aud-602', timestamp: '2026-11-08 14:15', userName: 'Alex Rivera', userRole: 'Power Tools Tech', action: 'STAGE_CHANGED', previousState: 'Intake', newState: 'Status: In Service' },
       { id: 'aud-603', timestamp: '2026-11-09 11:45', userName: 'Alex Rivera', userRole: 'Power Tools Tech', action: 'STAGE_CHANGED', previousState: 'In Service', newState: 'Status: Completed' },
+      { id: 'aud-604', timestamp: '2026-11-09 14:20', userName: 'Highland Carpentry & Joinery', userRole: 'Client', action: 'CUSTOMER_FEEDBACK_SUBMITTED', newState: 'Rating: 5/5 stars' },
     ],
     stageEnteredAt: '2026-11-09T11:45:00Z',
     createdAt: '2026-11-08T10:00:00Z',
-    updatedAt: '2026-11-09T11:45:00Z'
+    updatedAt: '2026-11-09T14:20:00Z'
   },
   {
     id: 'BOSCH-2026-0047',

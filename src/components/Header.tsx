@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { JobCard, InventoryItem } from '../types';
 import { InventoryNotification } from '../utils/inventoryNotifications';
+import { PWAInstallButton } from './PWAInstallButton';
 import { 
   Wrench, 
   PlusCircle, 
@@ -27,7 +28,9 @@ import {
   ExternalLink,
   Settings,
   QrCode,
-  ScanBarcode
+  ScanBarcode,
+  LogIn,
+  LogOut
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -48,6 +51,10 @@ interface HeaderProps {
   onQuickReorderItem?: (itemId: string, qty: number) => void;
   onOpenInventoryAlerts?: () => void;
   onOpenGlobalScanner?: () => void;
+  authUser?: { uid: string; displayName: string | null; email: string | null } | null;
+  authLoading?: boolean;
+  onSignIn?: () => void;
+  onSignOut?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -68,6 +75,10 @@ export const Header: React.FC<HeaderProps> = ({
   onQuickReorderItem,
   onOpenInventoryAlerts,
   onOpenGlobalScanner,
+  authUser,
+  authLoading,
+  onSignIn,
+  onSignOut,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -600,6 +611,39 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
+            {!authLoading && (authUser ? (
+              onSignOut && (
+                <button
+                  type="button"
+                  onClick={onSignOut}
+                  title={`Signed in as ${authUser.email || authUser.displayName || 'Operator'} — Click to sign out`}
+                  aria-label="Sign out operator account"
+                  className="hidden sm:inline-flex px-2.5 py-2 text-xs font-mono font-bold text-zinc-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg transition-colors items-center gap-1.5 whitespace-nowrap shrink-0"
+                >
+                  <User className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="max-w-[96px] truncate">
+                    {authUser.displayName?.split(' ')[0] || authUser.email?.split('@')[0] || 'Operator'}
+                  </span>
+                  <LogOut className="w-3.5 h-3.5 text-zinc-400" />
+                </button>
+              )
+            ) : (
+              onSignIn && (
+                <button
+                  type="button"
+                  onClick={onSignIn}
+                  title="Sign in with Google to sync workshop tickets across devices"
+                  aria-label="Sign in with Google"
+                  className="hidden sm:inline-flex px-2.5 py-2 text-xs font-bold text-zinc-100 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg transition-colors items-center gap-1.5 whitespace-nowrap shrink-0"
+                >
+                  <LogIn className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Sign In</span>
+                </button>
+              )
+            ))}
+
+            <PWAInstallButton />
+
             {onOpenGlobalScanner && (
               <button
                 type="button"
@@ -792,6 +836,41 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </button>
           )}
+
+          {!authLoading && (authUser ? (
+            onSignOut && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onSignOut();
+                }}
+                className="w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between text-zinc-200 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800"
+              >
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-emerald-400" />
+                  <span>Sign Out ({authUser.displayName || authUser.email || 'Operator'})</span>
+                </div>
+                <LogOut className="w-4 h-4 text-zinc-400" />
+              </button>
+            )
+          ) : (
+            onSignIn && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onSignIn();
+                }}
+                className="w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between text-zinc-100 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800"
+              >
+                <div className="flex items-center gap-2">
+                  <LogIn className="w-4 h-4 text-emerald-400" />
+                  <span>Operator Sign In (Google)</span>
+                </div>
+              </button>
+            )
+          ))}
         </div>
       )}
 

@@ -11,6 +11,7 @@ import {
   resolveAnalyticsMetrics,
 } from '../utils/analyticsConfig';
 import { AiReorderRecommendations } from './AiReorderRecommendations';
+import { RevenueForecastModule } from './RevenueForecastModule';
 import { 
   Wrench, 
   DollarSign, 
@@ -36,7 +37,9 @@ import {
   HelpCircle,
   Flame,
   Settings,
-  Sliders
+  Sliders,
+  Star,
+  MessageSquare
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -1080,6 +1083,15 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       </div>
       )}
 
+      {/* PREDICTIVE MODULE: SEASONAL MONTHLY REVENUE FORECAST (RECHARTS LINE CHART) */}
+      {metrics.revenue && (
+        <RevenueForecastModule
+          jobCards={jobCards}
+          schedules={schedules}
+          currencySymbol={settings?.currencySymbol || '$'}
+        />
+      )}
+
       {/* DEDICATED SECTION 2: MOST FREQUENT SERVICE GRIEVANCES RANKING */}
       {metrics.topGrievance && (
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xl">
@@ -1374,6 +1386,150 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         </div>
       </section>
       )}
+
+      {/* Customer Satisfaction (CSAT) & Feedback Breakdown */}
+      {(() => {
+        const ratedJobs = jobCards.filter(
+          (j) => j.customerFeedback && typeof j.customerFeedback.rating === 'number'
+        );
+        const avgRating =
+          ratedJobs.length > 0
+            ? Math.round(
+                (ratedJobs.reduce((sum, j) => sum + (j.customerFeedback?.rating || 0), 0) /
+                  ratedJobs.length) *
+                  10
+              ) / 10
+            : null;
+        const responseRate =
+          completedJobs.length > 0
+            ? Math.min(100, Math.round((ratedJobs.length / completedJobs.length) * 100))
+            : 0;
+        const recentFeedbackJobs = [...ratedJobs]
+          .sort((a, b) =>
+            (b.customerFeedback?.submittedAt || '').localeCompare(
+              a.customerFeedback?.submittedAt || ''
+            )
+          )
+          .slice(0, 4);
+
+        return (
+          <section
+            aria-labelledby="csat-feedback-heading"
+            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-5 shadow-xl"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
+                  <h3 id="csat-feedback-heading" className="text-base font-bold text-white tracking-tight">
+                    Customer Satisfaction &amp; Post-Service Feedback
+                  </h3>
+                </div>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Aggregated star ratings and comments collected via automated completion SMS surveys.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-4 font-mono tabular-nums text-xs">
+                <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2">
+                  <span className="text-[10px] text-zinc-400 block uppercase">Average CSAT</span>
+                  <span className="text-lg font-extrabold text-amber-400">
+                    {avgRating !== null ? `${avgRating.toFixed(1)} / 5.0` : 'No Ratings'}
+                  </span>
+                </div>
+                <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2">
+                  <span className="text-[10px] text-zinc-400 block uppercase">Responses</span>
+                  <span className="text-lg font-extrabold text-white">
+                    {ratedJobs.length}{' '}
+                    <span className="text-xs font-normal text-zinc-400">({responseRate}% rate)</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              {/* Rating Distribution */}
+              <div className="lg:col-span-4 bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-2.5 font-mono">
+                <div className="text-xs font-bold text-white uppercase tracking-wider mb-1">
+                  Star Breakdown
+                </div>
+                {[5, 4, 3, 2, 1].map((stars) => {
+                  const count = ratedJobs.filter((j) => j.customerFeedback?.rating === stars).length;
+                  const pct = ratedJobs.length > 0 ? Math.round((count / ratedJobs.length) * 100) : 0;
+                  return (
+                    <div key={stars} className="flex items-center gap-2.5 text-xs tabular-nums">
+                      <span className="w-12 text-zinc-300 flex items-center gap-1 shrink-0">
+                        <span>{stars}</span>
+                        <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                      </span>
+                      <div className="flex-1 h-2 bg-zinc-900 border border-zinc-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-amber-400 rounded-full transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="w-14 text-right text-zinc-400">
+                        {count} ({pct}%)
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Recent Feedback Comments */}
+              <div className="lg:col-span-8 bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span className="font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Recent Client Comments</span>
+                  </span>
+                  <span className="text-zinc-500">{ratedJobs.length} recorded</span>
+                </div>
+
+                {recentFeedbackJobs.length === 0 ? (
+                  <div className="py-6 text-center text-xs text-zinc-500 font-mono">
+                    No customer feedback submitted yet. Mark a Job Card as Completed to trigger the SMS survey.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {recentFeedbackJobs.map((job) => (
+                      <div
+                        key={job.id}
+                        className="p-3 rounded-xl bg-zinc-900/70 border border-zinc-800 space-y-1.5"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white">{job.id}</span>
+                            <span className="text-zinc-400 font-sans">
+                              {job.customerName} · {job.tool.brand} {job.tool.modelNumber}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-amber-400 font-bold tabular-nums">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star
+                                key={s}
+                                className={`w-3 h-3 ${
+                                  s <= (job.customerFeedback?.rating || 0)
+                                    ? 'text-amber-400 fill-amber-400'
+                                    : 'text-zinc-700'
+                                }`}
+                              />
+                            ))}
+                            <span className="ml-1">{job.customerFeedback?.rating}/5</span>
+                          </div>
+                        </div>
+                        <p className="text-xs text-zinc-300 leading-relaxed">
+                          {job.customerFeedback?.comment || 'Star rating submitted without written comment.'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* AI-Driven Inventory Reorder Recommendation Section */}
       {metrics.lowInventory && (

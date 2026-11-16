@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { JobCard, JobStatus } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { CustomerFeedback, JobCard, JobStatus } from '../types';
 import { generateJobCardPdf } from '../utils/generatePdf';
 import { getEffectiveJobBilling } from '../utils/billing';
+import { subscribePublicDeliveryStatus } from '../utils/firestoreSync';
+import { resolveApiUrl } from '../utils/apiBase';
 import {
   Search,
   Wrench,
@@ -18,6 +20,9 @@ import {
   Lock,
   Sparkles,
   FileText,
+  Star,
+  MessageSquare,
+  Send,
 } from 'lucide-react';
 
 export interface PublicJobStatusSummary {
@@ -45,16 +50,20 @@ export interface PublicJobStatusSummary {
   stageHistory: { status: JobStatus; enteredAt: string }[];
   updatedAt: string;
   verifiedByTokenOrPhone: boolean;
-  // Kept strictly for customer receipt PDF export of *this* verified ticket only
-  _pdfRecord: JobCard;
+  publicAccessToken?: string;
+  customerFeedback?: CustomerFeedback;
+  // Kept strictly for client receipt PDF export of this verified ticket only
+  _pdfRecord?: JobCard;
 }
 
 interface CustomerViewProps {
   onLookupJob: (query: string, phoneLast4?: string) => PublicJobStatusSummary | null;
   initialQuery?: string;
+  initialShowFeedback?: boolean;
   sampleJobIds?: string[];
   centerName?: string;
   centerPhone?: string;
+  onSubmitFeedback?: (jobId: string, feedback: CustomerFeedback) => void;
   onExitCustomerView?: () => void;
 }
 
@@ -166,16 +175,28 @@ export function sanitizeJobForCustomer(
     stageHistory: job.stageHistory || [{ status: job.status, enteredAt: job.intakeDate }],
     updatedAt: job.updatedAt,
     verifiedByTokenOrPhone,
+    publicAccessToken: job.publicAccessToken,
+    customerFeedback: job.customerFeedback,
     _pdfRecord: job,
   };
 }
 
+const RATING_LABELS: Record<number, string> = {
+  1: 'Poor — Needs Attention',
+  2: 'Fair — Below Expectations',
+  3: 'Good — Satisfactory Service',
+  4: 'Very Good — Reliable Repair',
+  5: 'Excellent — Top Quality Service',
+};
+
 export const CustomerView: React.FC<CustomerViewProps> = ({
   onLookupJob,
   initialQuery = '',
+  initialShowFeedback = false,
   sampleJobIds = [],
   centerName = 'BOSCH Authorised Service Center',
   centerPhone = '+1 (555) 019-2831',
+  onSubmitFeedback,
   onExitCustomerView,
 }) => {
   const [lookupInput, setLookupInput] = useState(initialQuery);
@@ -185,43 +206,342 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
   );
   const [hasSearched, setHasSearched] = useState(Boolean(initialQuery));
   const [pdfSavedMsg, setPdfSavedMsg] = useState<string | null>(null);
+  const [activeToken, setActiveToken] = useState<string>(() =>
+    initialQuery && initialQuery.toLowerCase().startsWith('tok-') ? initialQuery : ''
+  );
+
+  // Customer Feedback form state
+  const [ratingDraft, setRatingDraft] = useState<number>(
+    () => matchedSummary?.customerFeedback?.rating || 0
+  );
+  const [hoverRating, setHoverRating] = useState<number>(0);
+  const [commentDraft, setCommentDraft] = useState<string>(
+    () => matchedSummary?.customerFeedback?.comment || ''
+  );
+  const [isEditingFeedback, setIsEditingFeedback] = useState<boolean>(
+    () => !matchedSummary?.customerFeedback
+  );
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [feedbackSuccessMsg, setFeedbackSuccessMsg] = useState<string | null>(null);
+  const feedbackSectionRef = useRef<HTMLElement | null>(null);
+  const didAutoScrollFeedbackRef = useRef(false);
+
+  const runLookup = async (queryText: string, last4?: string) => {
+    const cleaned = queryText.trim();
+    if (!cleaned) return;
+
+    const localMatch = onLookupJob(cleaned, last4);
+    if (localMatch) {
+      setMatchedSummary(localMatch);
+      setActiveToken(
+        localMatch.publicAccessToken || (cleaned.toLowerCase().startsWith('tok-') ? cleaned : '')
+      );
+      setHasSearched(true);
+      return;
+    }
+
+    try {
+      const params = new URLSearchParams({ query: cleaned });
+      if (last4) params.set('phoneLast4', last4);
+      const res = await fetch(resolveApiUrl(`/api/customer-portal/lookup?${params.toString()}`));
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.summary) {
+          setMatchedSummary(data.summary);
+          setActiveToken(cleaned.toLowerCase().startsWith('tok-') ? cleaned : '');
+          setHasSearched(true);
+          return;
+        }
+      }
+    } catch {
+      // Fallback cleanly when offline or server lookup unavailable
+    }
+
+    setMatchedSummary(null);
+    setHasSearched(true);
+  };
 
   useEffect(() => {
     if (initialQuery) {
       setLookupInput(initialQuery);
-      setMatchedSummary(onLookupJob(initialQuery));
-      setHasSearched(true);
+      void runLookup(initialQuery);
     }
-  }, [initialQuery, onLookupJob]);
+  }, [initialQuery]);
+
+  // Sync feedback draft state when switching between matched job cards
+  useEffect(() => {
+    const existing = matchedSummary?.customerFeedback;
+    setRatingDraft(existing?.rating || 0);
+    setCommentDraft(existing?.comment || '');
+    setIsEditingFeedback(!existing);
+    setFeedbackError(null);
+    setFeedbackSuccessMsg(null);
+  }, [matchedSummary?.id, matchedSummary?.customerFeedback?.submittedAt]);
+
+  // Scroll straight to the feedback survey when opened from an SMS feedback link (?feedback=1)
+  useEffect(() => {
+    if (
+      initialShowFeedback &&
+      matchedSummary &&
+      feedbackSectionRef.current &&
+      !didAutoScrollFeedbackRef.current
+    ) {
+      didAutoScrollFeedbackRef.current = true;
+      setTimeout(() => {
+        feedbackSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 150);
+    }
+  }, [initialShowFeedback, matchedSummary]);
+
+  // Keep matched ticket synced with live Firestore /publicDeliveries & server SSE
+  useEffect(() => {
+    const matchedId = matchedSummary?.id;
+    const token =
+      activeToken ||
+      matchedSummary?.publicAccessToken ||
+      (lookupInput.trim().toLowerCase().startsWith('tok-') ? lookupInput.trim() : '');
+
+    if (!matchedId && !token) return;
+
+    const unsubFirestore = token
+      ? subscribePublicDeliveryStatus(token, (update) => {
+          setMatchedSummary((prev) => {
+            if (!prev && !update.id) return prev;
+            const nextStatus = update.status || prev?.status || 'Intake';
+            const prevHistory = prev?.stageHistory || [
+              { status: nextStatus, enteredAt: update.intakeDate || new Date().toISOString() },
+            ];
+            const hasStatusInHistory = prevHistory.some((h) => h.status === nextStatus);
+            return {
+              id: update.id || prev?.id || matchedId || '',
+              customerFirstName: prev?.customerFirstName || 'Client',
+              maskedPhone: prev?.maskedPhone || 'On file',
+              phoneLast4: prev?.phoneLast4 || '',
+              hasCompany: prev?.hasCompany || false,
+              customerCompany: prev?.customerCompany,
+              toolBrand: update.toolBrand || prev?.toolBrand || 'Bosch Professional',
+              toolCategory: prev?.toolCategory || 'Power Tool',
+              toolModel: update.toolModel || prev?.toolModel || '',
+              toolSerialMasked: prev?.toolSerialMasked || 'Verified Token',
+              voltageRating: prev?.voltageRating || '',
+              warrantyFlag: update.warrantyFlag || prev?.warrantyFlag || 'In-Warranty',
+              warrantyStatusLabel: prev?.warrantyStatusLabel || 'Verified',
+              accessoriesReceived: prev?.accessoriesReceived || [],
+              grievanceCategory: prev?.grievanceCategory || 'Service Ticket',
+              intakeDate: update.intakeDate || prev?.intakeDate || '',
+              promisedCompletion: update.promisedCompletion || prev?.promisedCompletion || '',
+              status: nextStatus,
+              priority: prev?.priority || 'Routine',
+              estimatedTotal:
+                typeof update.estimatedTotal === 'number'
+                  ? update.estimatedTotal
+                  : prev?.estimatedTotal || 0,
+              partsCount: prev?.partsCount || 0,
+              stageHistory: hasStatusInHistory
+                ? prevHistory
+                : [...prevHistory, { status: nextStatus, enteredAt: update.updatedAt || new Date().toISOString() }],
+              updatedAt: update.updatedAt || new Date().toISOString(),
+              verifiedByTokenOrPhone: true,
+              publicAccessToken: token,
+              customerFeedback: update.customerFeedback || prev?.customerFeedback,
+              _pdfRecord: prev?._pdfRecord
+                ? {
+                    ...prev._pdfRecord,
+                    status: nextStatus,
+                    promisedCompletion:
+                      update.promisedCompletion || prev._pdfRecord.promisedCompletion,
+                    totalAmount:
+                      typeof update.estimatedTotal === 'number'
+                        ? update.estimatedTotal
+                        : prev._pdfRecord.totalAmount,
+                    customerFeedback:
+                      update.customerFeedback || prev._pdfRecord.customerFeedback,
+                  }
+                : undefined,
+            };
+          });
+        })
+      : () => {};
+
+    let eventSource: EventSource | null = null;
+    if (typeof window !== 'undefined' && typeof EventSource !== 'undefined') {
+      const sseParams = new URLSearchParams();
+      if (token) sseParams.set('token', token);
+      if (matchedId) sseParams.set('jobId', matchedId);
+      if (sseParams.toString()) {
+        eventSource = new EventSource(resolveApiUrl(`/api/customer-portal/stream?${sseParams.toString()}`));
+        eventSource.addEventListener('delivery:updated', (evt) => {
+          try {
+            const payload = JSON.parse((evt as MessageEvent).data);
+            if (payload?.id) {
+              setMatchedSummary((prev) => ({
+                ...(prev || {}),
+                ...payload,
+                publicAccessToken: token || prev?.publicAccessToken,
+                _pdfRecord: prev?._pdfRecord
+                  ? {
+                      ...prev._pdfRecord,
+                      status: payload.status || prev._pdfRecord.status,
+                      totalAmount: payload.estimatedTotal ?? prev._pdfRecord.totalAmount,
+                      promisedCompletion:
+                        payload.promisedCompletion || prev._pdfRecord.promisedCompletion,
+                    }
+                  : undefined,
+              }));
+            }
+          } catch {
+            // Ignore malformed SSE event payload
+          }
+        });
+      }
+    }
+
+    return () => {
+      unsubFirestore();
+      eventSource?.close();
+    };
+  }, [matchedSummary?.id, activeToken]);
 
   const handleLookupSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleaned = lookupInput.trim();
     if (!cleaned) return;
-    const result = onLookupJob(cleaned, phoneLast4Input.trim() || undefined);
-    setMatchedSummary(result);
-    setHasSearched(true);
     setPdfSavedMsg(null);
+    void runLookup(cleaned, phoneLast4Input.trim() || undefined);
   };
 
   const handleQuickSampleLookup = (sampleId: string) => {
     setLookupInput(sampleId);
     setPhoneLast4Input('');
-    const result = onLookupJob(sampleId);
-    setMatchedSummary(result);
-    setHasSearched(true);
     setPdfSavedMsg(null);
+    void runLookup(sampleId);
   };
 
   const handleDownloadCustomerReceipt = () => {
     if (!matchedSummary) return;
-    const { doc, filename } = generateJobCardPdf(matchedSummary._pdfRecord, {
+    const pdfSource: JobCard = matchedSummary._pdfRecord || {
+      id: matchedSummary.id,
+      customerName: matchedSummary.customerFirstName,
+      customerCompany: matchedSummary.customerCompany,
+      customerPhone: matchedSummary.maskedPhone,
+      tool: {
+        brand: (matchedSummary.toolBrand || 'Bosch Professional') as JobCard['tool']['brand'],
+        category: (matchedSummary.toolCategory || 'Rotary Hammer / SDS') as JobCard['tool']['category'],
+        modelNumber: matchedSummary.toolModel,
+        serialNumber: matchedSummary.toolSerialMasked,
+        voltageRating: matchedSummary.voltageRating || '230V AC',
+        warrantyStatus: 'Unconfirmed',
+        warrantyFlag: matchedSummary.warrantyFlag,
+        physicalCondition: 'Recorded at intake',
+        accessoriesReceived: matchedSummary.accessoriesReceived || [],
+      },
+      serviceReq: {
+        grievanceCategory: (matchedSummary.grievanceCategory || 'Routine Maintenance / Carbon Brush Check') as JobCard['serviceReq']['grievanceCategory'],
+        detailedComplaint: 'Client portal service summary',
+        serviceType: 'Diagnostic & Repair',
+        preApprovedLimit: 0,
+      },
+      intakeDate: matchedSummary.intakeDate,
+      promisedCompletion: matchedSummary.promisedCompletion,
+      status: matchedSummary.status,
+      priority: 'Routine',
+      technician: 'Service Bench',
+      laborHours: 0,
+      laborRate: 0,
+      discount: 0,
+      taxRate: 0,
+      parts: [],
+      totalAmount: matchedSummary.estimatedTotal,
+      messageLogs: [],
+      publicAccessToken: matchedSummary.publicAccessToken,
+      stageHistory: matchedSummary.stageHistory,
+      createdAt: matchedSummary.intakeDate,
+      updatedAt: matchedSummary.updatedAt,
+    };
+    const { doc, filename } = generateJobCardPdf(pdfSource, {
       centerName,
       phone: centerPhone,
     });
     doc.save(filename);
     setPdfSavedMsg(`Downloaded ${filename}`);
     setTimeout(() => setPdfSavedMsg(null), 3500);
+  };
+
+  const handleFeedbackSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!matchedSummary) return;
+
+    if (ratingDraft < 1 || ratingDraft > 5) {
+      setFeedbackError('Select a star rating between 1 and 5 before submitting.');
+      return;
+    }
+
+    setIsSubmittingFeedback(true);
+    setFeedbackError(null);
+    setFeedbackSuccessMsg(null);
+
+    const nowIso = new Date().toISOString();
+    const trimmedComment = commentDraft.trim().slice(0, 1000);
+    const channel: 'SMS' | 'Portal' = initialShowFeedback ? 'SMS' : 'Portal';
+    let savedFeedback: CustomerFeedback = {
+      rating: ratingDraft,
+      comment: trimmedComment,
+      submittedAt: nowIso,
+      channel,
+      customerName: matchedSummary.customerFirstName,
+    };
+
+    try {
+      const lookupKey =
+        activeToken ||
+        matchedSummary.publicAccessToken ||
+        matchedSummary.id;
+
+      const res = await fetch(resolveApiUrl('/api/customer-portal/feedback'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: lookupKey,
+          rating: ratingDraft,
+          comment: trimmedComment,
+          phoneLast4: phoneLast4Input.trim() || undefined,
+          channel,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 403) {
+        setFeedbackError(data?.error || 'Phone verification digits do not match this service ticket.');
+        setIsSubmittingFeedback(false);
+        return;
+      }
+
+      if (res.ok && data?.feedback) {
+        savedFeedback = {
+          ...savedFeedback,
+          ...data.feedback,
+        };
+      }
+    } catch {
+      // Offline or unseeded demo ticket: persist into client workshop store below
+    }
+
+    onSubmitFeedback?.(matchedSummary.id, savedFeedback);
+    setMatchedSummary((prev) =>
+      prev
+        ? {
+            ...prev,
+            customerFeedback: savedFeedback,
+            _pdfRecord: prev._pdfRecord
+              ? { ...prev._pdfRecord, customerFeedback: savedFeedback }
+              : undefined,
+          }
+        : prev
+    );
+    setIsEditingFeedback(false);
+    setFeedbackSuccessMsg(`Thank you! Saved ${savedFeedback.rating}/5 rating to Job Card ${matchedSummary.id}.`);
+    setIsSubmittingFeedback(false);
   };
 
   const currentStepIndex = matchedSummary
@@ -556,6 +876,201 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Customer Feedback Rating & Comment Survey Card */}
+            <section
+              ref={feedbackSectionRef}
+              aria-labelledby="customer-feedback-heading"
+              className={`bg-zinc-900 rounded-2xl p-6 shadow-xl space-y-4 border ${
+                initialShowFeedback || matchedSummary.status === 'Completed'
+                  ? 'border-emerald-700/80'
+                  : 'border-zinc-800'
+              }`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+                <div className="flex items-start gap-2.5">
+                  <div className="p-2 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 shrink-0">
+                    <Star className="w-4 h-4 fill-amber-400" />
+                  </div>
+                  <div>
+                    <h2
+                      id="customer-feedback-heading"
+                      className="text-sm font-bold text-white font-mono uppercase tracking-wider"
+                    >
+                      Rate Your Service Experience
+                    </h2>
+                    <p className="text-xs text-zinc-400 mt-0.5">
+                      Share a 1–5 star rating and quick comment for Job Card {matchedSummary.id}. Feedback is saved directly on your service record.
+                    </p>
+                  </div>
+                </div>
+
+                {matchedSummary.customerFeedback && !isEditingFeedback && (
+                  <span className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1.5 shrink-0">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Feedback Recorded</span>
+                  </span>
+                )}
+              </div>
+
+              {feedbackSuccessMsg && (
+                <div className="p-3 rounded-xl bg-emerald-950/50 border border-emerald-700 text-xs font-mono text-emerald-200 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{feedbackSuccessMsg}</span>
+                </div>
+              )}
+
+              {feedbackError && (
+                <div className="p-3 rounded-xl bg-rose-950/50 border border-rose-800 text-xs font-mono text-rose-200 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>{feedbackError}</span>
+                </div>
+              )}
+
+              {matchedSummary.customerFeedback && !isEditingFeedback ? (
+                <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1" aria-label={`Rated ${matchedSummary.customerFeedback.rating} out of 5 stars`}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`w-5 h-5 ${
+                              star <= (matchedSummary.customerFeedback?.rating || 0)
+                                ? 'text-amber-400 fill-amber-400'
+                                : 'text-zinc-700'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm font-bold text-white font-mono tabular-nums ml-1">
+                        {matchedSummary.customerFeedback.rating}.0 / 5.0
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-[11px] font-mono text-zinc-400">
+                      <span>
+                        Submitted:{' '}
+                        <strong className="text-zinc-200">
+                          {matchedSummary.customerFeedback.submittedAt.slice(0, 16).replace('T', ' ')}
+                        </strong>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingFeedback(true)}
+                        className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 font-bold transition-colors"
+                      >
+                        Edit Review
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-zinc-200 bg-zinc-900/70 border border-zinc-800/80 rounded-xl p-3 leading-relaxed flex items-start gap-2">
+                    <MessageSquare className="w-4 h-4 text-zinc-500 shrink-0 mt-0.5" />
+                    <span>
+                      {matchedSummary.customerFeedback.comment || 'No additional written comments left.'}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleFeedbackSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <span className="block text-xs font-mono font-bold text-zinc-300 uppercase">
+                      Select Rating (1 to 5 Stars)
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {[1, 2, 3, 4, 5].map((starValue) => {
+                        const activeScore = hoverRating || ratingDraft;
+                        const isFilled = starValue <= activeScore;
+                        return (
+                          <button
+                            key={starValue}
+                            type="button"
+                            onMouseEnter={() => setHoverRating(starValue)}
+                            onMouseLeave={() => setHoverRating(0)}
+                            onClick={() => {
+                              setRatingDraft(starValue);
+                              setFeedbackError(null);
+                            }}
+                            aria-label={`Rate ${starValue} out of 5 stars`}
+                            aria-pressed={ratingDraft === starValue}
+                            className={`min-h-[44px] min-w-[44px] px-3 py-2 rounded-xl border transition-all flex items-center justify-center gap-1.5 font-mono text-xs font-bold ${
+                              isFilled
+                                ? 'bg-amber-950/50 border-amber-500 text-amber-300'
+                                : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-600'
+                            }`}
+                          >
+                            <Star
+                              className={`w-4 h-4 ${
+                                isFilled ? 'text-amber-400 fill-amber-400' : 'text-zinc-600'
+                              }`}
+                            />
+                            <span className="tabular-nums">{starValue}</span>
+                          </button>
+                        );
+                      })}
+
+                      {(hoverRating || ratingDraft) > 0 && (
+                        <span className="text-xs font-mono text-zinc-300 ml-1">
+                          {RATING_LABELS[hoverRating || ratingDraft]}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <label htmlFor="customer-feedback-comment" className="font-bold text-zinc-300 uppercase">
+                        Service Comments (Optional)
+                      </label>
+                      <span className="text-[11px] text-zinc-500 tabular-nums">
+                        {commentDraft.length}/1000
+                      </span>
+                    </div>
+                    <textarea
+                      id="customer-feedback-comment"
+                      rows={3}
+                      maxLength={1000}
+                      value={commentDraft}
+                      onChange={(e) => setCommentDraft(e.target.value)}
+                      placeholder="How was the repair turnaround, tool performance, and pickup communication?"
+                      className="w-full bg-zinc-950 border border-zinc-800 focus:border-white rounded-xl p-3 text-xs text-white placeholder-zinc-500 focus:outline-none leading-relaxed"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {matchedSummary.customerFeedback && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRatingDraft(matchedSummary.customerFeedback?.rating || 0);
+                          setCommentDraft(matchedSummary.customerFeedback?.comment || '');
+                          setIsEditingFeedback(false);
+                        }}
+                        className="px-4 py-2.5 bg-zinc-950 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 font-bold rounded-xl text-xs font-mono"
+                      >
+                        Cancel
+                      </button>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={isSubmittingFeedback || ratingDraft < 1}
+                      className="px-5 py-2.5 bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-bold rounded-xl text-xs font-mono flex items-center gap-2 transition-all active:scale-95 shadow"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>
+                        {isSubmittingFeedback
+                          ? 'Saving Feedback...'
+                          : matchedSummary.customerFeedback
+                          ? 'Update Feedback'
+                          : 'Submit Rating & Feedback'}
+                      </span>
+                    </button>
+                  </div>
+                </form>
+              )}
+            </section>
           </div>
         )}
       </main>

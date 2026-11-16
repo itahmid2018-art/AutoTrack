@@ -16,6 +16,7 @@ import {
   normalizeScannedSerial,
   parseProductQrPayload,
 } from '../utils/barcodeSerialParser';
+import { resolveApiUrl } from '../utils/apiBase';
 
 interface SerialBarcodeScannerModalProps {
   onDetected: (result: BarcodeScanResult) => void;
@@ -269,7 +270,7 @@ export const SerialBarcodeScannerModal: React.FC<SerialBarcodeScannerModalProps>
       const mimeMatch = imageDataUrl.match(/^data:([^;]+);base64,/i);
       const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
-      const res = await fetch('/api/ai/scan-serial', {
+      const res = await fetch(resolveApiUrl('/api/ai/scan-serial'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

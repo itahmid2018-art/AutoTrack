@@ -1,0 +1,579 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) {
+      return isVerifiedUser() && request.auth.uid == uid;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerifiedUser() && request.auth.token.email == 'gurujiytube@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (isVerifiedUser() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isMemberRecord(data) {
+      return isVerifiedUser() && (
+        data.ownerUid == request.auth.uid ||
+        request.auth.uid in data.staffUids ||
+        isBootstrappedAdmin()
+      );
+    }
+
+    function isValidStaffUids(arr) {
+      return arr is list && arr.size() <= 20 && (arr.size() == 0 || arr[0] is string);
+    }
+
+    function isValidBoundedList(arr, maxLen) {
+      return arr is list && arr.size() <= maxLen;
+    }
+
+    function isValidUserPublic(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'role', 'workshopId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'role', 'workshopId', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120
+        && data.role in ['Admin', 'Technician', 'Counter']
+        && isValidId(data.workshopId)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivate(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRecord(data) {
+      return data.keys().hasAll(['uid', 'email', 'grantedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'grantedAt'])
+        && isValidId(data.uid)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && data.grantedAt is timestamp;
+    }
+
+    function isValidCustomerFeedback(fb) {
+      return fb is map
+        && fb.keys().hasAll(['rating', 'comment', 'submittedAt'])
+        && fb.keys().hasOnly(['rating', 'comment', 'submittedAt', 'channel', 'customerName', 'smsSentAt', 'smsStatus'])
+        && fb.rating is number && fb.rating >= 1 && fb.rating <= 5
+        && fb.comment is string && fb.comment.size() <= 1000
+        && fb.submittedAt is string && fb.submittedAt.size() >= 4 && fb.submittedAt.size() <= 40
+        && (!('channel' in fb) || fb.channel in ['SMS', 'Portal'])
+        && (!('customerName' in fb) || (fb.customerName is string && fb.customerName.size() <= 160))
+        && (!('smsSentAt' in fb) || (fb.smsSentAt is string && fb.smsSentAt.size() <= 40))
+        && (!('smsStatus' in fb) || (fb.smsStatus is string && fb.smsStatus.size() <= 60));
+    }
+
+    function isValidJobCard(data) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'staffUids', 'customerName', 'customerPhone',
+          'tool', 'serviceReq', 'intakeDate', 'promisedCompletion', 'status',
+          'priority', 'technician', 'laborHours', 'laborRate', 'discount',
+          'taxRate', 'parts', 'totalAmount', 'messageLogs', 'publicAccessToken',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerUid', 'staffUids', 'customerName', 'customerCompany',
+          'customerPhone', 'customerEmail', 'gstOrTaxId', 'tool', 'serviceReq',
+          'intakeDate', 'promisedCompletion', 'status', 'priority', 'technician',
+          'diagnosticNotes', 'recommendedActions', 'laborHours', 'laborRate',
+          'discount', 'taxRate', 'parts', 'operationalExpenses', 'totalAmount',
+          'customerSignature', 'technicianSignature', 'technicianSignOffBy',
+          'technicianSignOffAt', 'technicianSignOffNotes', 'attachments',
+          'messageLogs', 'timeLogs', 'auditLogs', 'photos', 'subletRecords',
+          'publicAccessToken', 'customerFeedback', 'feedbackSmsSentAt',
+          'stageEnteredAt', 'stageHistory',
+          'createdAtIso', 'updatedAtIso', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.ownerUid)
+        && isValidStaffUids(data.staffUids)
+        && data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 160
+        && data.customerPhone is string && data.customerPhone.size() >= 3 && data.customerPhone.size() <= 40
+        && data.tool is map
+        && data.serviceReq is map
+        && data.intakeDate is string && data.intakeDate.size() >= 4 && data.intakeDate.size() <= 40
+        && data.promisedCompletion is string && data.promisedCompletion.size() >= 4 && data.promisedCompletion.size() <= 40
+        && data.status in ['Intake', 'Diagnosis', 'Awaiting Approval', 'Awaiting Parts', 'In Repair', 'In Service', 'Ready for Pickup', 'Completed', 'Cancelled']
+        && data.priority in ['Routine', 'Urgent', 'Emergency']
+        && data.technician is string && data.technician.size() >= 1 && data.technician.size() <= 120
+        && data.laborHours is number && data.laborHours >= 0 && data.laborHours <= 1000
+        && data.laborRate is number && data.laborRate >= 0 && data.laborRate <= 10000
+        && data.discount is number && data.discount >= 0 && data.discount <= 100000
+        && data.taxRate is number && data.taxRate >= 0 && data.taxRate <= 100
+        && data.totalAmount is number && data.totalAmount >= 0 && data.totalAmount <= 1000000
+        && isValidBoundedList(data.parts, 50)
+        && isValidBoundedList(data.messageLogs, 50)
+        && data.publicAccessToken is string && data.publicAccessToken.size() >= 6 && data.publicAccessToken.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && (!('customerCompany' in data) || (data.customerCompany is string && data.customerCompany.size() <= 160))
+        && (!('customerEmail' in data) || (data.customerEmail is string && data.customerEmail.size() <= 254))
+        && (!('gstOrTaxId' in data) || (data.gstOrTaxId is string && data.gstOrTaxId.size() <= 64))
+        && (!('diagnosticNotes' in data) || (data.diagnosticNotes is string && data.diagnosticNotes.size() <= 8000))
+        && (!('recommendedActions' in data) || isValidBoundedList(data.recommendedActions, 20))
+        && (!('operationalExpenses' in data) || isValidBoundedList(data.operationalExpenses, 30))
+        && (!('customerSignature' in data) || (data.customerSignature is string && data.customerSignature.size() <= 120000))
+        && (!('technicianSignature' in data) || (data.technicianSignature is string && data.technicianSignature.size() <= 120000))
+        && (!('technicianSignOffBy' in data) || (data.technicianSignOffBy is string && data.technicianSignOffBy.size() <= 120))
+        && (!('technicianSignOffAt' in data) || (data.technicianSignOffAt is string && data.technicianSignOffAt.size() <= 40))
+        && (!('technicianSignOffNotes' in data) || (data.technicianSignOffNotes is string && data.technicianSignOffNotes.size() <= 2000))
+        && (!('attachments' in data) || isValidBoundedList(data.attachments, 6))
+        && (!('timeLogs' in data) || isValidBoundedList(data.timeLogs, 50))
+        && (!('auditLogs' in data) || isValidBoundedList(data.auditLogs, 50))
+        && (!('photos' in data) || isValidBoundedList(data.photos, 6))
+        && (!('subletRecords' in data) || isValidBoundedList(data.subletRecords, 20))
+        && (!('customerFeedback' in data) || isValidCustomerFeedback(data.customerFeedback))
+        && (!('feedbackSmsSentAt' in data) || (data.feedbackSmsSentAt is string && data.feedbackSmsSentAt.size() <= 40))
+        && (!('stageEnteredAt' in data) || (data.stageEnteredAt is string && data.stageEnteredAt.size() <= 40))
+        && (!('stageHistory' in data) || isValidBoundedList(data.stageHistory, 20))
+        && (!('createdAtIso' in data) || (data.createdAtIso is string && data.createdAtIso.size() <= 40))
+        && (!('updatedAtIso' in data) || (data.updatedAtIso is string && data.updatedAtIso.size() <= 40));
+    }
+
+    function isValidInventoryItem(data) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'staffUids', 'sku', 'barcode', 'name', 'category',
+          'brand', 'compatibleModels', 'unitPrice', 'costPrice', 'stockQty',
+          'minStockThreshold', 'unit', 'binLocation', 'lastRestocked',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerUid', 'staffUids', 'sku', 'barcode', 'name', 'category',
+          'brand', 'compatibleModels', 'unitPrice', 'costPrice', 'stockQty',
+          'minStockThreshold', 'unit', 'binLocation', 'lastRestocked',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.ownerUid)
+        && isValidStaffUids(data.staffUids)
+        && data.sku is string && data.sku.size() >= 1 && data.sku.size() <= 64
+        && data.barcode is string && data.barcode.size() >= 1 && data.barcode.size() <= 64
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 200
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 120
+        && data.brand is string && data.brand.size() >= 1 && data.brand.size() <= 120
+        && data.compatibleModels is string && data.compatibleModels.size() <= 500
+        && data.unitPrice is number && data.unitPrice >= 0 && data.unitPrice <= 1000000
+        && data.costPrice is number && data.costPrice >= 0 && data.costPrice <= 1000000
+        && data.stockQty is number && data.stockQty >= 0 && data.stockQty <= 1000000
+        && data.minStockThreshold is number && data.minStockThreshold >= 0 && data.minStockThreshold <= 1000000
+        && data.unit in ['pcs', 'sets', 'bottles', 'boxes', 'pairs', 'meters']
+        && data.binLocation is string && data.binLocation.size() >= 1 && data.binLocation.size() <= 64
+        && data.lastRestocked is string && data.lastRestocked.size() >= 4 && data.lastRestocked.size() <= 40
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSchedule(data) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'staffUids', 'customerName', 'customerPhone',
+          'toolBrand', 'toolCategory', 'modelNumber', 'serialNumber',
+          'intervalMonths', 'lastServiceDate', 'nextDueDate', 'status',
+          'recommendedServiceScope', 'queuedReminders', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerUid', 'staffUids', 'customerName', 'customerCompany',
+          'customerPhone', 'customerEmail', 'toolBrand', 'toolCategory',
+          'modelNumber', 'serialNumber', 'intervalMonths', 'lastServiceDate',
+          'nextDueDate', 'status', 'recommendedServiceScope', 'notes',
+          'queuedReminders', 'createdAtIso', 'updatedAtIso', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.ownerUid)
+        && isValidStaffUids(data.staffUids)
+        && data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 160
+        && data.customerPhone is string && data.customerPhone.size() >= 3 && data.customerPhone.size() <= 40
+        && data.toolBrand is string && data.toolBrand.size() >= 1 && data.toolBrand.size() <= 80
+        && data.toolCategory is string && data.toolCategory.size() >= 1 && data.toolCategory.size() <= 80
+        && data.modelNumber is string && data.modelNumber.size() >= 1 && data.modelNumber.size() <= 120
+        && data.serialNumber is string && data.serialNumber.size() >= 1 && data.serialNumber.size() <= 80
+        && data.intervalMonths is number && data.intervalMonths >= 1 && data.intervalMonths <= 60
+        && data.lastServiceDate is string && data.lastServiceDate.size() >= 4 && data.lastServiceDate.size() <= 40
+        && data.nextDueDate is string && data.nextDueDate.size() >= 4 && data.nextDueDate.size() <= 40
+        && data.status in ['Upcoming', 'Due Soon', 'Overdue', 'Serviced']
+        && data.recommendedServiceScope is string && data.recommendedServiceScope.size() >= 1 && data.recommendedServiceScope.size() <= 400
+        && isValidBoundedList(data.queuedReminders, 50)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && (!('customerCompany' in data) || (data.customerCompany is string && data.customerCompany.size() <= 160))
+        && (!('customerEmail' in data) || (data.customerEmail is string && data.customerEmail.size() <= 254))
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000))
+        && (!('createdAtIso' in data) || (data.createdAtIso is string && data.createdAtIso.size() <= 40))
+        && (!('updatedAtIso' in data) || (data.updatedAtIso is string && data.updatedAtIso.size() <= 40));
+    }
+
+    function isValidSettings(data) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'staffUids', 'centerName', 'taxRate', 'laborRate',
+          'deductStockOn', 'requireSignature', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerUid', 'staffUids', 'centerName', 'address', 'phone',
+          'email', 'taxRate', 'laborRate', 'jobCardPrefix', 'currencySymbol',
+          'WhatsAppTemplateIntake', 'WhatsAppTemplateReady', 'WhatsAppTemplateEstimate',
+          'deductStockOn', 'requireSignature', 'autoSendFeedbackSms',
+          'autoDailyBackupEnabled', 'autoDailyBackupDestination',
+          'lastAutoBackupDate', 'analyticsMetrics', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.ownerUid)
+        && isValidStaffUids(data.staffUids)
+        && data.centerName is string && data.centerName.size() >= 1 && data.centerName.size() <= 160
+        && data.taxRate is number && data.taxRate >= 0 && data.taxRate <= 100
+        && data.laborRate is number && data.laborRate >= 0 && data.laborRate <= 10000
+        && data.deductStockOn in ['Approval', 'InService', 'Completion']
+        && data.requireSignature is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && (!('address' in data) || (data.address is string && data.address.size() <= 240))
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 40))
+        && (!('email' in data) || (data.email is string && data.email.size() <= 254))
+        && (!('jobCardPrefix' in data) || (data.jobCardPrefix is string && data.jobCardPrefix.size() <= 32))
+        && (!('currencySymbol' in data) || (data.currencySymbol is string && data.currencySymbol.size() <= 8))
+        && (!('WhatsAppTemplateIntake' in data) || (data.WhatsAppTemplateIntake is string && data.WhatsAppTemplateIntake.size() <= 1000))
+        && (!('WhatsAppTemplateReady' in data) || (data.WhatsAppTemplateReady is string && data.WhatsAppTemplateReady.size() <= 1000))
+        && (!('WhatsAppTemplateEstimate' in data) || (data.WhatsAppTemplateEstimate is string && data.WhatsAppTemplateEstimate.size() <= 1000))
+        && (!('autoSendFeedbackSms' in data) || data.autoSendFeedbackSms is bool)
+        && (!('autoDailyBackupEnabled' in data) || data.autoDailyBackupEnabled is bool)
+        && (!('autoDailyBackupDestination' in data) || (data.autoDailyBackupDestination is string && data.autoDailyBackupDestination.size() <= 32))
+        && (!('lastAutoBackupDate' in data) || (data.lastAutoBackupDate is string && data.lastAutoBackupDate.size() <= 40))
+        && (!('analyticsMetrics' in data) || data.analyticsMetrics is map);
+    }
+
+    function isValidCustomField(data) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'staffUids', 'label', 'key', 'dataType',
+          'category', 'required', 'enabled', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerUid', 'staffUids', 'label', 'key', 'dataType',
+          'category', 'required', 'placeholder', 'options', 'isSystem',
+          'enabled', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.ownerUid)
+        && isValidStaffUids(data.staffUids)
+        && data.label is string && data.label.size() >= 1 && data.label.size() <= 120
+        && data.key is string && data.key.size() >= 1 && data.key.size() <= 64
+        && data.dataType in ['text', 'number', 'select', 'date', 'boolean', 'textarea']
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 80
+        && data.required is bool
+        && data.enabled is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && (!('placeholder' in data) || (data.placeholder is string && data.placeholder.size() <= 200))
+        && (!('options' in data) || isValidBoundedList(data.options, 30))
+        && (!('isSystem' in data) || data.isSystem is bool);
+    }
+
+    function isValidPublicDelivery(data) {
+      return data.keys().hasAll([
+          'token', 'ownerUid', 'staffUids', 'jobId', 'status', 'toolBrand',
+          'toolModel', 'intakeDate', 'promisedCompletion', 'totalAmount',
+          'readyForDelivery', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'token', 'ownerUid', 'staffUids', 'jobId', 'status', 'toolBrand',
+          'toolModel', 'warrantyFlag', 'intakeDate', 'promisedCompletion',
+          'totalAmount', 'readyForDelivery', 'feedbackSubmitted',
+          'feedbackRating', 'feedbackComment', 'feedbackSubmittedAt',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.token)
+        && isValidId(data.ownerUid)
+        && isValidStaffUids(data.staffUids)
+        && isValidId(data.jobId)
+        && data.status is string && data.status.size() >= 1 && data.status.size() <= 40
+        && data.toolBrand is string && data.toolBrand.size() >= 1 && data.toolBrand.size() <= 80
+        && data.toolModel is string && data.toolModel.size() >= 1 && data.toolModel.size() <= 120
+        && data.intakeDate is string && data.intakeDate.size() >= 4 && data.intakeDate.size() <= 40
+        && data.promisedCompletion is string && data.promisedCompletion.size() >= 4 && data.promisedCompletion.size() <= 40
+        && data.totalAmount is number && data.totalAmount >= 0 && data.totalAmount <= 1000000
+        && data.readyForDelivery is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && (!('warrantyFlag' in data) || (data.warrantyFlag is string && data.warrantyFlag.size() <= 40))
+        && (!('feedbackSubmitted' in data) || data.feedbackSubmitted is bool)
+        && (!('feedbackRating' in data) || (data.feedbackRating is number && data.feedbackRating >= 1 && data.feedbackRating <= 5))
+        && (!('feedbackComment' in data) || (data.feedbackComment is string && data.feedbackComment.size() <= 1000))
+        && (!('feedbackSubmittedAt' in data) || (data.feedbackSubmittedAt is string && data.feedbackSubmittedAt.size() <= 40));
+    }
+
+    match /test/connection {
+      allow get: if isVerifiedUser();
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserPublic(incoming())
+        && incoming().uid == request.auth.uid
+        && incoming().role in ['Technician', 'Counter']
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isValidUserPublic(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'workshopId', 'updatedAt']))
+        );
+
+      match /private/{docId} {
+        allow get: if isValidId(userId) && isValidId(docId) && (isOwner(userId) || isAdmin());
+        allow create: if isValidId(userId)
+          && isValidId(docId)
+          && isOwner(userId)
+          && isValidUserPrivate(incoming())
+          && incoming().uid == request.auth.uid
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time;
+        allow update: if isValidId(userId)
+          && isValidId(docId)
+          && isOwner(userId)
+          && isValidUserPrivate(incoming())
+          && incoming().uid == existing().uid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt']);
+      }
+    }
+
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isBootstrappedAdmin());
+      allow create, update, delete: if isValidId(userId)
+        && isBootstrappedAdmin()
+        && isValidAdminRecord(incoming());
+    }
+
+    match /jobCards/{jobId} {
+      allow get: if isValidId(jobId) && (isMemberRecord(existing()) || isAdmin());
+      allow list: if isMemberRecord(resource.data);
+      allow create: if isValidId(jobId)
+        && isVerifiedUser()
+        && isValidJobCard(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().id == jobId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(jobId)
+        && isVerifiedUser()
+        && isValidJobCard(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isMemberRecord(existing()) || isAdmin())
+        && (
+          !(existing().status in ['Completed', 'Cancelled']) ||
+          isAdmin() ||
+          (
+            existing().status == 'Completed' &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'customerFeedback', 'feedbackSmsSentAt', 'messageLogs', 'auditLogs', 'updatedAtIso', 'updatedAt'
+            ])
+          )
+        )
+        && (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'status', 'priority', 'technician', 'diagnosticNotes', 'recommendedActions',
+            'laborHours', 'laborRate', 'discount', 'taxRate', 'parts',
+            'operationalExpenses', 'totalAmount', 'customerSignature',
+            'technicianSignature', 'technicianSignOffBy', 'technicianSignOffAt',
+            'technicianSignOffNotes', 'attachments', 'messageLogs', 'timeLogs',
+            'auditLogs', 'photos', 'subletRecords', 'customerFeedback',
+            'feedbackSmsSentAt', 'stageEnteredAt', 'stageHistory',
+            'promisedCompletion', 'tool', 'serviceReq', 'staffUids',
+            'updatedAtIso', 'updatedAt'
+          ])
+        );
+      allow delete: if isValidId(jobId) && isAdmin();
+    }
+
+    match /inventory/{itemId} {
+      allow get: if isValidId(itemId) && (isMemberRecord(existing()) || isAdmin());
+      allow list: if isMemberRecord(resource.data);
+      allow create: if isValidId(itemId)
+        && isVerifiedUser()
+        && isValidInventoryItem(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().id == itemId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(itemId)
+        && isVerifiedUser()
+        && isValidInventoryItem(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isMemberRecord(existing()) || isAdmin())
+        && (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['stockQty', 'lastRestocked', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'sku', 'barcode', 'name', 'category', 'brand', 'compatibleModels',
+            'unitPrice', 'costPrice', 'stockQty', 'minStockThreshold', 'unit',
+            'binLocation', 'lastRestocked', 'staffUids', 'updatedAt'
+          ])
+        );
+      allow delete: if isValidId(itemId) && isAdmin();
+    }
+
+    match /schedules/{scheduleId} {
+      allow get: if isValidId(scheduleId) && (isMemberRecord(existing()) || isAdmin());
+      allow list: if isMemberRecord(resource.data);
+      allow create: if isValidId(scheduleId)
+        && isVerifiedUser()
+        && isValidSchedule(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().id == scheduleId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(scheduleId)
+        && isVerifiedUser()
+        && isValidSchedule(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isMemberRecord(existing()) || isAdmin())
+        && (!(existing().status == 'Serviced') || isAdmin())
+        && (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['queuedReminders', 'updatedAtIso', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'status', 'lastServiceDate', 'nextDueDate', 'intervalMonths',
+            'recommendedServiceScope', 'notes', 'queuedReminders', 'staffUids',
+            'updatedAtIso', 'updatedAt'
+          ])
+        );
+      allow delete: if isValidId(scheduleId) && isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId) && (isMemberRecord(existing()) || isAdmin());
+      allow list: if isMemberRecord(resource.data);
+      allow create: if isValidId(settingId)
+        && isVerifiedUser()
+        && isValidSettings(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().id == settingId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(settingId)
+        && isVerifiedUser()
+        && isValidSettings(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isMemberRecord(existing()) || isAdmin())
+        && (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'centerName', 'address', 'phone', 'email', 'taxRate', 'laborRate',
+            'jobCardPrefix', 'currencySymbol', 'WhatsAppTemplateIntake',
+            'WhatsAppTemplateReady', 'WhatsAppTemplateEstimate', 'deductStockOn',
+            'requireSignature', 'autoSendFeedbackSms', 'autoDailyBackupEnabled',
+            'autoDailyBackupDestination', 'lastAutoBackupDate',
+            'analyticsMetrics', 'staffUids', 'updatedAt'
+          ])
+        );
+    }
+
+    match /customFields/{fieldId} {
+      allow get: if isValidId(fieldId) && (isMemberRecord(existing()) || isAdmin());
+      allow list: if isMemberRecord(resource.data);
+      allow create: if isValidId(fieldId)
+        && isVerifiedUser()
+        && isValidCustomField(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().id == fieldId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(fieldId)
+        && isVerifiedUser()
+        && isValidCustomField(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isMemberRecord(existing()) || isAdmin())
+        && (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'label', 'required', 'placeholder', 'options', 'enabled', 'staffUids', 'updatedAt'
+          ])
+        );
+      allow delete: if isValidId(fieldId) && isAdmin();
+    }
+
+    match /publicDeliveries/{deliveryToken} {
+      allow get: if isValidId(deliveryToken);
+      allow list: if false;
+      allow create: if isValidId(deliveryToken)
+        && isVerifiedUser()
+        && isValidPublicDelivery(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().token == deliveryToken
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(deliveryToken)
+        && isVerifiedUser()
+        && isValidPublicDelivery(incoming())
+        && incoming().token == existing().token
+        && incoming().jobId == existing().jobId
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isMemberRecord(existing()) || isAdmin())
+        && (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'status', 'toolBrand', 'toolModel', 'warrantyFlag',
+            'promisedCompletion', 'totalAmount', 'readyForDelivery',
+            'feedbackSubmitted', 'feedbackRating', 'feedbackComment',
+            'feedbackSubmittedAt', 'staffUids', 'updatedAt'
+          ])
+        );
+      allow delete: if isValidId(deliveryToken) && isAdmin();
+    }
+  }
+}

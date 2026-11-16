@@ -9,6 +9,7 @@ import {
   findMatchingToolHistory,
   parseProductQrPayload,
 } from '../utils/barcodeSerialParser';
+import { resolveApiUrl } from '../utils/apiBase';
 import { Wrench, User, Phone, ShieldCheck, ShieldAlert, FileText, Sparkles, Printer, MessageSquare, Plus, PenTool, CheckCircle2, AlertCircle, Sliders, ScanBarcode, QrCode, History, Package, ExternalLink } from 'lucide-react';
 
 interface BoschIntakeFormProps {
@@ -190,7 +191,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
     setIsAiLoading(true);
 
     try {
-      const res = await fetch('/api/ai/diagnose', {
+      const res = await fetch(resolveApiUrl('/api/ai/diagnose'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

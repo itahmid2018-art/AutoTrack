@@ -4,7 +4,8 @@ import { SHOP_TECHNICIANS } from '../data/mockTechnicians';
 import { adjudicateWarranty, autoAdjudicateJobCard } from '../utils/warrantyAdjudicator';
 import { calculateJobBilling } from '../utils/billing';
 import { generateJobCardPdf } from '../utils/generatePdf';
-import { buildCustomerPortalUrl } from '../utils/customerPortalUrl';
+import { buildCustomerFeedbackUrl, buildCustomerPortalUrl } from '../utils/customerPortalUrl';
+import { resolveApiUrl } from '../utils/apiBase';
 import { SerialBarcodeScannerModal } from './SerialBarcodeScannerModal';
 import {
   BarcodeScanResult,
@@ -16,7 +17,7 @@ import {
   CheckCircle2, FileText, User, Phone, Wrench, Search, AlertCircle, PenTool, Check, UserCheck,
   Bot, Send, Copy, RotateCcw, Zap, Timer, Play, Square, Clock, ShieldCheck, ShieldAlert, RefreshCw,
   Camera, Video, VideoOff, Upload, Maximize2, X, Download, Image as ImageIcon, Receipt,
-  Mic, MicOff, Loader2, Package, QrCode, ScanBarcode
+  Mic, MicOff, Loader2, Package, QrCode, ScanBarcode, Star, ExternalLink
 } from 'lucide-react';
 
 interface SpeechRecognitionAlternativeLike {
@@ -52,6 +53,8 @@ interface JobCardDetailProps {
   onPrintJobCard: (job: JobCard) => void;
   deductStockOn: 'Approval' | 'InService' | 'Completion';
   onDeductInventoryStock: (partId: string, qty: number) => void;
+  onOpenCustomerFeedback?: (job: JobCard) => void;
+  onSendFeedbackSms?: (job: JobCard) => void;
 }
 
 interface ChatMessage {
@@ -85,6 +88,8 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
   onPrintJobCard,
   deductStockOn,
   onDeductInventoryStock,
+  onOpenCustomerFeedback,
+  onSendFeedbackSms,
 }) => {
   const [currentJob, setCurrentJob] = useState<JobCard>(job);
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -144,6 +149,7 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
   const [captureFeedback, setCaptureFeedback] = useState<string | null>(null);
   const [pdfFeedback, setPdfFeedback] = useState<string | null>(null);
   const [customerLinkCopied, setCustomerLinkCopied] = useState(false);
+  const [feedbackLinkCopied, setFeedbackLinkCopied] = useState(false);
   const [lightboxItem, setLightboxItem] = useState<{
     dataUrl: string;
     stageLabel: 'Pre-Repair' | 'Post-Repair';
@@ -1054,7 +1060,7 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
               reader.readAsDataURL(audioBlob);
             });
 
-            const response = await fetch('/api/ai/transcribe', {
+            const response = await fetch(resolveApiUrl('/api/ai/transcribe'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -1366,7 +1372,7 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
     setAiResultParts([]);
 
     try {
-      const response = await fetch('/api/ai/diagnose', {
+      const response = await fetch(resolveApiUrl('/api/ai/diagnose'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1415,7 +1421,7 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
     setRecPartsError(null);
 
     try {
-      const response = await fetch('/api/ai/recommend-parts', {
+      const response = await fetch(resolveApiUrl('/api/ai/recommend-parts'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1591,7 +1597,7 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
     setIsChatSending(true);
 
     try {
-      const response = await fetch('/api/ai/repair-chat', {
+      const response = await fetch(resolveApiUrl('/api/ai/repair-chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1742,6 +1748,17 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
       setTimeout(() => setCustomerLinkCopied(false), 3000);
     } catch {
       setCustomerLinkCopied(false);
+    }
+  };
+
+  const handleCopyFeedbackSurveyLink = async () => {
+    const link = buildCustomerFeedbackUrl(currentJob);
+    try {
+      await navigator.clipboard.writeText(link);
+      setFeedbackLinkCopied(true);
+      setTimeout(() => setFeedbackLinkCopied(false), 3000);
+    } catch {
+      setFeedbackLinkCopied(false);
     }
   };
 
@@ -3588,6 +3605,102 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>Sign &amp; Finalize</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Customer Feedback & Rating Card */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3 shadow-xl">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+              <h2 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                <span>Customer Feedback</span>
+              </h2>
+              {currentJob.customerFeedback ? (
+                <span className="text-xs font-bold text-amber-400 tabular-nums">
+                  {currentJob.customerFeedback.rating}.0 / 5.0
+                </span>
+              ) : (
+                <span className="text-[10px] text-zinc-400">
+                  {currentJob.feedbackSmsSentAt ? 'SMS Sent' : 'Pending'}
+                </span>
+              )}
+            </div>
+
+            {currentJob.customerFeedback ? (
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5">
+                  <div className="flex items-center gap-1" aria-label={`Rated ${currentJob.customerFeedback.rating} out of 5 stars`}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        className={`w-4 h-4 ${
+                          star <= (currentJob.customerFeedback?.rating || 0)
+                            ? 'text-amber-400 fill-amber-400'
+                            : 'text-zinc-700'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-zinc-400">
+                    via {currentJob.customerFeedback.channel || 'SMS'} · {currentJob.customerFeedback.submittedAt.slice(0, 10)}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-sans text-zinc-200 leading-relaxed">
+                  {currentJob.customerFeedback.comment || 'Customer submitted a star rating without a written comment.'}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2.5 text-xs font-sans">
+                <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-400 text-[11px] leading-relaxed">
+                  {currentJob.feedbackSmsSentAt ? (
+                    <>
+                      Automated feedback SMS triggered on{' '}
+                      <span className="text-zinc-200 font-mono">
+                        {currentJob.feedbackSmsSentAt.slice(0, 16).replace('T', ' ')}
+                      </span>
+                      . Awaiting customer submission.
+                    </>
+                  ) : currentJob.status === 'Completed' ? (
+                    'Job completed. Dispatch an SMS survey link or open the customer feedback form.'
+                  ) : (
+                    'Automated feedback SMS with the rating survey link sends once status reaches Completed.'
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 font-mono">
+                  {onSendFeedbackSms && (
+                    <button
+                      type="button"
+                      onClick={() => onSendFeedbackSms(currentJob)}
+                      className="flex-1 py-2 px-3 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 text-[11px] font-bold flex items-center justify-center gap-1.5 whitespace-nowrap"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{currentJob.feedbackSmsSentAt ? 'Resend SMS' : 'Send Feedback SMS'}</span>
+                    </button>
+                  )}
+
+                  {onOpenCustomerFeedback && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenCustomerFeedback(currentJob)}
+                      className="py-2 px-3 rounded-xl bg-zinc-950 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 text-[11px] font-bold flex items-center gap-1 whitespace-nowrap"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Open Survey</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleCopyFeedbackSurveyLink}
+                    className="py-2 px-3 rounded-xl bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-[11px] font-bold flex items-center gap-1 whitespace-nowrap"
+                  >
+                    {feedbackLinkCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{feedbackLinkCopied ? 'Copied' : 'Copy URL'}</span>
                   </button>
                 </div>
               </div>

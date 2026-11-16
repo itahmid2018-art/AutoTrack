@@ -3,7 +3,7 @@ import { JobCard, JobStatus } from '../types';
 import { adjudicateWarranty } from '../utils/warrantyAdjudicator';
 import { SerialBarcodeScannerModal } from './SerialBarcodeScannerModal';
 import { BarcodeScanResult, findMatchingToolHistory, parseProductQrPayload } from '../utils/barcodeSerialParser';
-import { Search, Wrench, MessageSquare, ChevronRight, User, Plus, Printer, FileText, X, Filter, Sparkles, ShieldCheck, ShieldAlert, QrCode } from 'lucide-react';
+import { Search, Wrench, MessageSquare, ChevronRight, User, Plus, Printer, FileText, X, Filter, Sparkles, ShieldCheck, ShieldAlert, QrCode, Star } from 'lucide-react';
 
 interface JobCardListProps {
   jobCards: JobCard[];
@@ -241,10 +241,21 @@ export const JobCardList: React.FC<JobCardListProps> = ({
                   <span className="font-mono text-xs font-bold text-white bg-zinc-950 px-2.5 py-0.5 rounded border border-zinc-800">
                     {job.id}
                   </span>
-                  
-                  <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${getStatusBadgeClass(job.status)}`}>
-                    {job.status}
-                  </span>
+
+                  <div className="flex items-center gap-1.5">
+                    {job.customerFeedback && (
+                      <span
+                        title={job.customerFeedback.comment || 'Submitted Client Rating'}
+                        className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full border bg-amber-950/70 text-amber-300 border-amber-700/70 inline-flex items-center gap-1 tabular-nums"
+                      >
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        <span>{job.customerFeedback.rating}/5</span>
+                      </span>
+                    )}
+                    <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${getStatusBadgeClass(job.status)}`}>
+                      {job.status}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Tool Model & Brand */}

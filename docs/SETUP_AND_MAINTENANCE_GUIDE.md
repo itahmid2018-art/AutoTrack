@@ -1,23 +1,20 @@
 # BOSCH AUTHORISED SERVICE CENTER & POWER TOOLS HUB
 ## System Setup, Security Hardening, Database & Maintenance Guide
-**Version 2.7 (2026 Security & Enterprise Edition) · Administrator & DevOps Operations Manual**
+**Version 4.0 (2026 Multi-Client Sync, Offline PWA & Predictive Enterprise Edition) · Administrator & DevOps Operations Manual**
 
 ---
 
 ### TABLE OF CONTENTS
 1. [Executive Overview & System Architecture](#1-executive-overview--system-architecture)
 2. [Security Hardening & PII Protection Standards](#2-security-hardening--pii-protection-standards)
-   - 2.1 Default Credentials & Mandatory Password Rotation
+   - 2.1 Google Sign-In & Firebase Security Rules (`firestore.rules`)
    - 2.2 Server-Side PII Scrubbing (`stripPII`) Before AI Inference
-   - 2.3 API Rate Limiting & Abuse Prevention
-   - 2.4 Append-Only Audit Ledger (`audit_logs`)
-   - 2.5 Secure Public Customer Status Tokens
+   - 2.3 API Rate Limiting & CORS Policy
+   - 2.4 Append-Only Audit Ledger (`audit_logs` / `auditLogs`)
+   - 2.5 Zero-PII Public Client Status Tokens (`publicDeliveries`)
 3. [Environment Variables & Credentials Configuration](#3-environment-variables--credentials-configuration)
 4. [Local Development & Full-Stack Server Launch](#4-local-development--full-stack-server-launch)
-5. [MySQL Database Provisioning, Schema & Data Import](#5-mysql-database-provisioning-schema--data-import)
-   - 5.1 Database Table Inventory (11 Relational Tables)
-   - 5.2 Executing `database.sql` Import (MySQL 8.0+, MariaDB & Cloud SQL)
-   - 5.3 Validating SQL Syntax via AST Parser
+5. [Database Provisioning: Firestore, PostgreSQL 16 & MySQL 8.0](#5-database-provisioning-firestore-postgresql-16--mysql-80)
 6. [Production Build & Server Deployment](#6-production-build--server-deployment)
 7. [System Maintenance, Backups & Disaster Recovery](#7-system-maintenance-backups--disaster-recovery)
 
@@ -25,76 +22,68 @@
 
 ### 1. EXECUTIVE OVERVIEW & SYSTEM ARCHITECTURE
 
-This technical manual details the setup, security policies, database management, and deployment protocols for the **Bosch Authorised Service Center & Power Tools Hub**.
+This technical manual covers setup, security policies, database management, and deployment for the **Bosch Authorised Service Center & Power Tools Hub**.
 
 #### Multi-Counter Architecture Model:
-- **Client Frontend (React 18 + Vite)**: Provides high-contrast workshop UI for counter intake, bench repair, and inventory management. LocalStorage serves as an offline-first resilient cache.
-- **Express Backend Server (`server.ts`)**: Server-authoritative API proxy listening on Port 3000 handling authentication, AI inference with PII sanitization, API rate limiting, and WhatsApp/SMS messaging.
-- **Host MySQL Database (`database.sql`)**: Central relational store for multi-counter workshop deployments across multiple technicians and storekeepers.
+- **Client Frontend (React 19 + Vite 8 + Tailwind v4)**: High-contrast workshop interface for counter intake, camera barcode/QR scanning, Kanban dispatch, Recharts monthly revenue forecasting, Excel/CSV inventory import, and post-service feedback ratings. Combines `localStorage` (`TransactionalDb`) with a Service Worker (`public/sw.js` `autotrack-static-v1` & `autotrack-data-v1`) so cached Job Cards remain viewable offline.
+- **Express Backend Server (`server.ts`)**: Listens on Port `3000`, enforces Bearer token verification via `firebase-admin` (`requireAuth`), serves Gemini AI diagnosis/vision endpoints, handles Twilio SMS/WhatsApp + `/api/customer-portal/feedback`, and broadcasts SSE updates (`/api/sync/stream`, `/api/customer-portal/stream`) with CORS headers for native Android/Capacitor tablet clients (configured via `VITE_API_BASE_URL` or `resolveApiUrl()`).
+- **Cloud Firestore Live Store (`firebase-applet-config.json`)**: Named Enterprise database (`ai-studio-autotrackservice-2eac3d40-310f-46ba-a293-99682d0a94d7`) synchronizing job cards, inventory deltas, maintenance schedules, business settings, and `publicDeliveries`.
+- **Relational SQL Schemas (`database.postgres.sql` & `database.sql`)**: Complete 11-table schemas with demonstration seed data (including completed feedback ticket `BOSCH-2026-0046`) for PostgreSQL 16+ and MySQL 8.0+ deployments.
 
 ---
 
 ### 2. SECURITY HARDENING & PII PROTECTION STANDARDS
 
-#### 2.1 Default Credentials & Mandatory Password Rotation
-- **Default Admin Account**:
-  - **Username**: `admin`
-  - **Password**: `123456`
-  - **Bcrypt Hash**: `$2b$10$32i.0QG3W55o8K6A4GgVMe/2vH98gO.X1Mv1qQe4u6aY0g7l.0q5i` (Cost Factor: 10)
-- **Mandatory Policy**: Upon initial deployment, administrators MUST log into the system and update default credentials. A security banner actively alerts operators in the application header until changed.
+#### 2.1 Google Sign-In & Firebase Security Rules (`firestore.rules`)
+- Live Firestore synchronization uses Firebase Authentication (Google Sign-In via `signInWithPopup`).
+- All Firestore mutations require `email_verified == true` and strict ownership/membership verification (`ownerUid == request.auth.uid`, `staffUids`, or verified admin in `/admins/{uid}` / bootstrapped admin).
+- User PII (`email`) is isolated to `/users/{userId}/private/profile`, separate from `/users/{userId}` metadata.
+- For SQL demo environments (`database.sql` / `database.postgres.sql`), change the demo `admin / 123456` password before production use.
 
 #### 2.2 Server-Side PII Scrubbing (`stripPII`) Before AI Inference
-To comply with global data privacy regulations (e.g., DPDP Act, GDPR), all customer complaint descriptions pass through server-side PII scrubbing in `server.ts` before reaching external Gemini API endpoints:
-- Phone numbers (`+1 555-123-4567`) -> Sanitized to `[REDACTED_PHONE]`
-- Email addresses (`user@domain.com`) -> Sanitized to `[REDACTED_EMAIL]`
-- Tax/GST IDs -> Sanitized to `[REDACTED_TAX_ID]`
+All complaint descriptions pass through `stripPII` in `server.ts` before calling external Gemini API endpoints:
+- Phone numbers -> `[REDACTED_PHONE]`
+- Email addresses -> `[REDACTED_EMAIL]`
+- Tax/GST IDs -> `[REDACTED_TAX_ID]`
 
-#### 2.3 API Rate Limiting & Abuse Prevention
-An in-memory sliding window rate limiter (`rateLimiter`) protects all server proxy endpoints (`/api/ai/*` and `/api/messaging/*`):
-- **Rate Limit**: Maximum 50 requests per minute per IP address.
-- **Response**: Returns HTTP 429 (`Too Many Requests`) if threshold is exceeded.
+#### 2.3 API Rate Limiting & CORS Policy
+- `rateLimiter` protects `/api/` routes (excluding persistent SSE connections `/api/sync/stream` and `/api/customer-portal/stream`) at 300 requests per minute per IP (`429 Rate Limit Exceeded`).
+- CORS headers (`GET, POST, PUT, PATCH, DELETE, OPTIONS` and `Content-Type, Authorization`) allow external Android, iOS, and desktop HTTP clients to connect safely.
 
-#### 2.4 Append-Only Audit Ledger (`audit_logs`)
-Every state transition, price adjustment, diagnostic application, and stock reservation is recorded in an immutable append-only audit table (`audit_logs`):
-```sql
-CREATE TABLE `audit_logs` (
-  `id` VARCHAR(64) PRIMARY KEY,
-  `job_card_id` VARCHAR(64) NULL,
-  `user_name` VARCHAR(100) NOT NULL,
-  `user_role` VARCHAR(50) NOT NULL,
-  `action` VARCHAR(100) NOT NULL,
-  `previous_state` TEXT NULL,
-  `new_state` TEXT NULL,
-  `timestamp` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (`job_card_id`) REFERENCES `job_cards`(`id`) ON DELETE CASCADE
-);
-```
+#### 2.4 Append-Only Audit Ledger (`audit_logs`) & Terminal State Exception
+State transitions, price adjustments, diagnostic applications, feedback submissions, and stock reservations append timestamped entries (`auditLogs` in Firestore / `audit_logs` in SQL). Terminal statuses (`Cancelled` on `jobCards`; `Serviced` on `schedules`) lock updates against non-admin mutations in `firestore.rules`; `Completed` job cards allow non-admin updates strictly limited to feedback fields (`customerFeedback`, `feedbackSmsSentAt`, `messageLogs`, `auditLogs`, `updatedAtIso`, `updatedAt`).
 
-#### 2.5 Secure Public Customer Status Tokens
-Customers can check their tool repair progress via secure, signed token URLs (`/api/jobs/public-status?jobId=BOSCH-2026-0041&token=tok-sec`). Public views return read-only status timelines without exposing PII, internal notes, or password hashes.
+#### 2.5 Zero-PII Public Client Status Tokens & Feedback (`publicDeliveries`)
+Clients track repair progress and submit 1–5 star ratings at `/?view=customer&token=tok-...` using `publicDeliveries/{deliveryToken}`, `GET /api/customer-portal/lookup`, and `POST /api/customer-portal/feedback`:
+- `allow list: if false;` on `publicDeliveries` prevents enumeration.
+- Responses strip client emails, full phone numbers, tax IDs, and internal bench notes.
+- Feedback submissions validate `rating` (`1–5` integer) and `comment` (`<= 1000` characters) server-side before returning HTTP `200` or `400`.
 
 ---
 
 ### 3. ENVIRONMENT VARIABLES & CREDENTIALS CONFIGURATION
 
-Copy `.env.example` to set active environment variables:
+Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
 
 ```env
-# GEMINI AI API KEY
+# GEMINI AI API KEY (Diagnosis, Vision Barcode/QR Scan, Response Assistant, Voice Transcription)
 GEMINI_API_KEY="AIzaSyYourSecretGeminiKeyHere"
 
-# TWILIO SMS API INTEGRATION (Optional)
+# TWILIO SMS & WHATSAPP API (Optional)
 TWILIO_ACCOUNT_SID="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 TWILIO_AUTH_TOKEN="your_twilio_auth_token_here"
 TWILIO_PHONE_NUMBER="+18005550199"
 TWILIO_WHATSAPP_NUMBER="+14155238886"
 
-# META WHATSAPP CLOUD API INTEGRATION (Optional)
+# META WHATSAPP CLOUD API (Optional)
 WHATSAPP_CLOUD_API_TOKEN="EAAGxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 WHATSAPP_PHONE_NUMBER_ID="123456789012345"
+
+# ANDROID / CAPACITOR EXTERNAL BACKEND ORIGIN (Optional)
+VITE_API_BASE_URL=""
 ```
 
 ---
@@ -107,36 +96,22 @@ npm install
 
 # 2. Launch Express + Vite server on Port 3000
 npm run dev
+
+# 3. Validate Firestore rules & TypeScript types
+npx eslint firestore.rules
+npx tsx firestore.rules.test.ts
+npm run lint
 ```
 
 ---
 
-### 5. MYSQL DATABASE PROVISIONING, SCHEMA & DATA IMPORT
+### 5. DATABASE PROVISIONING: FIRESTORE, POSTGRESQL 16 & MYSQL 8.0
 
-The `/database.sql` script contains 11 executable MySQL 8.0+ / MariaDB 10.5+ / Cloud SQL statements.
+Refer to [`DATABASE_SETUP_AND_INTEGRATION_GUIDE.md`](DATABASE_SETUP_AND_INTEGRATION_GUIDE.md) for complete setup commands, schema mapping, and dummy test datasets.
 
-#### 5.1 Table Inventory (11 Tables):
-1. `user_roles`: System authorization hierarchy.
-2. `users`: Staff credentials, roles, and bcrypt password hashes.
-3. `business_settings`: Shop configuration, tax rates, labor pricing, backup rules.
-4. `custom_fields`: Dynamic form field definitions.
-5. `inventory_items`: 1,000 spare parts catalog with bin locations and reorder thresholds.
-6. `job_cards`: Repair orders, customer info, tool specs, status, and diagnostic summaries.
-7. `job_card_parts`: Parts consumed per ticket with price snapshot.
-8. `technician_time_logs`: Clock-in/out timestamps and labor durations.
-9. `recurring_maintenance`: Scheduled overhaul intervals and due dates.
-10. `message_logs`: Customer SMS/WhatsApp dispatch audit log.
-11. `audit_logs`: Immutable append-only system change ledger.
-
-#### 5.2 Executing `database.sql` Import
-```bash
-mysql -u root -p bosch_service_db < database.sql
-```
-
-#### 5.3 Validating SQL Syntax via AST Parser
-```bash
-node scripts/validate_sql.js
-```
+- **Firestore Live Sync**: Click **Sign In** in the app header; initial seed populates starter tickets, core SKUs, schedules, settings, custom fields, and `publicDeliveries`.
+- **PostgreSQL 16**: Run `psql "<CONNECTION_URL>" -f database.postgres.sql` to create and seed all 11 relational tables.
+- **MySQL 8.0+ / MariaDB 10.5+**: Run `mysql -u root -p bosch_service_db < database.sql` and validate syntax with `node scripts/validate_sql.js`.
 
 ---
 
@@ -154,8 +129,9 @@ npm start
 
 ### 7. SYSTEM MAINTENANCE, BACKUPS & DISASTER RECOVERY
 
-- **Automatic Daily Backups**: Enabled under **Settings / System Transition**. Supports rolling local snapshots or daily JSON downloads.
-- **Dynamic MySQL Export**: Click **Export Local MySQL DB (.sql)** in Inventory or Transition views to export active state into a full `.sql` dump.
+- **Automatic Daily Backups**: Enabled under **Business Settings** (`TransitionView`). Supports rolling `localStorage` snapshots or daily JSON file downloads.
+- **Dynamic MySQL Export**: Click **Export Local MySQL DB (.sql)** inside **1,000 SKUs** or **Business Settings** to dump active UI state into an executable `.sql` file.
+- **Security Rules Audits**: Run `npx eslint firestore.rules` after any edit to `firestore.rules`, and review rules in `security_spec.md` before expanding user access.
 
 ---
 *Setup and Security Manual compiled for Bosch Authorised Service Hub Operations.*

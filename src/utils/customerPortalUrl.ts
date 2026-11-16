@@ -46,6 +46,16 @@ export function buildCustomerPortalUrl(
 }
 
 /**
+ * Builds the direct Customer Feedback survey URL opening directly to the rating & comment form.
+ */
+export function buildCustomerFeedbackUrl(
+  job: Pick<JobCard, 'id' | 'createdAt' | 'publicAccessToken'>,
+  origin?: string
+): string {
+  return `${buildCustomerPortalUrl(job, origin)}&feedback=1`;
+}
+
+/**
  * Synchronously generates a 2D boolean QR module matrix for vector SVG or jsPDF rendering.
  */
 export function buildQrMatrix(text: string): { size: number; rows: boolean[][] } {

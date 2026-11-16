@@ -73,14 +73,16 @@ CREATE TABLE `business_settings` (
   `job_card_prefix` VARCHAR(20) NOT NULL DEFAULT 'BOSCH-2026-',
   `deduct_stock_on` ENUM('Approval', 'InService', 'Completion') NOT NULL DEFAULT 'InService',
   `require_signature` TINYINT(1) NOT NULL DEFAULT 1,
+  `auto_send_feedback_sms` TINYINT(1) NOT NULL DEFAULT 1,
   `auto_daily_backup_enabled` TINYINT(1) NOT NULL DEFAULT 1,
   `auto_daily_backup_destination` VARCHAR(50) NOT NULL DEFAULT 'localStorage',
   `last_auto_backup_date` DATE NULL,
+  `analytics_metrics` JSON NULL,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `business_settings` (`id`, `center_name`, `address`, `phone`, `email`, `tax_rate`, `labor_rate`, `job_card_prefix`, `deduct_stock_on`, `require_signature`, `auto_daily_backup_enabled`, `auto_daily_backup_destination`) VALUES
-(1, 'BOSCH Authorised Power Tools Service Center', 'Industrial Estate, Bay 4, Workshop Division', '+1 (555) 019-2831', 'service@boschtools.com', 10.00, 45.00, 'BOSCH-2026-', 'InService', 1, 1, 'localStorage');
+INSERT INTO `business_settings` (`id`, `center_name`, `address`, `phone`, `email`, `tax_rate`, `labor_rate`, `job_card_prefix`, `deduct_stock_on`, `require_signature`, `auto_send_feedback_sms`, `auto_daily_backup_enabled`, `auto_daily_backup_destination`, `analytics_metrics`) VALUES
+(1, 'BOSCH Authorised Power Tools Service Center', 'Industrial Estate, Bay 4, Workshop Division', '+1 (555) 019-2831', 'service@boschtools.com', 10.00, 45.00, 'BOSCH-2026-', 'InService', 1, 1, 1, 'localStorage', '{"activeJobs":true,"lowInventory":true,"revenue":true,"todaysAppointments":true,"avgRepairTime":true,"topGrievance":true,"technicianPerformance":true,"categoryVolume":true}');
 
 -- ------------------------------------------------------------
 -- 4. CUSTOM FIELDS CONFIGURATION TABLE
@@ -184,6 +186,12 @@ CREATE TABLE `job_cards` (
   `tax_rate` DECIMAL(5,2) NOT NULL DEFAULT 10.00,
   `total_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
 
+  `public_access_token` VARCHAR(128) NULL UNIQUE,
+  `feedback_sms_sent_at` VARCHAR(40) NULL,
+  `customer_feedback_rating` TINYINT NULL,
+  `customer_feedback_comment` TEXT NULL,
+  `customer_feedback_submitted_at` VARCHAR(40) NULL,
+  `customer_feedback_json` JSON NULL,
   `customer_signature` LONGTEXT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -192,9 +200,10 @@ CREATE TABLE `job_cards` (
   INDEX `idx_technician` (`technician`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `job_cards` (`id`, `customer_name`, `customer_company`, `customer_phone`, `customer_email`, `gst_or_tax_id`, `tool_brand`, `tool_category`, `tool_model_number`, `tool_serial_number`, `tool_voltage_rating`, `tool_warranty_status`, `tool_physical_condition`, `tool_accessories_json`, `grievance_category`, `detailed_complaint`, `service_type`, `pre_approved_limit`, `intake_date`, `promised_completion`, `status`, `priority`, `technician`, `diagnostic_notes`, `labor_hours`, `labor_rate`, `discount`, `tax_rate`, `total_amount`) VALUES
-('BOSCH-2026-0041', 'Apex Industrial Construction Ltd', 'Apex Industrial', '+1 (555) 234-5678', 'service@apexconstruct.com', 'TAX-8920194-US', 'Bosch Professional', 'Rotary Hammer / SDS', 'GBH 2-26 DFR Professional', 'SN-3611B54300', '230V AC (800W)', 'Bosch Heavy Duty 3-Year Extended', 'Heavy Jobsite Dust, Cable Scratched', '["Auxiliary Handle", "Depth Stop Rod", "SDS Quick Change Chuck"]', 'Motor Sparking / Excessive Smoke', 'Heavily sparking inside motor housing under load. Intermittent hammer impact loss during overhead drilling.', 'Diagnostic & Repair', 75.00, '2026-11-10 09:15', '2026-11-11 16:00', 'In Service', 'Urgent', 'David Miller (Bosch Master Certified)', 'Armature commutator segments pitted and burnt. Carbon brushes worn past auto-stop limit line.', 1.50, 45.00, 5.00, 10.00, 154.00),
-('BOSCH-2026-0042', 'Marcus Vance Mechanics', 'Vance Repairs', '+1 (555) 876-5432', 'marcus@vancemechanics.com', NULL, 'Bosch Professional', 'Angle Grinder', 'GWS 900-100 Professional', 'SN-3601C96000', '230V AC (900W)', 'Standard 1-Year', 'Metal Shavings in Guard, Cord Pinched', '["Grinding Guard 100mm", "Pin Spanner Wrench"]', 'No Power / Dead Switch', 'Angle grinder does not turn on when switch is pushed. Cable strain relief is loose.', 'Standard Overhaul', 40.00, '2026-11-11 08:30', '2026-11-11 14:00', 'Ready for Pickup', 'Routine', 'Alex Rivera (Power Tools Tech)', 'Mains cable wire broken inside strain relief boot. On/Off toggle switch contacts oxidized.', 1.00, 45.00, 0.00, 10.00, 77.55);
+INSERT INTO `job_cards` (`id`, `customer_name`, `customer_company`, `customer_phone`, `customer_email`, `gst_or_tax_id`, `tool_brand`, `tool_category`, `tool_model_number`, `tool_serial_number`, `tool_voltage_rating`, `tool_warranty_status`, `tool_physical_condition`, `tool_accessories_json`, `grievance_category`, `detailed_complaint`, `service_type`, `pre_approved_limit`, `intake_date`, `promised_completion`, `status`, `priority`, `technician`, `diagnostic_notes`, `labor_hours`, `labor_rate`, `discount`, `tax_rate`, `total_amount`, `public_access_token`, `feedback_sms_sent_at`, `customer_feedback_rating`, `customer_feedback_comment`, `customer_feedback_submitted_at`, `customer_feedback_json`) VALUES
+('BOSCH-2026-0041', 'Apex Industrial Construction Ltd', 'Apex Industrial', '+1 (555) 234-5678', 'service@apexconstruct.com', 'TAX-8920194-US', 'Bosch Professional', 'Rotary Hammer / SDS', 'GBH 2-26 DFR Professional', 'SN-3611B54300', '230V AC (800W)', 'Bosch Heavy Duty 3-Year Extended', 'Heavy Jobsite Dust, Cable Scratched', '["Auxiliary Handle", "Depth Stop Rod", "SDS Quick Change Chuck"]', 'Motor Sparking / Excessive Smoke', 'Heavily sparking inside motor housing under load. Intermittent hammer impact loss during overhead drilling.', 'Diagnostic & Repair', 75.00, '2026-11-10 09:15', '2026-11-11 16:00', 'In Service', 'Urgent', 'David Miller (Bosch Master Certified)', 'Armature commutator segments pitted and burnt. Carbon brushes worn past auto-stop limit line.', 1.50, 45.00, 5.00, 10.00, 154.00, 'tok-apex-2026-0041-sec', NULL, NULL, NULL, NULL, NULL),
+('BOSCH-2026-0042', 'Marcus Vance Mechanics', 'Vance Repairs', '+1 (555) 876-5432', 'marcus@vancemechanics.com', NULL, 'Bosch Professional', 'Angle Grinder', 'GWS 900-100 Professional', 'SN-3601C96000', '230V AC (900W)', 'Standard 1-Year', 'Metal Shavings in Guard, Cord Pinched', '["Grinding Guard 100mm", "Pin Spanner Wrench"]', 'No Power / Dead Switch', 'Angle grinder does not turn on when switch is pushed. Cable strain relief is loose.', 'Standard Overhaul', 40.00, '2026-11-11 08:30', '2026-11-11 14:00', 'Ready for Pickup', 'Routine', 'Alex Rivera (Power Tools Tech)', 'Mains cable wire broken inside strain relief boot. On/Off toggle switch contacts oxidized.', 1.00, 45.00, 0.00, 10.00, 77.55, 'tok-vance-2026-0042-sec', NULL, NULL, NULL, NULL, NULL),
+('BOSCH-2026-0046', 'BuildCore Civil Works', 'BuildCore', '+1 (555) 602-8811', 'fleet@buildcore.com', NULL, 'Bosch Professional', 'Demolition Breaker', 'GSH 11 E Professional', 'SN-3611C36000', '230V AC (1500W)', 'Bosch Heavy Duty 3-Year Extended', 'Dusty Barrel, SDS-Max Retainer Worn', '["Chisel Case", "Auxiliary Handle"]', 'Low Impact / Weak Hammering', 'Percussion energy dropped significantly on concrete slab demolition.', 'Standard Overhaul', 120.00, '2026-11-08 10:00', '2026-11-09 17:00', 'Completed', 'Routine', 'David Miller (Bosch Master Certified)', 'Striker O-ring perished, piston barrel flushed and repacked with FT 1 V 4 grease.', 2.00, 45.00, 0.00, 10.00, 132.00, 'tok-buildcore-2026-0046-sec', '2026-11-09T17:12:00Z', 5, 'Breaker hits like factory new again. Same-day turnaround saved our slab pour schedule.', '2026-11-09T18:05:00Z', '{"rating":5,"comment":"Breaker hits like factory new again. Same-day turnaround saved our slab pour schedule.","submittedAt":"2026-11-09T18:05:00Z","channel":"SMS","customerName":"BuildCore"}');
 
 -- ------------------------------------------------------------
 -- 7. JOB CARD PARTS LINK TABLE
@@ -291,7 +300,8 @@ CREATE TABLE `message_logs` (
 
 INSERT INTO `message_logs` (`id`, `job_card_id`, `timestamp`, `type`, `recipient_phone`, `text`, `channel`, `status`) VALUES
 ('msg-101', 'BOSCH-2026-0041', '2026-11-10 09:20', 'Intake', '+1 (555) 234-5678', 'Apex Industrial: Bosch GBH 2-26 DFR checked in for service under Job Card BOSCH-2026-0041. Bosch Service Hub.', 'WhatsApp', 'Delivered'),
-('msg-102', 'BOSCH-2026-0042', '2026-11-11 10:15', 'Ready', '+1 (555) 876-5432', 'Marcus Vance: Your Bosch GWS 900 Angle Grinder (BOSCH-2026-0042) is READY FOR PICKUP. Total: $77.55.', 'WhatsApp', 'Sent');
+('msg-102', 'BOSCH-2026-0042', '2026-11-11 10:15', 'Ready', '+1 (555) 876-5432', 'Marcus Vance: Your Bosch GWS 900 Angle Grinder (BOSCH-2026-0042) is READY FOR PICKUP. Total: $77.55.', 'WhatsApp', 'Sent'),
+('msg-103', 'BOSCH-2026-0046', '2026-11-09 17:12', 'Feedback', '+1 (555) 602-8811', 'Hi BuildCore Civil Works, your Bosch Professional GSH 11 E (BOSCH-2026-0046) service is complete. Rate our work & leave feedback: https://app.local/?view=customer&token=tok-buildcore-2026-0046-sec&feedback=1', 'SMS', 'Delivered');
 
 -- ------------------------------------------------------------
 -- 11. AUDIT LOGS TABLE (Append-Only System Ledger)
@@ -312,7 +322,8 @@ CREATE TABLE `audit_logs` (
 INSERT INTO `audit_logs` (`id`, `job_card_id`, `user_name`, `user_role`, `action`, `previous_state`, `new_state`) VALUES
 ('aud-001', 'BOSCH-2026-0041', 'Master Service Admin', 'Administrator', 'JOB_CARD_CREATED', 'None', 'Status: Intake, Customer: Apex Industrial'),
 ('aud-002', 'BOSCH-2026-0041', 'David Miller', 'Senior Technician', 'STATUS_SHIFT', 'Status: Intake', 'Status: In Service'),
-('aud-003', 'BOSCH-2026-0042', 'Marcus Vance', 'Bench Technician', 'STOCK_RESERVED', 'Part: BRSH-1002 (Qty: 1)', 'Reserved in Workshop Shelf B-04');
+('aud-003', 'BOSCH-2026-0042', 'Marcus Vance', 'Bench Technician', 'STOCK_RESERVED', 'Part: BRSH-1002 (Qty: 1)', 'Reserved in Workshop Shelf B-04'),
+('aud-004', 'BOSCH-2026-0046', 'BuildCore', 'Client Feedback Survey', 'CUSTOMER_FEEDBACK_SUBMITTED', 'No Rating Recorded', '5/5 Stars - Breaker hits like factory new again.');
 
 -- Re-enable Foreign Key Checks
 SET FOREIGN_KEY_CHECKS = 1;

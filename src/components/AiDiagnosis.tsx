@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { JobCard, InventoryItem, JobPart } from '../types';
+import { resolveApiUrl } from '../utils/apiBase';
 import { 
   Sparkles, 
   Wrench, 
@@ -65,7 +66,7 @@ export const AiDiagnosis: React.FC<AiDiagnosisProps> = ({
     setApplied(false);
 
     try {
-      const response = await fetch('/api/ai/diagnose', {
+      const response = await fetch(resolveApiUrl('/api/ai/diagnose'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -3,6 +3,9 @@ import http from 'http';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { adminAuth, adminDb } from './src/lib/firebase-admin.ts';
+import { AuthRequest, requireAuth } from './src/middleware/auth.ts';
 
 dotenv.config();
 
@@ -50,14 +53,30 @@ function stripPII(text: string): string {
   return sanitized;
 }
 
+// Cross-Origin Resource Sharing middleware for mobile/tablet API clients
+app.use('/api', (req, res, next) => {
+  const origin = req.headers.origin;
+  res.header('Access-Control-Allow-Origin', origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Vary', 'Origin');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 // In-Memory API Rate Limiter Middleware (Prevents API abuse and token exhaustion)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
 const rateLimiter = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (req.path === '/sync/stream' || req.path === '/customer-portal/stream') {
+    return next();
+  }
   const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
   const now = Date.now();
   const windowMs = 60 * 1000; // 1 minute window
-  const maxRequests = 50; // Max 50 requests per minute per IP
+  const maxRequests = 300; // Workshop multi-client allowance per minute per IP
 
   const record = rateLimitMap.get(ip) || { count: 0, resetTime: now + windowMs };
 
@@ -954,6 +973,857 @@ app.post('/api/messaging/send-whatsapp', async (req, res) => {
   }
 });
 
+// ============================================================================
+// Multi-Client Live Sync & Sanitized Customer Portal API (Firestore-Backed)
+// ============================================================================
+
+const BOOTSTRAPPED_ADMIN_EMAIL = 'gurujiytube@gmail.com';
+
+interface SyncSubscriber {
+  res: express.Response;
+  uid: string;
+  email?: string;
+}
+
+const syncSubscribers = new Set<SyncSubscriber>();
+const deliverySubscribers = new Map<string, Set<express.Response>>();
+
+function sanitizeDocId(raw: string, fallback = 'doc'): string {
+  const cleaned = String(raw || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 128);
+  return cleaned || fallback;
+}
+
+function serializeFirestoreDoc(data: Record<string, any> | undefined): Record<string, any> | null {
+  if (!data) return null;
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (v instanceof Timestamp) {
+      out[k] = v.toDate().toISOString();
+    } else if (v && typeof (v as any).toDate === 'function') {
+      out[k] = (v as any).toDate().toISOString();
+    } else {
+      out[k] = v;
+    }
+  }
+  if (typeof out.createdAtIso === 'string' && out.createdAtIso) {
+    out.createdAt = out.createdAtIso;
+  }
+  if (typeof out.updatedAtIso === 'string' && out.updatedAtIso) {
+    out.updatedAt = out.updatedAtIso;
+  }
+  return out;
+}
+
+function broadcastSyncEvent(eventName: string, payload: unknown) {
+  const frame = `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
+  for (const client of syncSubscribers) {
+    try {
+      client.res.write(frame);
+    } catch {
+      syncSubscribers.delete(client);
+    }
+  }
+}
+
+function buildSanitizedPublicSummary(
+  job: Record<string, any>,
+  verifiedByTokenOrPhone: boolean
+) {
+  const digits = String(job.customerPhone || '').replace(/\D/g, '');
+  const phoneLast4 = digits.slice(-4);
+  const maskedPhone = phoneLast4 ? `•••-•••-${phoneLast4}` : 'On file';
+  const serial = String(job.tool?.serialNumber || 'N/A');
+  const toolSerialMasked =
+    serial.length > 5 && !verifiedByTokenOrPhone
+      ? `${serial.slice(0, 3)}••••${serial.slice(-3)}`
+      : serial;
+  const warrantyFlag =
+    job.tool?.warrantyFlag ||
+    job.tool?.warrantyAdjudication?.flag ||
+    (job.tool?.warrantyStatus === 'Out of Warranty' ? 'Out-of-Warranty' : 'In-Warranty');
+
+  const sanitizedFeedback =
+    job.customerFeedback && typeof job.customerFeedback.rating === 'number'
+      ? {
+          rating: Number(job.customerFeedback.rating),
+          comment: String(job.customerFeedback.comment || ''),
+          submittedAt: String(job.customerFeedback.submittedAt || ''),
+          channel: job.customerFeedback.channel === 'Portal' ? 'Portal' : 'SMS',
+        }
+      : undefined;
+
+  return {
+    id: String(job.id || ''),
+    customerFirstName: String(job.customerName || 'Client').split(' ')[0],
+    maskedPhone,
+    phoneLast4,
+    hasCompany: Boolean(job.customerCompany),
+    customerCompany: verifiedByTokenOrPhone ? job.customerCompany : undefined,
+    toolBrand: String(job.tool?.brand || 'Bosch Professional'),
+    toolCategory: String(job.tool?.category || 'Power Tool'),
+    toolModel: String(job.tool?.modelNumber || ''),
+    toolSerialMasked,
+    voltageRating: String(job.tool?.voltageRating || ''),
+    warrantyFlag,
+    warrantyStatusLabel: String(job.tool?.warrantyStatus || 'Unconfirmed'),
+    accessoriesReceived: Array.isArray(job.tool?.accessoriesReceived)
+      ? job.tool.accessoriesReceived
+      : [],
+    grievanceCategory: String(job.serviceReq?.grievanceCategory || ''),
+    intakeDate: String(job.intakeDate || ''),
+    promisedCompletion: String(job.promisedCompletion || ''),
+    status: String(job.status || 'Intake'),
+    priority: String(job.priority || 'Routine'),
+    estimatedTotal: Number(job.totalAmount || 0),
+    partsCount: Array.isArray(job.parts) ? job.parts.length : 0,
+    stageHistory: Array.isArray(job.stageHistory)
+      ? job.stageHistory
+      : [{ status: String(job.status || 'Intake'), enteredAt: String(job.intakeDate || '') }],
+    updatedAt: String(job.updatedAtIso || job.updatedAt || new Date().toISOString()),
+    verifiedByTokenOrPhone,
+    publicAccessToken: verifiedByTokenOrPhone ? String(job.publicAccessToken || '') : undefined,
+    readyForDelivery: job.status === 'Ready for Pickup' || job.status === 'Completed',
+    ...(sanitizedFeedback ? { customerFeedback: sanitizedFeedback } : {}),
+  };
+}
+
+function broadcastDeliveryUpdate(job: Record<string, any>) {
+  const summary = buildSanitizedPublicSummary(job, true);
+  const frame = `event: delivery:updated\ndata: ${JSON.stringify(summary)}\n\n`;
+  const keys = [
+    String(job.publicAccessToken || '').toLowerCase(),
+    String(job.id || '').toLowerCase(),
+  ].filter(Boolean);
+
+  for (const key of keys) {
+    const subscribers = deliverySubscribers.get(key);
+    if (!subscribers) continue;
+    for (const res of subscribers) {
+      try {
+        res.write(frame);
+      } catch {
+        subscribers.delete(res);
+      }
+    }
+  }
+}
+
+async function isRequestAdmin(req: AuthRequest): Promise<boolean> {
+  if (!req.user) return false;
+  if (
+    req.user.email_verified === true &&
+    req.user.email?.toLowerCase() === BOOTSTRAPPED_ADMIN_EMAIL.toLowerCase()
+  ) {
+    return true;
+  }
+  try {
+    const adminDoc = await adminDb.collection('admins').doc(req.user.uid).get();
+    return adminDoc.exists;
+  } catch {
+    return false;
+  }
+}
+
+function canAccessMemberDoc(data: Record<string, any> | undefined, req: AuthRequest, isAdmin: boolean): boolean {
+  if (!data || !req.user) return false;
+  if (isAdmin) return true;
+  const staffUids = Array.isArray(data.staffUids) ? data.staffUids : [];
+  return data.ownerUid === req.user.uid || staffUids.includes(req.user.uid);
+}
+
+// Live authenticated SSE stream for Android / tablet / secondary web clients
+app.get('/api/sync/stream', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const queryToken = typeof req.query.token === 'string' ? req.query.token : '';
+    const token =
+      authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.split('Bearer ')[1]
+        : queryToken;
+
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized: Missing token' });
+    }
+
+    const decoded = await adminAuth.verifyIdToken(token);
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    const subscriber: SyncSubscriber = {
+      res,
+      uid: decoded.uid,
+      email: decoded.email,
+    };
+    syncSubscribers.add(subscriber);
+
+    res.write(`event: connected\ndata: ${JSON.stringify({ ok: true, uid: decoded.uid })}\n\n`);
+
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(`: keepalive ${Date.now()}\n\n`);
+      } catch {
+        clearInterval(heartbeat);
+        syncSubscribers.delete(subscriber);
+      }
+    }, 25000);
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      syncSubscribers.delete(subscriber);
+    });
+  } catch (error: any) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid token', details: error?.message });
+  }
+});
+
+// Multi-client Job Cards API
+app.get('/api/jobs', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const admin = await isRequestAdmin(req);
+    const snap = admin
+      ? await adminDb.collection('jobCards').get()
+      : await adminDb
+          .collection('jobCards')
+          .where('staffUids', 'array-contains', req.user!.uid)
+          .get();
+
+    const jobs = snap.docs
+      .map((d) => serializeFirestoreDoc(d.data()))
+      .filter(Boolean);
+    return res.json({ jobs });
+  } catch (error: any) {
+    console.error('GET /api/jobs error:', error);
+    return res.status(500).json({ error: 'Failed to load job cards', details: error.message });
+  }
+});
+
+app.post('/api/jobs', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const job = req.body;
+    if (!job || !job.id || !job.customerName) {
+      return res.status(400).json({ error: 'Job id and customerName are required.' });
+    }
+    const jobId = sanitizeDocId(job.id);
+    const uid = req.user!.uid;
+    const token = sanitizeDocId(
+      job.publicAccessToken || `tok-${jobId.toLowerCase()}`,
+      `tok-${jobId.toLowerCase()}`
+    );
+    const staffUids = Array.from(
+      new Set([uid, ...(Array.isArray(job.staffUids) ? job.staffUids : [])])
+    ).slice(0, 20);
+    const nowIso = new Date().toISOString();
+
+    const docPayload = {
+      ...job,
+      id: jobId,
+      ownerUid: uid,
+      staffUids,
+      publicAccessToken: token,
+      createdAtIso: job.createdAt || nowIso,
+      updatedAtIso: nowIso,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    await adminDb.collection('jobCards').doc(jobId).set(docPayload);
+    await adminDb
+      .collection('publicDeliveries')
+      .doc(token)
+      .set({
+        token,
+        ownerUid: uid,
+        staffUids,
+        jobId,
+        status: String(job.status || 'Intake'),
+        toolBrand: String(job.tool?.brand || 'Bosch Professional'),
+        toolModel: String(job.tool?.modelNumber || 'Power Tool'),
+        warrantyFlag: String(
+          job.tool?.warrantyFlag || job.tool?.warrantyAdjudication?.flag || 'In-Warranty'
+        ),
+        intakeDate: String(job.intakeDate || nowIso.slice(0, 16).replace('T', ' ')),
+        promisedCompletion: String(
+          job.promisedCompletion || nowIso.slice(0, 16).replace('T', ' ')
+        ),
+        totalAmount: Number(job.totalAmount || 0),
+        readyForDelivery: job.status === 'Ready for Pickup' || job.status === 'Completed',
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+    const saved = { ...job, id: jobId, publicAccessToken: token, createdAt: nowIso, updatedAt: nowIso };
+    broadcastSyncEvent('job:updated', saved);
+    broadcastDeliveryUpdate(saved);
+    return res.status(201).json({ job: saved });
+  } catch (error: any) {
+    console.error('POST /api/jobs error:', error);
+    return res.status(500).json({ error: 'Failed to create job card', details: error.message });
+  }
+});
+
+app.put('/api/jobs/:id', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const jobId = sanitizeDocId(req.params.id);
+    const ref = adminDb.collection('jobCards').doc(jobId);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      return res.status(404).json({ error: 'Job card not found.' });
+    }
+    const existing = snap.data()!;
+    const admin = await isRequestAdmin(req);
+    if (!canAccessMemberDoc(existing, req, admin)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    if ((existing.status === 'Completed' || existing.status === 'Cancelled') && !admin) {
+      return res.status(403).json({ error: 'Completed or cancelled job cards require admin privileges to edit.' });
+    }
+
+    const nowIso = new Date().toISOString();
+    const updates = { ...req.body };
+    delete updates.id;
+    delete updates.ownerUid;
+    delete updates.createdAt;
+    delete updates.createdAtIso;
+
+    await ref.update({
+      ...updates,
+      updatedAtIso: nowIso,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    const merged = {
+      ...serializeFirestoreDoc(existing),
+      ...updates,
+      id: jobId,
+      updatedAt: nowIso,
+    };
+
+    const token = sanitizeDocId(
+      merged.publicAccessToken || `tok-${jobId.toLowerCase()}`,
+      `tok-${jobId.toLowerCase()}`
+    );
+    await adminDb
+      .collection('publicDeliveries')
+      .doc(token)
+      .set(
+        {
+          token,
+          ownerUid: String(existing.ownerUid || req.user!.uid),
+          staffUids: Array.isArray(existing.staffUids) ? existing.staffUids : [req.user!.uid],
+          jobId,
+          status: String(merged.status || 'Intake'),
+          toolBrand: String(merged.tool?.brand || 'Bosch Professional'),
+          toolModel: String(merged.tool?.modelNumber || 'Power Tool'),
+          warrantyFlag: String(
+            merged.tool?.warrantyFlag || merged.tool?.warrantyAdjudication?.flag || 'In-Warranty'
+          ),
+          intakeDate: String(merged.intakeDate || nowIso.slice(0, 16).replace('T', ' ')),
+          promisedCompletion: String(
+            merged.promisedCompletion || nowIso.slice(0, 16).replace('T', ' ')
+          ),
+          totalAmount: Number(merged.totalAmount || 0),
+          readyForDelivery: merged.status === 'Ready for Pickup' || merged.status === 'Completed',
+          createdAt: existing.createdAt || FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+    broadcastSyncEvent('job:updated', merged);
+    broadcastDeliveryUpdate(merged);
+    return res.json({ job: merged });
+  } catch (error: any) {
+    console.error('PUT /api/jobs/:id error:', error);
+    return res.status(500).json({ error: 'Failed to update job card', details: error.message });
+  }
+});
+
+// Multi-client Inventory API
+app.get('/api/inventory', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const admin = await isRequestAdmin(req);
+    const snap = admin
+      ? await adminDb.collection('inventory').get()
+      : await adminDb
+          .collection('inventory')
+          .where('staffUids', 'array-contains', req.user!.uid)
+          .get();
+
+    const items = snap.docs.map((d) => serializeFirestoreDoc(d.data())).filter(Boolean);
+    return res.json({ items });
+  } catch (error: any) {
+    console.error('GET /api/inventory error:', error);
+    return res.status(500).json({ error: 'Failed to fetch inventory', details: error.message });
+  }
+});
+
+app.post('/api/inventory', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const item = req.body;
+    if (!item || !item.id || !item.sku) {
+      return res.status(400).json({ error: 'Inventory id and sku are required.' });
+    }
+    const itemId = sanitizeDocId(item.id);
+    const uid = req.user!.uid;
+    const ref = adminDb.collection('inventory').doc(itemId);
+    const existing = await ref.get();
+    const staffUids = Array.from(
+      new Set([
+        uid,
+        ...(Array.isArray(existing.data()?.staffUids) ? existing.data()!.staffUids : []),
+      ])
+    ).slice(0, 20);
+
+    await ref.set({
+      ...item,
+      id: itemId,
+      ownerUid: existing.exists ? existing.data()!.ownerUid : uid,
+      staffUids,
+      createdAt: existing.exists ? existing.data()!.createdAt : FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    broadcastSyncEvent('inventory:updated', { ...item, id: itemId });
+    return res.status(201).json({ item: { ...item, id: itemId } });
+  } catch (error: any) {
+    console.error('POST /api/inventory error:', error);
+    return res.status(500).json({ error: 'Failed to save inventory item', details: error.message });
+  }
+});
+
+app.patch('/api/inventory/:id/stock', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const itemId = sanitizeDocId(req.params.id);
+    const ref = adminDb.collection('inventory').doc(itemId);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      return res.status(404).json({ error: 'Inventory item not found.' });
+    }
+    const existing = snap.data()!;
+    const admin = await isRequestAdmin(req);
+    if (!canAccessMemberDoc(existing, req, admin)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { stockQty, delta } = req.body || {};
+    const currentQty = Number(existing.stockQty || 0);
+    const nextQty =
+      typeof stockQty === 'number'
+        ? Math.max(0, stockQty)
+        : Math.max(0, currentQty + Number(delta || 0));
+    const today = new Date().toISOString().split('T')[0];
+
+    await ref.update({
+      stockQty: nextQty,
+      lastRestocked: Number(delta || 0) > 0 ? today : existing.lastRestocked || today,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    const updatedItem = { ...serializeFirestoreDoc(existing), id: itemId, stockQty: nextQty };
+    broadcastSyncEvent('inventory:updated', updatedItem);
+    return res.json({ item: updatedItem });
+  } catch (error: any) {
+    console.error('PATCH /api/inventory/:id/stock error:', error);
+    return res.status(500).json({ error: 'Failed to update stock', details: error.message });
+  }
+});
+
+// Multi-client Recurring Maintenance Schedules API
+app.get('/api/schedules', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const admin = await isRequestAdmin(req);
+    const snap = admin
+      ? await adminDb.collection('schedules').get()
+      : await adminDb
+          .collection('schedules')
+          .where('staffUids', 'array-contains', req.user!.uid)
+          .get();
+
+    const schedules = snap.docs.map((d) => serializeFirestoreDoc(d.data())).filter(Boolean);
+    return res.json({ schedules });
+  } catch (error: any) {
+    console.error('GET /api/schedules error:', error);
+    return res.status(500).json({ error: 'Failed to fetch schedules', details: error.message });
+  }
+});
+
+app.post('/api/schedules', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const schedule = req.body;
+    if (!schedule || !schedule.id || !schedule.customerName) {
+      return res.status(400).json({ error: 'Schedule id and customerName are required.' });
+    }
+    const schedId = sanitizeDocId(schedule.id);
+    const uid = req.user!.uid;
+    const nowIso = new Date().toISOString();
+    const ref = adminDb.collection('schedules').doc(schedId);
+    const existing = await ref.get();
+    const admin = await isRequestAdmin(req);
+
+    if (existing.exists && existing.data()?.status === 'Serviced' && !admin) {
+      return res.status(403).json({ error: 'Serviced schedules require admin privileges to modify.' });
+    }
+
+    const staffUids = Array.from(
+      new Set([
+        uid,
+        ...(Array.isArray(existing.data()?.staffUids) ? existing.data()!.staffUids : []),
+      ])
+    ).slice(0, 20);
+
+    await ref.set({
+      ...schedule,
+      id: schedId,
+      ownerUid: existing.exists ? existing.data()!.ownerUid : uid,
+      staffUids,
+      createdAtIso: schedule.createdAt || existing.data()?.createdAtIso || nowIso,
+      updatedAtIso: nowIso,
+      createdAt: existing.exists ? existing.data()!.createdAt : FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    const saved = { ...schedule, id: schedId, updatedAt: nowIso };
+    broadcastSyncEvent('schedule:updated', saved);
+    return res.status(201).json({ schedule: saved });
+  } catch (error: any) {
+    console.error('POST /api/schedules error:', error);
+    return res.status(500).json({ error: 'Failed to save schedule', details: error.message });
+  }
+});
+
+// Sanitized Public Customer Portal Lookup (Zero PII Leakage)
+app.get('/api/customer-portal/lookup', async (req, res) => {
+  try {
+    const rawQuery = typeof req.query.query === 'string' ? req.query.query.trim() : '';
+    const phoneLast4 = typeof req.query.phoneLast4 === 'string' ? req.query.phoneLast4.replace(/\D/g, '').slice(-4) : '';
+
+    if (!rawQuery) {
+      return res.status(400).json({ error: 'Query (Job ID or access token) is required.' });
+    }
+
+    const cleanId = sanitizeDocId(rawQuery);
+    // 1. Check direct publicDelivery token
+    const tokenSnap = await adminDb.collection('publicDeliveries').doc(cleanId).get();
+    if (tokenSnap.exists) {
+      const pub = tokenSnap.data()!;
+      const jobSnap = pub.jobId ? await adminDb.collection('jobCards').doc(String(pub.jobId)).get() : null;
+      if (jobSnap?.exists) {
+        return res.json({ summary: buildSanitizedPublicSummary(jobSnap.data()!, true) });
+      }
+      return res.json({
+        summary: {
+          id: String(pub.jobId || cleanId),
+          customerFirstName: 'Client',
+          maskedPhone: 'On file',
+          phoneLast4: '',
+          hasCompany: false,
+          toolBrand: String(pub.toolBrand || 'Bosch Professional'),
+          toolCategory: 'Power Tool',
+          toolModel: String(pub.toolModel || ''),
+          toolSerialMasked: 'Verified Token',
+          voltageRating: '',
+          warrantyFlag: pub.warrantyFlag === 'Out-of-Warranty' ? 'Out-of-Warranty' : 'In-Warranty',
+          warrantyStatusLabel: String(pub.warrantyFlag || 'Verified'),
+          accessoriesReceived: [],
+          grievanceCategory: 'Service Ticket',
+          intakeDate: String(pub.intakeDate || ''),
+          promisedCompletion: String(pub.promisedCompletion || ''),
+          status: String(pub.status || 'Intake'),
+          priority: 'Routine',
+          estimatedTotal: Number(pub.totalAmount || 0),
+          partsCount: 0,
+          stageHistory: [{ status: String(pub.status || 'Intake'), enteredAt: String(pub.intakeDate || '') }],
+          updatedAt: pub.updatedAt instanceof Timestamp ? pub.updatedAt.toDate().toISOString() : new Date().toISOString(),
+          verifiedByTokenOrPhone: true,
+          publicAccessToken: cleanId,
+          readyForDelivery: Boolean(pub.readyForDelivery),
+          ...(pub.feedbackSubmitted && typeof pub.feedbackRating === 'number'
+            ? {
+                customerFeedback: {
+                  rating: Number(pub.feedbackRating),
+                  comment: String(pub.feedbackComment || ''),
+                  submittedAt: String(pub.feedbackSubmittedAt || ''),
+                  channel: 'SMS',
+                },
+              }
+            : {}),
+        },
+      });
+    }
+
+    // 2. Check jobCards by publicAccessToken
+    const tokenQuery = await adminDb
+      .collection('jobCards')
+      .where('publicAccessToken', '==', rawQuery)
+      .limit(1)
+      .get();
+    if (!tokenQuery.empty) {
+      return res.json({
+        summary: buildSanitizedPublicSummary(tokenQuery.docs[0].data(), true),
+      });
+    }
+
+    // 3. Check jobCards by Job ID (exact case or uppercase match)
+    let jobSnap = await adminDb.collection('jobCards').doc(cleanId).get();
+    if (!jobSnap.exists && cleanId.toUpperCase() !== cleanId) {
+      jobSnap = await adminDb.collection('jobCards').doc(cleanId.toUpperCase()).get();
+    }
+    if (!jobSnap.exists) {
+      return res.status(404).json({ error: 'No matching service ticket found.' });
+    }
+
+    const jobData = jobSnap.data()!;
+    const jobPhoneLast4 = String(jobData.customerPhone || '').replace(/\D/g, '').slice(-4);
+    if (phoneLast4) {
+      if (phoneLast4 !== jobPhoneLast4) {
+        return res.status(404).json({ error: 'Verification digits do not match ticket.' });
+      }
+      return res.json({ summary: buildSanitizedPublicSummary(jobData, true) });
+    }
+
+    return res.json({ summary: buildSanitizedPublicSummary(jobData, false) });
+  } catch (error: any) {
+    console.error('Customer portal lookup error:', error);
+    return res.status(503).json({
+      error: 'Customer portal remote lookup unavailable.',
+      details: error?.message,
+    });
+  }
+});
+
+// Public Customer Feedback Submission (persists rating & comment onto jobCards & publicDeliveries)
+app.post('/api/customer-portal/feedback', async (req, res) => {
+  try {
+    const rawQuery = typeof req.body?.query === 'string' ? req.body.query.trim() : '';
+    const rawRating = Number(req.body?.rating);
+    const rawComment = typeof req.body?.comment === 'string' ? req.body.comment.trim() : '';
+    const phoneLast4 = typeof req.body?.phoneLast4 === 'string'
+      ? req.body.phoneLast4.replace(/\D/g, '').slice(-4)
+      : '';
+    const channel = req.body?.channel === 'Portal' ? 'Portal' : 'SMS';
+
+    if (!rawQuery) {
+      return res.status(400).json({ error: 'Job ID or public access token is required.' });
+    }
+    if (!Number.isInteger(rawRating) || rawRating < 1 || rawRating > 5) {
+      return res.status(400).json({ error: 'Rating must be a whole number from 1 to 5.' });
+    }
+    if (rawComment.length > 1000) {
+      return res.status(400).json({ error: 'Feedback comment must be 1000 characters or fewer.' });
+    }
+
+    const cleanId = sanitizeDocId(rawQuery);
+    let targetJobSnap: FirebaseFirestore.DocumentSnapshot | null = null;
+    let verifiedByToken = false;
+
+    const tokenDocSnap = await adminDb.collection('publicDeliveries').doc(cleanId).get();
+    if (tokenDocSnap.exists) {
+      const pub = tokenDocSnap.data()!;
+      if (pub.jobId) {
+        const linkedJob = await adminDb.collection('jobCards').doc(String(pub.jobId)).get();
+        if (linkedJob.exists) {
+          targetJobSnap = linkedJob;
+          verifiedByToken = true;
+        }
+      }
+    }
+
+    if (!targetJobSnap) {
+      const byAccessToken = await adminDb
+        .collection('jobCards')
+        .where('publicAccessToken', '==', rawQuery)
+        .limit(1)
+        .get();
+      if (!byAccessToken.empty) {
+        targetJobSnap = byAccessToken.docs[0];
+        verifiedByToken = true;
+      }
+    }
+
+    if (!targetJobSnap) {
+      let byId = await adminDb.collection('jobCards').doc(cleanId).get();
+      if (!byId.exists && cleanId.toUpperCase() !== cleanId) {
+        byId = await adminDb.collection('jobCards').doc(cleanId.toUpperCase()).get();
+      }
+      if (byId.exists) {
+        targetJobSnap = byId;
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+
+    if (!targetJobSnap || !targetJobSnap.exists) {
+      // Allow client local/offline store to persist when job exists only in local session cache
+      if (tokenDocSnap.exists) {
+        const pub = tokenDocSnap.data()!;
+        await adminDb.collection('publicDeliveries').doc(cleanId).set(
+          {
+            feedbackSubmitted: true,
+            feedbackRating: rawRating,
+            feedbackComment: rawComment,
+            feedbackSubmittedAt: nowIso,
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+        return res.json({
+          success: true,
+          persistedToCloud: true,
+          feedback: {
+            rating: rawRating,
+            comment: rawComment,
+            submittedAt: nowIso,
+            channel,
+          },
+        });
+      }
+
+      return res.status(404).json({
+        success: false,
+        persistedToCloud: false,
+        localFallbackAllowed: true,
+        error: 'Job record not found in cloud database.',
+      });
+    }
+
+    const existingJob = targetJobSnap.data()!;
+    const jobPhoneLast4 = String(existingJob.customerPhone || '').replace(/\D/g, '').slice(-4);
+    if (!verifiedByToken && phoneLast4 && jobPhoneLast4 && phoneLast4 !== jobPhoneLast4) {
+      return res.status(403).json({
+        success: false,
+        error: 'Phone last 4 digits do not match the service ticket.',
+      });
+    }
+
+    const feedbackPayload: Record<string, unknown> = {
+      rating: rawRating,
+      comment: rawComment,
+      submittedAt: nowIso,
+      channel,
+      customerName: String(existingJob.customerName || 'Client').split(' ')[0].slice(0, 160),
+    };
+    if (existingJob.feedbackSmsSentAt) {
+      feedbackPayload.smsSentAt = String(existingJob.feedbackSmsSentAt).slice(0, 40);
+      feedbackPayload.smsStatus = 'Sent';
+    }
+
+    const existingAuditLogs = Array.isArray(existingJob.auditLogs) ? existingJob.auditLogs : [];
+    const nextAuditLogs = [
+      ...existingAuditLogs,
+      {
+        id: `aud-fb-${Date.now()}`,
+        timestamp: nowIso.slice(0, 16).replace('T', ' '),
+        userName: String(existingJob.customerName || 'Client').split(' ')[0],
+        userRole: 'Client',
+        action: 'CUSTOMER_FEEDBACK_SUBMITTED',
+        newState: `Rating: ${rawRating}/5 stars${rawComment ? ` — "${rawComment.slice(0, 80)}"` : ''}`,
+      },
+    ].slice(-50);
+
+    await targetJobSnap.ref.update({
+      customerFeedback: feedbackPayload,
+      auditLogs: nextAuditLogs,
+      updatedAtIso: nowIso,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    const token = sanitizeDocId(
+      String(existingJob.publicAccessToken || `tok-${sanitizeDocId(existingJob.id || targetJobSnap.id).toLowerCase()}`),
+      `tok-${sanitizeDocId(targetJobSnap.id).toLowerCase()}`
+    );
+    await adminDb
+      .collection('publicDeliveries')
+      .doc(token)
+      .set(
+        {
+          feedbackSubmitted: true,
+          feedbackRating: rawRating,
+          feedbackComment: rawComment,
+          feedbackSubmittedAt: nowIso,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+    const merged = {
+      ...serializeFirestoreDoc(existingJob),
+      id: targetJobSnap.id,
+      customerFeedback: feedbackPayload,
+      auditLogs: nextAuditLogs,
+      updatedAt: nowIso,
+    };
+
+    broadcastSyncEvent('job:updated', merged);
+    broadcastDeliveryUpdate(merged);
+
+    return res.json({
+      success: true,
+      persistedToCloud: true,
+      feedback: feedbackPayload,
+      summary: buildSanitizedPublicSummary(merged, true),
+    });
+  } catch (error: any) {
+    console.error('Customer feedback submission error:', error);
+    return res.status(503).json({
+      success: false,
+      persistedToCloud: false,
+      localFallbackAllowed: true,
+      error: 'Cloud feedback persistence unavailable.',
+      details: error?.message,
+    });
+  }
+});
+
+// Live Sanitized Customer Delivery SSE Stream
+app.get('/api/customer-portal/stream', (req, res) => {
+  const tokenKey = typeof req.query.token === 'string' ? req.query.token.trim().toLowerCase() : '';
+  const jobKey = typeof req.query.jobId === 'string' ? req.query.jobId.trim().toLowerCase() : '';
+  const keys = [tokenKey, jobKey].filter(Boolean);
+
+  if (keys.length === 0) {
+    return res.status(400).json({ error: 'token or jobId query param required.' });
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders?.();
+
+  for (const key of keys) {
+    if (!deliverySubscribers.has(key)) {
+      deliverySubscribers.set(key, new Set());
+    }
+    deliverySubscribers.get(key)!.add(res);
+  }
+
+  res.write(`event: connected\ndata: ${JSON.stringify({ ok: true })}\n\n`);
+
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(`: keepalive ${Date.now()}\n\n`);
+    } catch {
+      clearInterval(heartbeat);
+    }
+  }, 25000);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    for (const key of keys) {
+      const set = deliverySubscribers.get(key);
+      if (set) {
+        set.delete(res);
+        if (set.size === 0) deliverySubscribers.delete(key);
+      }
+    }
+  });
+});
 
 async function startServer() {
   const httpServer = http.createServer(app);

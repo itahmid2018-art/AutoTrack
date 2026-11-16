@@ -92,11 +92,21 @@ export interface JobPart {
 export interface MessageLog {
   id: string;
   timestamp: string;
-  type: 'Intake' | 'Estimate' | 'In Progress' | 'Ready' | 'Invoice' | 'Recurring Reminder' | 'Custom';
+  type: 'Intake' | 'Estimate' | 'In Progress' | 'Ready' | 'Invoice' | 'Feedback' | 'Recurring Reminder' | 'Custom';
   recipientPhone: string;
   text: string;
   channel: 'WhatsApp' | 'SMS';
   status: 'Sent' | 'Delivered' | 'Pending';
+}
+
+export interface CustomerFeedback {
+  rating: number; // 1 to 5 stars
+  comment: string;
+  submittedAt: string; // ISO string timestamp
+  channel?: 'SMS' | 'Portal';
+  customerName?: string;
+  smsSentAt?: string;
+  smsStatus?: string;
 }
 
 export interface TimeLog {
@@ -221,6 +231,8 @@ export interface JobCard {
   photos?: PhotoEvidence[];
   subletRecords?: SubletRecord[];
   publicAccessToken?: string;
+  customerFeedback?: CustomerFeedback;
+  feedbackSmsSentAt?: string;
 
   stageEnteredAt?: string;
   stageHistory?: { status: JobStatus; enteredAt: string }[];
@@ -295,6 +307,7 @@ export interface BusinessSettings {
   WhatsAppTemplateEstimate: string;
   deductStockOn: 'Approval' | 'InService' | 'Completion';
   requireSignature: boolean;
+  autoSendFeedbackSms?: boolean;
   autoDailyBackupEnabled?: boolean;
   autoDailyBackupDestination?: 'localStorage' | 'downloadJson' | 'both';
   lastAutoBackupDate?: string;

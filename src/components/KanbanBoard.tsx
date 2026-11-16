@@ -19,7 +19,8 @@ import {
   ShieldCheck,
   ShieldAlert,
   Settings2,
-  Hourglass
+  Hourglass,
+  Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -620,14 +621,25 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             </div>
                           ) : null}
 
-                          {/* Top ID & Priority */}
+                          {/* Top ID, Feedback Rating & Priority */}
                           <div className="flex items-center justify-between gap-1.5 mb-2">
                             <span className="font-mono text-[11px] font-bold text-white bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">
                               {job.id}
                             </span>
-                            <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded ${getPriorityBadgeClass(job.priority)}`}>
-                              {job.priority}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              {job.customerFeedback && (
+                                <span
+                                  title={job.customerFeedback.comment || 'Client Feedback Rating'}
+                                  className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border bg-amber-950/70 text-amber-300 border-amber-700/70 inline-flex items-center gap-0.5 tabular-nums"
+                                >
+                                  <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                                  <span>{job.customerFeedback.rating}/5</span>
+                                </span>
+                              )}
+                              <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded ${getPriorityBadgeClass(job.priority)}`}>
+                                {job.priority}
+                              </span>
+                            </div>
                           </div>
 
                           {/* Tool Brand & Model */}

@@ -47,9 +47,11 @@ CREATE TABLE IF NOT EXISTS \`business_settings\` (
   \`job_card_prefix\` VARCHAR(20) NOT NULL DEFAULT 'BOSCH-2026-',
   \`deduct_stock_on\` ENUM('Approval', 'InService', 'Completion') NOT NULL DEFAULT 'InService',
   \`require_signature\` TINYINT(1) NOT NULL DEFAULT 1,
+  \`auto_send_feedback_sms\` TINYINT(1) NOT NULL DEFAULT 1,
   \`auto_daily_backup_enabled\` TINYINT(1) NOT NULL DEFAULT 1,
   \`auto_daily_backup_destination\` VARCHAR(50) NOT NULL DEFAULT 'localStorage',
   \`last_auto_backup_date\` DATE NULL,
+  \`analytics_metrics\` JSON NULL,
   \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -110,6 +112,12 @@ CREATE TABLE IF NOT EXISTS \`job_cards\` (
   \`tax_rate\` DECIMAL(5,2) NOT NULL DEFAULT 10.00,
   \`total_amount\` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
 
+  \`public_access_token\` VARCHAR(128) NULL UNIQUE,
+  \`feedback_sms_sent_at\` VARCHAR(40) NULL,
+  \`customer_feedback_rating\` TINYINT NULL,
+  \`customer_feedback_comment\` TEXT NULL,
+  \`customer_feedback_submitted_at\` VARCHAR(40) NULL,
+  \`customer_feedback_json\` JSON NULL,
   \`customer_signature\` LONGTEXT NULL,
   \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -225,7 +233,7 @@ export function generateMySqlDump(
 
   // Insert Business Settings
   dump += `-- BUSINESS SETTINGS SEED DATA\n`;
-  dump += `INSERT INTO \`business_settings\` (\`center_name\`, \`address\`, \`phone\`, \`email\`, \`tax_rate\`, \`labor_rate\`, \`job_card_prefix\`, \`deduct_stock_on\`, \`require_signature\`, \`auto_daily_backup_enabled\`, \`auto_daily_backup_destination\`) VALUES (\n  ${escapeSql(settings.centerName)},\n  ${escapeSql(settings.address)},\n  ${escapeSql(settings.phone)},\n  ${escapeSql(settings.email)},\n  ${settings.taxRate},\n  ${settings.laborRate},\n  ${escapeSql(settings.jobCardPrefix)},\n  ${escapeSql(settings.deductStockOn)},\n  ${settings.requireSignature ? 1 : 0},\n  ${settings.autoDailyBackupEnabled ? 1 : 0},\n  ${escapeSql(settings.autoDailyBackupDestination || 'localStorage')}\n);\n\n`;
+  dump += `INSERT INTO \`business_settings\` (\`center_name\`, \`address\`, \`phone\`, \`email\`, \`tax_rate\`, \`labor_rate\`, \`job_card_prefix\`, \`deduct_stock_on\`, \`require_signature\`, \`auto_send_feedback_sms\`, \`auto_daily_backup_enabled\`, \`auto_daily_backup_destination\`, \`analytics_metrics\`) VALUES (\n  ${escapeSql(settings.centerName)},\n  ${escapeSql(settings.address)},\n  ${escapeSql(settings.phone)},\n  ${escapeSql(settings.email)},\n  ${settings.taxRate},\n  ${settings.laborRate},\n  ${escapeSql(settings.jobCardPrefix)},\n  ${escapeSql(settings.deductStockOn)},\n  ${settings.requireSignature ? 1 : 0},\n  ${settings.autoSendFeedbackSms === false ? 0 : 1},\n  ${settings.autoDailyBackupEnabled ? 1 : 0},\n  ${escapeSql(settings.autoDailyBackupDestination || 'localStorage')},\n  ${escapeSql(settings.analyticsMetrics ? JSON.stringify(settings.analyticsMetrics) : null)}\n);\n\n`;
 
   // Insert Inventory Items
   dump += `-- INVENTORY ITEMS (${inventory.length} SKUs)\n`;
@@ -237,7 +245,10 @@ export function generateMySqlDump(
   dump += `\n-- JOB CARDS & PARTS (${jobCards.length} Cards)\n`;
   jobCards.forEach((j) => {
     const accJson = JSON.stringify(j.tool.accessoriesReceived || []);
-    dump += `INSERT INTO \`job_cards\` (\`id\`, \`customer_name\`, \`customer_company\`, \`customer_phone\`, \`customer_email\`, \`gst_or_tax_id\`, \`tool_brand\`, \`tool_category\`, \`tool_model_number\`, \`tool_serial_number\`, \`tool_voltage_rating\`, \`tool_warranty_status\`, \`tool_physical_condition\`, \`tool_accessories_json\`, \`grievance_category\`, \`detailed_complaint\`, \`service_type\`, \`pre_approved_limit\`, \`intake_date\`, \`promised_completion\`, \`status\`, \`priority\`, \`technician\`, \`diagnostic_notes\`, \`labor_hours\`, \`labor_rate\`, \`discount\`, \`tax_rate\`, \`total_amount\`) VALUES (${escapeSql(j.id)}, ${escapeSql(j.customerName)}, ${escapeSql(j.customerCompany)}, ${escapeSql(j.customerPhone)}, ${escapeSql(j.customerEmail)}, ${escapeSql(j.gstOrTaxId)}, ${escapeSql(j.tool.brand)}, ${escapeSql(j.tool.category)}, ${escapeSql(j.tool.modelNumber)}, ${escapeSql(j.tool.serialNumber)}, ${escapeSql(j.tool.voltageRating)}, ${escapeSql(j.tool.warrantyStatus)}, ${escapeSql(j.tool.physicalCondition)}, ${escapeSql(accJson)}, ${escapeSql(j.serviceReq.grievanceCategory)}, ${escapeSql(j.serviceReq.detailedComplaint)}, ${escapeSql(j.serviceReq.serviceType)}, ${j.serviceReq.preApprovedLimit}, ${escapeSql(j.intakeDate)}, ${escapeSql(j.promisedCompletion)}, ${escapeSql(j.status)}, ${escapeSql(j.priority)}, ${escapeSql(j.technician)}, ${escapeSql(j.diagnosticNotes)}, ${j.laborHours}, ${j.laborRate}, ${j.discount}, ${j.taxRate}, ${j.totalAmount});\n`;
+    const fb = j.customerFeedback;
+    const fbJson = fb ? JSON.stringify(fb) : null;
+    const fbRating = fb && typeof fb.rating === 'number' ? fb.rating : 'NULL';
+    dump += `INSERT INTO \`job_cards\` (\`id\`, \`customer_name\`, \`customer_company\`, \`customer_phone\`, \`customer_email\`, \`gst_or_tax_id\`, \`tool_brand\`, \`tool_category\`, \`tool_model_number\`, \`tool_serial_number\`, \`tool_voltage_rating\`, \`tool_warranty_status\`, \`tool_physical_condition\`, \`tool_accessories_json\`, \`grievance_category\`, \`detailed_complaint\`, \`service_type\`, \`pre_approved_limit\`, \`intake_date\`, \`promised_completion\`, \`status\`, \`priority\`, \`technician\`, \`diagnostic_notes\`, \`labor_hours\`, \`labor_rate\`, \`discount\`, \`tax_rate\`, \`total_amount\`, \`public_access_token\`, \`feedback_sms_sent_at\`, \`customer_feedback_rating\`, \`customer_feedback_comment\`, \`customer_feedback_submitted_at\`, \`customer_feedback_json\`) VALUES (${escapeSql(j.id)}, ${escapeSql(j.customerName)}, ${escapeSql(j.customerCompany)}, ${escapeSql(j.customerPhone)}, ${escapeSql(j.customerEmail)}, ${escapeSql(j.gstOrTaxId)}, ${escapeSql(j.tool.brand)}, ${escapeSql(j.tool.category)}, ${escapeSql(j.tool.modelNumber)}, ${escapeSql(j.tool.serialNumber)}, ${escapeSql(j.tool.voltageRating)}, ${escapeSql(j.tool.warrantyStatus)}, ${escapeSql(j.tool.physicalCondition)}, ${escapeSql(accJson)}, ${escapeSql(j.serviceReq.grievanceCategory)}, ${escapeSql(j.serviceReq.detailedComplaint)}, ${escapeSql(j.serviceReq.serviceType)}, ${j.serviceReq.preApprovedLimit}, ${escapeSql(j.intakeDate)}, ${escapeSql(j.promisedCompletion)}, ${escapeSql(j.status)}, ${escapeSql(j.priority)}, ${escapeSql(j.technician)}, ${escapeSql(j.diagnosticNotes)}, ${j.laborHours}, ${j.laborRate}, ${j.discount}, ${j.taxRate}, ${j.totalAmount}, ${escapeSql(j.publicAccessToken)}, ${escapeSql(j.feedbackSmsSentAt)}, ${fbRating}, ${escapeSql(fb?.comment)}, ${escapeSql(fb?.submittedAt)}, ${escapeSql(fbJson)});\n`;
 
     j.parts.forEach((p) => {
       dump += `INSERT INTO \`job_card_parts\` (\`job_card_id\`, \`part_id\`, \`sku\`, \`name\`, \`unit_price\`, \`quantity\`, \`total\`) VALUES (${escapeSql(j.id)}, ${escapeSql(p.partId)}, ${escapeSql(p.sku)}, ${escapeSql(p.name)}, ${p.unitPrice}, ${p.quantity}, ${p.total});\n`;

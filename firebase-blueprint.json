@@ -1,0 +1,329 @@
+{
+  "entities": {
+    "UserPublic": {
+      "title": "UserPublic",
+      "description": "Non-sensitive operator metadata for workshop staff sync.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "role": { "type": "string", "enum": ["Admin", "Technician", "Counter"] },
+        "workshopId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "role", "workshopId", "createdAt", "updatedAt"]
+    },
+    "UserPrivateProfile": {
+      "title": "UserPrivateProfile",
+      "description": "Isolated private PII profile containing user email.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "minLength": 3, "maxLength": 254 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt", "updatedAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Trusted workshop admin membership record.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "minLength": 3, "maxLength": 254 },
+        "grantedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "grantedAt"]
+    },
+    "JobCardRecord": {
+      "title": "JobCardRecord",
+      "description": "Power tool service intake card and delivery workflow record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "staffUids": { "type": "array", "description": "Authorized team UIDs (max 20)." },
+        "customerName": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "customerCompany": { "type": "string", "maxLength": 160 },
+        "customerPhone": { "type": "string", "minLength": 3, "maxLength": 40 },
+        "customerEmail": { "type": "string", "maxLength": 254 },
+        "gstOrTaxId": { "type": "string", "maxLength": 64 },
+        "tool": { "type": "object", "description": "Tool specifications map." },
+        "serviceReq": { "type": "object", "description": "Grievance and service request map." },
+        "intakeDate": { "type": "string", "minLength": 4, "maxLength": 40 },
+        "promisedCompletion": { "type": "string", "minLength": 4, "maxLength": 40 },
+        "status": {
+          "type": "string",
+          "enum": ["Intake", "Diagnosis", "Awaiting Approval", "Awaiting Parts", "In Repair", "In Service", "Ready for Pickup", "Completed", "Cancelled"]
+        },
+        "priority": { "type": "string", "enum": ["Routine", "Urgent", "Emergency"] },
+        "technician": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "diagnosticNotes": { "type": "string", "maxLength": 8000 },
+        "recommendedActions": { "type": "array", "description": "Up to 20 recommended repair actions." },
+        "laborHours": { "type": "number" },
+        "laborRate": { "type": "number" },
+        "discount": { "type": "number" },
+        "taxRate": { "type": "number" },
+        "parts": { "type": "array", "description": "Up to 50 linked spare parts." },
+        "operationalExpenses": { "type": "array", "description": "Up to 30 operational expenses." },
+        "totalAmount": { "type": "number" },
+        "customerSignature": { "type": "string", "maxLength": 120000 },
+        "technicianSignature": { "type": "string", "maxLength": 120000 },
+        "technicianSignOffBy": { "type": "string", "maxLength": 120 },
+        "technicianSignOffAt": { "type": "string", "maxLength": 40 },
+        "technicianSignOffNotes": { "type": "string", "maxLength": 2000 },
+        "attachments": { "type": "array", "description": "Up to 6 bounded evidence items." },
+        "messageLogs": { "type": "array", "description": "Up to 50 message log entries." },
+        "timeLogs": { "type": "array", "description": "Up to 50 technician clock logs." },
+        "auditLogs": { "type": "array", "description": "Up to 50 audit entries." },
+        "photos": { "type": "array", "description": "Up to 6 photo metadata records." },
+        "subletRecords": { "type": "array", "description": "Up to 20 vendor sublet records." },
+        "publicAccessToken": { "type": "string", "minLength": 6, "maxLength": 128 },
+        "customerFeedback": { "type": "object", "description": "Client service rating (1-5) and comment submitted after completion." },
+        "feedbackSmsSentAt": { "type": "string", "maxLength": 40 },
+        "stageEnteredAt": { "type": "string", "maxLength": 40 },
+        "stageHistory": { "type": "array", "description": "Up to 20 stage transition timestamps." },
+        "createdAtIso": { "type": "string", "maxLength": 40 },
+        "updatedAtIso": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "ownerUid",
+        "staffUids",
+        "customerName",
+        "customerPhone",
+        "tool",
+        "serviceReq",
+        "intakeDate",
+        "promisedCompletion",
+        "status",
+        "priority",
+        "technician",
+        "laborHours",
+        "laborRate",
+        "discount",
+        "taxRate",
+        "parts",
+        "totalAmount",
+        "messageLogs",
+        "publicAccessToken",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "InventoryItemRecord": {
+      "title": "InventoryItemRecord",
+      "description": "Synchronized workshop spare part SKU and stock level.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "staffUids": { "type": "array" },
+        "sku": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "barcode": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "category": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "brand": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "compatibleModels": { "type": "string", "maxLength": 500 },
+        "unitPrice": { "type": "number" },
+        "costPrice": { "type": "number" },
+        "stockQty": { "type": "number" },
+        "minStockThreshold": { "type": "number" },
+        "unit": { "type": "string", "enum": ["pcs", "sets", "bottles", "boxes", "pairs", "meters"] },
+        "binLocation": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "lastRestocked": { "type": "string", "minLength": 4, "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "ownerUid",
+        "staffUids",
+        "sku",
+        "barcode",
+        "name",
+        "category",
+        "brand",
+        "compatibleModels",
+        "unitPrice",
+        "costPrice",
+        "stockQty",
+        "minStockThreshold",
+        "unit",
+        "binLocation",
+        "lastRestocked",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "RecurringMaintenanceRecord": {
+      "title": "RecurringMaintenanceRecord",
+      "description": "Recurring preventive tool maintenance schedule.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "staffUids": { "type": "array" },
+        "customerName": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "customerCompany": { "type": "string", "maxLength": 160 },
+        "customerPhone": { "type": "string", "minLength": 3, "maxLength": 40 },
+        "customerEmail": { "type": "string", "maxLength": 254 },
+        "toolBrand": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "toolCategory": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "modelNumber": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "serialNumber": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "intervalMonths": { "type": "number" },
+        "lastServiceDate": { "type": "string", "minLength": 4, "maxLength": 40 },
+        "nextDueDate": { "type": "string", "minLength": 4, "maxLength": 40 },
+        "status": { "type": "string", "enum": ["Upcoming", "Due Soon", "Overdue", "Serviced"] },
+        "recommendedServiceScope": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "notes": { "type": "string", "maxLength": 2000 },
+        "queuedReminders": { "type": "array" },
+        "createdAtIso": { "type": "string", "maxLength": 40 },
+        "updatedAtIso": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "ownerUid",
+        "staffUids",
+        "customerName",
+        "customerPhone",
+        "toolBrand",
+        "toolCategory",
+        "modelNumber",
+        "serialNumber",
+        "intervalMonths",
+        "lastServiceDate",
+        "nextDueDate",
+        "status",
+        "recommendedServiceScope",
+        "queuedReminders",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BusinessSettingsRecord": {
+      "title": "BusinessSettingsRecord",
+      "description": "Shared service center preferences and analytics toggles.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "staffUids": { "type": "array" },
+        "centerName": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "address": { "type": "string", "maxLength": 240 },
+        "phone": { "type": "string", "maxLength": 40 },
+        "email": { "type": "string", "maxLength": 254 },
+        "taxRate": { "type": "number" },
+        "laborRate": { "type": "number" },
+        "jobCardPrefix": { "type": "string", "maxLength": 32 },
+        "currencySymbol": { "type": "string", "maxLength": 8 },
+        "WhatsAppTemplateIntake": { "type": "string", "maxLength": 1000 },
+        "WhatsAppTemplateReady": { "type": "string", "maxLength": 1000 },
+        "WhatsAppTemplateEstimate": { "type": "string", "maxLength": 1000 },
+        "deductStockOn": { "type": "string", "enum": ["Approval", "InService", "Completion"] },
+        "requireSignature": { "type": "boolean" },
+        "autoSendFeedbackSms": { "type": "boolean" },
+        "autoDailyBackupEnabled": { "type": "boolean" },
+        "autoDailyBackupDestination": { "type": "string", "maxLength": 32 },
+        "lastAutoBackupDate": { "type": "string", "maxLength": 40 },
+        "analyticsMetrics": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "staffUids", "centerName", "taxRate", "laborRate", "deductStockOn", "requireSignature", "createdAt", "updatedAt"]
+    },
+    "CustomFieldRecord": {
+      "title": "CustomFieldRecord",
+      "description": "Shared custom intake field definition.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "staffUids": { "type": "array" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "key": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "dataType": { "type": "string", "enum": ["text", "number", "select", "date", "boolean", "textarea"] },
+        "category": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "required": { "type": "boolean" },
+        "placeholder": { "type": "string", "maxLength": 200 },
+        "options": { "type": "array" },
+        "isSystem": { "type": "boolean" },
+        "enabled": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "staffUids", "label", "key", "dataType", "category", "required", "enabled", "createdAt", "updatedAt"]
+    },
+    "PublicDeliveryStatus": {
+      "title": "PublicDeliveryStatus",
+      "description": "Sanitized Client delivery status projection containing zero PII.",
+      "type": "object",
+      "properties": {
+        "token": { "type": "string", "minLength": 6, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "staffUids": { "type": "array" },
+        "jobId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "status": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "toolBrand": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "toolModel": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "warrantyFlag": { "type": "string", "maxLength": 40 },
+        "intakeDate": { "type": "string", "minLength": 4, "maxLength": 40 },
+        "promisedCompletion": { "type": "string", "minLength": 4, "maxLength": 40 },
+        "totalAmount": { "type": "number" },
+        "readyForDelivery": { "type": "boolean" },
+        "feedbackSubmitted": { "type": "boolean" },
+        "feedbackRating": { "type": "number" },
+        "feedbackComment": { "type": "string", "maxLength": 1000 },
+        "feedbackSubmittedAt": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["token", "ownerUid", "staffUids", "jobId", "status", "toolBrand", "toolModel", "intakeDate", "promisedCompletion", "totalAmount", "readyForDelivery", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserPublic" },
+      "description": "Non-PII operator role and workshop profile."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateProfile" },
+      "description": "Owner-only PII profile document."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Workshop administrator access list."
+    },
+    "/jobCards/{jobId}": {
+      "schema": { "$ref": "#/entities/JobCardRecord" },
+      "description": "Live intake and repair job cards synced across workshop clients."
+    },
+    "/inventory/{itemId}": {
+      "schema": { "$ref": "#/entities/InventoryItemRecord" },
+      "description": "Live spare parts SKU stock and threshold state."
+    },
+    "/schedules/{scheduleId}": {
+      "schema": { "$ref": "#/entities/RecurringMaintenanceRecord" },
+      "description": "Recurring preventive tool maintenance contracts."
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/BusinessSettingsRecord" },
+      "description": "Shared service center configuration."
+    },
+    "/customFields/{fieldId}": {
+      "schema": { "$ref": "#/entities/CustomFieldRecord" },
+      "description": "Shared intake custom field definitions."
+    },
+    "/publicDeliveries/{deliveryToken}": {
+      "schema": { "$ref": "#/entities/PublicDeliveryStatus" },
+      "description": "Zero-PII token-indexed delivery status projection for customer delivery tracking."
+    }
+  }
+}

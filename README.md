@@ -54,9 +54,31 @@ A One-page, high-efficiency **Job Card tracking, ~1,000-item spare parts invento
     * Pre-populated with 1,000 genuine Bosch replacement parts (Carbon Brushes, Armatures, SDS Chucks, Bearings, Switches).
     * Highlights low-stock items and exports itemized supplier reorder purchase orders.
 
-12. **🗄️ MySQL Database DDL & Data Dump Export**:
-    * Complete relational database schema script (`database.sql`) for local MySQL 8.0+ deployment.
-    * Includes 1-click **Export Local MySQL DB (.sql)** button in the UI.
+12. **📷 Camera Barcode & QR Code Scanner (8 Entry Points)**:
+    * Uses browser `BarcodeDetector` + Gemini Vision (`/api/ai/scan-serial`) fallback across Header Global Scan, `BoschIntakeForm`, `NewJobModal`, `InventoryManager`, `AddInventoryModal`, `JobCardList`, `JobCardDetail`, and `RecurringMaintenanceView`.
+    * Extracts serial numbers, part SKUs, models, and brands directly from tool rating plates, cartons, and QR labels.
+
+13. **🎛️ Configurable Analytics Dashboard Metrics**:
+    * Toggle visibility of individual KPI cards and charts (`activeJobs`, `lowInventory`, `revenue`, `todaysAppointments`, `avgRepairTime`, `topGrievance`, `technicianPerformance`, `categoryVolume`) inside **Business Settings**.
+
+14. **🔄 Live Multi-Client Sync (Firebase Firestore + Express SSE) & SQL Dumps**:
+    * Google Sign-In (`signInWithPopup`) activates real-time `onSnapshot` synchronization across connected counter desktops, technician tablets, and live **Client Status Portal** (`/publicDeliveries/{token}`).
+    * Ships runnable **PostgreSQL 16** (`/database.postgres.sql`) and **MySQL 8.0+** (`/database.sql`) schema + dummy demo seed scripts plus 1-click **Export Local MySQL DB (.sql)** UI export.
+
+15. **📈 Predictive Monthly Revenue Forecast (Recharts `LineChart`)**:
+    * Projects 3M, 6M, or 12M workshop monthly revenue using deseasonalized job card billing history, tool service seasonal multipliers, open pipeline volume, and scheduled fleet overhauls.
+    * Supports `Conservative`, `Baseline`, and `Growth` scenarios plus upper/lower confidence bounds inside **Analytics**.
+
+16. **📡 Offline Service Worker & Cached Job Card Viewing**:
+    * Registers `/sw.js` (`autotrack-static-v1` + `autotrack-data-v1`) in `src/main.tsx` alongside `localStorage` so counter staff can view cached Job Cards, spare parts, schedules, and settings without internet connectivity (`OfflineIndicator`).
+
+17. **📥 Bulk Excel & CSV Inventory Import (`InventoryManager`)**:
+    * Paste tab-separated cells directly from Excel or Google Sheets (or upload `.csv`/`.tsv`) inside **1,000 SKUs** (`InventoryBulkImportModal`).
+    * Supports `Update + Add New` (`upsert`), `Add Qty to Stock` (`replenish`), and `New SKUs Only` (`insertOnly`) modes with live row validation.
+
+18. **⭐ Automated Customer Feedback SMS & CSAT Analytics**:
+    * Moving a ticket to `Completed` automatically dispatches a completion SMS link (`&feedback=1`) when enabled in Business Setup.
+    * Clients submit 1–5 star ratings and comments (up to 1,000 chars) via `POST /api/customer-portal/feedback`, updating job cards, list/Kanban rating badges, and the **Customer Satisfaction (CSAT)** panel in **Analytics**.
 
 ---
 
@@ -64,29 +86,33 @@ A One-page, high-efficiency **Job Card tracking, ~1,000-item spare parts invento
 
 ### Frontend
 * **React 19** (`react`, `react-dom`)
-* **TypeScript 5.7**
+* **TypeScript 5+** (`typescript` CLI check)
 * **Vite 8** (`@vitejs/plugin-react`, `@tailwindcss/vite`)
 * **Tailwind CSS v4** (`@import "tailwindcss";`)
 * **Lucide React** (`lucide-react`) for industrial icon sets
-* **jsPDF** (`jspdf`) for client-side PDF document compilation
+* **jsPDF** (`jspdf`) & **qrcode** for client-side PDF document & QR generation
+* **Recharts** (`recharts`) & **Motion** (`motion`)
 
 ### Backend & AI
-* **Node.js** with `express` 4.21
+* **Node.js 22** with `express` 4.21
 * **tsx** 4.21 for running server TypeScript files (`server.ts`)
-* **@google/genai** (^2.4.0) using **Gemini 3.8 Flash** (`gemini-3.8-flash`)
+* **Firebase Client & Admin SDKs** (`firebase` 13, `firebase-admin` 14)
+* **@google/genai** (^3.1.0) using **Gemini 3.8 Flash**, **Gemini 4 Hydrogen**, and **Gemini 3.5 Transcribe**
 
-### Storage
-* **Transactional Local Storage** (`localStorage` & `IndexedDB` fallback)
-* **MySQL 8.0 / MariaDB 10.5** relational schema DDL (`database.sql`)
+### Storage & Demonstration Databases
+* **Cloud Firestore Live Multi-Client DB** (`firebase-applet-config.json`, `firestore.rules`, `firebase-blueprint.json`)
+* **Offline Browser Cache + Service Worker** (`public/sw.js` `autotrack-static-v1` / `autotrack-data-v1` + `localStorage` fallback with `INITIAL_JOB_CARDS` / 1,000-item `INITIAL_INVENTORY` dummy catalog)
+* **PostgreSQL 16** relational DDL + demo seed (`database.postgres.sql`)
+* **MySQL 8.0 / MariaDB 10.5** relational DDL + demo seed (`database.sql`)
 
 ---
 
 ## 🚀 Local Setup Instructions
 
 ### 1. Prerequisites
-* Node.js v18.0.0 or higher
+* Node.js v20.0.0 or v22.x LTS
 * npm v9.0.0 or higher
-* MySQL 8.0+ (optional, for local database deployment)
+* Optional for local SQL hosting: PostgreSQL 16+ or MySQL 8.0+
 
 ### 2. Installation
 Clone the repository and install all dependencies:
@@ -104,11 +130,14 @@ npm install
 Create a `.env` file in the root directory (refer to `.env.example`):
 
 ```env
-# Required for Gemini AI Diagnosis & Message Generation
+# Required for Gemini AI Diagnosis, Vision Barcode Scan & Message Generation
 GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"
 
 # Server Port
 PORT=3000
+
+# Optional for Android/Capacitor or standalone client pointing to a remote Express server
+VITE_API_BASE_URL=""
 ```
 
 ### 4. Running the Application (Development Mode)
@@ -129,20 +158,27 @@ npm start
 
 ---
 
-## 🗄️ Database Setup & MySQL Deployment
+## 🗄️ Database Setup, Cloud Sync & Dummy Databases
 
-The application includes a complete, production-ready MySQL database script located at `/database.sql`.
+AutoTrack Pro includes a live **Firebase Firestore** configuration plus ready-to-import **PostgreSQL 16** and **MySQL 8.0** demonstration databases. See [`docs/DATABASE_SETUP_AND_INTEGRATION_GUIDE.md`](docs/DATABASE_SETUP_AND_INTEGRATION_GUIDE.md) for full setup instructions.
 
-### Importing Schema & Seed Data into MySQL
-To deploy the database on a local MySQL server:
+### Option A: Live Multi-Client Firestore Sync
+* Configured in `firebase-applet-config.json` (Database ID: `ai-studio-autotrackservice-2eac3d40-310f-46ba-a293-99682d0a94d7`).
+* Click **Sign In** in the header bar with a verified Google account to seed starter tickets, spare parts, schedules, custom fields, and zero-PII `publicDeliveries` tokens automatically.
 
+### Option B: PostgreSQL 16 Schema & Demo Seed
 ```bash
-# Log into MySQL and run the database.sql script:
-mysql -u root -p < database.sql
+psql "postgresql://user:pass@localhost:5432/bosch_service_db" -f database.postgres.sql
 ```
 
-### 🔑 Default Administrator Credentials
-The database script automatically provisions a default administrator account in the `admin_users` table:
+### Option C: MySQL 8.0 Schema & Demo Seed
+```bash
+mysql -u root -p < database.sql
+node scripts/validate_sql.js
+```
+
+### 🔑 SQL Script Default Administrator Credentials (`database.sql` / `database.postgres.sql`)
+Both SQL demonstration scripts provision starter staff accounts in `users`:
 
 | Parameter | Value |
 | :--- | :--- |
@@ -150,7 +186,6 @@ The database script automatically provisions a default administrator account in 
 | **Username** | `admin` |
 | **Email** | `admin@autotrack.com` |
 | **Default Password** | `123456` |
-| **Password Hash** | `$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW` *(Bcrypt)* |
 | **Role** | `Administrator` |
 
 ---
@@ -159,7 +194,8 @@ The database script automatically provisions a default administrator account in 
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `POST` | `/api/ai/diagnose` | Accepts tool grievance details & inventory sample; returns Gemini AI root cause analysis, repair steps, labor hours, and recommended part SKUs. |
+| `POST` | `/api/ai/diagnose` | Accepts tool grievance details & inventory sample; returns structured root cause analysis, repair steps, labor hours, and part SKUs. |
+| `POST` | `/api/ai/scan-serial` | Extracts serial numbers, SKUs, model numbers, and brands from camera photos when hardware barcode detection falls back. |
 | `POST` | `/api/ai/generate-message` | Generates personalized client notifications for WhatsApp & SMS. |
 | `POST` | `/api/ai/response-assistant` | Generates context-aware replies for client inquiries based on active ticket details. |
 | `POST` | `/api/ai/repair-chat` | Interactive diagnostic chatbot for bench technicians querying wiring, exploded views, and torque specs. |
@@ -168,19 +204,29 @@ The database script automatically provisions a default administrator account in 
 | `POST` | `/api/ai/transcribe` | Transcribes recorded microphone audio observations into Detailed Complaint or Internal Notes. |
 | `GET`  | `/api/messaging/status` | Reports live credentials status for Twilio SMS and Meta WhatsApp Cloud API providers. |
 | `POST` | `/api/messaging/send-sms` | Dispatches outbound SMS messages via Twilio REST API. |
-| `POST` | `/api/messaging/send-whatsapp` | Dispatches outbound WhatsApp messages via Meta Graph Cloud API. |
+| `POST` | `/api/messaging/send-whatsapp` | Dispatches outbound WhatsApp messages via Twilio or Meta Graph Cloud API. |
+| `GET`  | `/api/sync/stream` | Authenticated SSE live sync stream (`Bearer <idToken>`) pushing ticket, inventory, and schedule updates to Android/tablet clients. |
+| `GET/POST/PUT` | `/api/jobs`, `/api/jobs/:id` | Authenticated Firestore-backed job card CRUD endpoints with automatic `publicDeliveries` projection sync. |
+| `GET/POST/PATCH` | `/api/inventory`, `/api/inventory/:id/stock` | Authenticated Firestore-backed spare parts catalog and stock quantity adjustments. |
+| `GET/POST` | `/api/schedules` | Authenticated Firestore-backed recurring maintenance schedules API. |
+| `GET`  | `/api/customer-portal/lookup` | Unauthenticated zero-PII Client delivery lookup by Job ID or `publicAccessToken` (+ optional phone last-4 check). |
+| `GET`  | `/api/customer-portal/stream` | Unauthenticated SSE stream pushing real-time repair stage changes to `CustomerView`. |
+| `POST` | `/api/customer-portal/feedback` | Unauthenticated post-service rating (`1–5` stars) & comment (max `1000` chars) submission validated by `token`/`jobId` + optional phone last-4. |
 
 ---
 
 ## 📚 Technical Documentation & Test Guides
 
-1. **[Testing & QA Acceptance Guide](docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md)**:
-   * Test matrices, steps, pre-conditions, and expected results for all 8 updated features.
-   * Includes 10-step end-to-end regression flow and edge case validation scripts.
-2. **[End-User Operating Manual & Training Guide](docs/USER_MANUAL_AND_TRAINING_GUIDE.md)**:
-   * Counter intake protocols, bench repair instructions, parts management, and staff checklists.
-3. **[Setup, Security & Maintenance Guide](docs/SETUP_AND_MAINTENANCE_GUIDE.md)**:
-   * Architecture overview, PII sanitization policies, rate limiting, and MySQL database setup.
+1. **[Database Setup, Integration & Dummy Data Guide](docs/DATABASE_SETUP_AND_INTEGRATION_GUIDE.md)**:
+   * Step-by-step guides for Cloud Firestore live sync, PostgreSQL 16 (`/database.postgres.sql`), MySQL 8.0 (`/database.sql`), Service Worker offline cache, Android/tablet `VITE_API_BASE_URL` + Bearer APIs, and 5 ready-to-use dummy datasets.
+2. **[Testing & QA Acceptance Guide](docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md)**:
+   * Test matrices, steps, pre-conditions, and expected results covering Voice Notes, AI Diagnosis, Calendar, Sign-Offs, Bulk CSV & Excel Inventory Import, Analytics Toggles, Revenue Forecast, Camera Barcode/QR Scanner, Offline Service Worker, Customer Feedback SMS, and Multi-Client Firebase Sync + Security Rules tests.
+3. **[End-User Operating Manual & Training Guide](docs/USER_MANUAL_AND_TRAINING_GUIDE.md)**:
+   * Counter intake protocols, camera barcode/QR scanning, Predictive Revenue charts, offline Service Worker behavior, live Google Auth sync, Client delivery portal & feedback survey usage, and staff checklists.
+4. **[Setup, Security & Maintenance Guide](docs/SETUP_AND_MAINTENANCE_GUIDE.md)**:
+   * Architecture overview, PII sanitization policies, API rate limits, Firebase security rules (`security_spec.md`), Service Worker caching, and SQL setup.
+5. **[Sample CSV Datasets Directory](docs/samples/README.md)**:
+   * Pre-formatted CSV import fixtures for maintenance schedules, inventory items (including Excel/TSV & CSV bulk paste), and service tickets.
 
 ---
 

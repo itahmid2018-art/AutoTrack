@@ -1,6 +1,6 @@
 # Quality Assurance & Testing Acceptance Guide
 
-This guide defines acceptance tests for the AutoTrack Pro service center application. It covers 8 core features introduced across recent release cycles.
+This guide defines acceptance tests for the AutoTrack Pro service center application. It covers 15 core features, multi-client database synchronization, offline Service Worker resilience, and relational SQL verification scripts.
 
 ---
 
@@ -14,7 +14,15 @@ This guide defines acceptance tests for the AutoTrack Pro service center applica
 7. [Feature 6: Weekly Technician Calendar & Capacity Scheduler](#7-feature-6-weekly-technician-calendar--capacity-scheduler)
 8. [Feature 7: Technician Repair Sign-Off Signature Pad](#8-feature-7-technician-repair-sign-off-signature-pad)
 9. [Feature 8: Bulk CSV Import for Client Maintenance Schedules](#9-feature-8-bulk-csv-import-for-client-maintenance-schedules)
-10. [End-to-End Regression Test Script](#10-end-to-end-regression-test-script)
+10. [Feature 9: Analytics Dashboard Metric Visibility Toggles](#10-feature-9-analytics-dashboard-metric-visibility-toggles)
+11. [Feature 10: Camera Barcode & QR Code Scanner (8 Entry Points)](#11-feature-10-camera-barcode--qr-code-scanner-8-entry-points)
+12. [Feature 11: Multi-Client Live Sync, REST APIs & Client Delivery Portal](#12-feature-11-multi-client-live-sync-rest-apis--client-delivery-portal)
+13. [Feature 12: Predictive Monthly Revenue Forecast (Recharts LineChart)](#13-feature-12-predictive-monthly-revenue-forecast-recharts-linechart)
+14. [Feature 13: Offline Service Worker Caching & Job Card Viewing](#14-feature-13-offline-service-worker-caching--job-card-viewing)
+15. [Feature 14: Inventory Bulk Import (Excel TSV & CSV Paste)](#15-feature-14-inventory-bulk-import-excel-tsv--csv-paste)
+16. [Feature 15: Automated Customer Feedback SMS & CSAT Ratings](#16-feature-15-automated-customer-feedback-sms--csat-ratings)
+17. [Database & Dummy Dataset Verification Matrix](#17-database--dummy-dataset-verification-matrix)
+18. [End-to-End Regression Test Script](#18-end-to-end-regression-test-script)
 
 ---
 
@@ -428,37 +436,304 @@ This guide defines acceptance tests for the AutoTrack Pro service center applica
 
 ---
 
-## 10. End-to-End Regression Test Script
+## 10. Feature 9: Analytics Dashboard Metric Visibility Toggles
 
-Perform this 10-minute flow to verify workshop system health:
+### Location
+`Business Setup` (`TransitionView`) -> `Analytics Dashboard Metrics Visibility` panel.
 
-1. **Intake Flow**:
-   - Register new tool: `Bosch GBH 11 DE` for client `Metro Demolition`.
-   - Capture client signature on intake pad.
-   - Confirm generated ticket ID format: `BOSCH-2026-004X`.
-2. **AI Diagnosis & Parts**:
-   - Click `Run AI Diagnosis`.
-   - Verify recommended parts display with SKU and pricing.
-   - Click `Attach All Recommended Parts`.
-3. **Voice Observation**:
-   - Click `Record Voice Note`. Dictate bench observation and stop.
-   - Confirm transcript appends to `internalRepairNotes`.
-4. **Calendar Shift Booking**:
+### Supported Metric Keys (8 Total)
+- **Core KPIs (4)**: `activeJobs` (Active Jobs), `lowInventory` (Low Inventory), `revenue` (Revenue), `todaysAppointments` (Today's Appointments).
+- **Dashboard Sections (4)**: `avgRepairTime` (Average Repair Time), `topGrievance` (Top Grievances), `technicianPerformance` (Technician Performance), `categoryVolume` (Tool Category Volume).
+
+### Test Cases
+
+#### TC-AM-01: Toggling Individual Analytics Metrics
+- **Steps**:
+  1. Open `Business Setup` and scroll to `Analytics Dashboard Metrics Visibility`.
+  2. Uncheck `Revenue` and `Tool Category Volume`.
+  3. Click `Open Analytics`.
+- **Expected Outcome**:
+  - Revenue KPI card, labor/parts billing chart, and Tool Category Volume chart disappear immediately.
+  - Remaining 6 enabled metrics stay visible.
+  - Reloading the page (`F5`) preserves toggled state in `autotrack_db_settings_v1` and Firestore `settings/workshop-default`.
+
+#### TC-AM-02: Preset Buttons (`Core 4 Only`, `Enable All`, `Reset Defaults`)
+- **Steps**:
+  1. Click `Core 4 Only`.
+  2. Switch to `Analytics` tab and count visible widgets.
+  3. Return to `Business Setup` and click `Enable All`.
+- **Expected Outcome**:
+  - `Core 4 Only` enables only `activeJobs`, `lowInventory`, `revenue`, and `todaysAppointments`.
+  - `Enable All` and `Reset Defaults` restore all 8 widgets to visible.
+
+---
+
+## 11. Feature 10: Camera Barcode & QR Code Scanner (8 Entry Points)
+
+### Supported Entry Points
+1. Global Top Header Scanner (`Header` -> `Scan` -> `GlobalScanResultModal`)
+2. Full Intake Form (`BoschIntakeForm` -> `Scan Serial / QR`)
+3. Quick Intake Modal (`NewJobModal` -> `Scan Serial / QR`)
+4. Spare Parts Catalog (`InventoryManager` -> `Barcode / QR Scan`)
+5. Add Inventory Modal (`AddInventoryModal` -> `Scan SKU / Barcode`)
+6. Job Card List Toolbar (`JobCardList` -> `Scan Ticket / Tool`)
+7. Job Card Detail Drawer (`JobCardDetail` -> `Scan Part / Serial`)
+8. Recurring Maintenance Toolbar (`RecurringMaintenanceView` -> `Scan Tool QR`)
+
+### Test Cases
+
+#### TC-BS-01: Live Camera Barcode & QR Recognition
+- **Preconditions**: Device with webcam or mobile camera on HTTPS / `localhost:3000`.
+- **Steps**:
+  1. Open `Intake Form` (`BoschIntakeForm`) and click `Scan Serial / QR`.
+  2. Grant browser camera permissions when requested.
+  3. Point camera at a Code-128 tool serial barcode (`SN-3611B67000`) or QR code (`BOSCH-2026-0041`).
+- **Expected Outcome**:
+  - `SerialBarcodeScannerModal` decodes via native `BarcodeDetector` (with `jsQR` + `/api/ai/scan-serial` vision fallback on unsupported browsers).
+  - Serial number field populates without manual typing.
+  - If an inventory SKU or ticket QR matches, `GlobalScanResultModal` or item lookup opens directly to the matched record.
+
+#### TC-BS-02: Vision Fallback & Manual Upload (`/api/ai/scan-serial`)
+- **Steps**:
+  1. Deny or close live camera stream in `SerialBarcodeScannerModal`.
+  2. Upload or capture a photo of a damaged Bosch nameplate label.
+- **Expected Outcome**:
+  - Frontend posts base64 image frame to `POST /api/ai/scan-serial`.
+  - Gemini vision extracts printed serial/model characters and inserts the string into the active form field.
+
+---
+
+## 12. Feature 11: Multi-Client Live Sync, REST APIs & Client Delivery Portal
+
+### Location
+- **Live Cloud Database**: Firebase Auth (`Google Sign-In`) + Cloud Firestore (`ai-studio-autotrackservice-2eac3d40-310f-46ba-a293-99682d0a94d7`).
+- **Server Endpoints**: `server.ts` on Port `3000` (`/api/jobs`, `/api/inventory`, `/api/schedules`, `/api/sync/stream`, `/api/customer-portal/lookup`, `/api/customer-portal/stream`).
+- **Public Portal**: `CustomerView` (`#status?token=...`).
+
+### Test Cases
+
+#### TC-SYNC-01: Two-Browser Live Operator Synchronization
+- **Preconditions**: Two browser windows (Browser A desktop, Browser B Android tablet/second profile) signed in via Google Auth.
+- **Steps**:
+  1. Create a new ticket `BOSCH-2026-0099` in Browser A.
+  2. Advance an existing ticket status to `Ready for Pickup` in Browser A.
+- **Expected Outcome**:
+  - Browser B displays `BOSCH-2026-0099` and the status transition within 2 seconds via Firestore `onSnapshot` without manual refresh.
+  - Both windows receive updated KPIs and inventory stock counts.
+
+#### TC-SYNC-02: Zero-PII Public Client Delivery Portal (`CustomerView`)
+- **Preconditions**: Ticket possesses `publicAccessToken` (e.g. `pat-7741-f09b`).
+- **Steps**:
+  1. Open an unauthenticated incognito window at `http://localhost:3000/#status?token=pat-7741-f09b`.
+  2. Verify lookup via `GET /api/customer-portal/lookup?token=pat-7741-f09b`.
+  3. Advance the same ticket in the signed-in operator session from `In Service` to `Delivered`.
+- **Expected Outcome**:
+  - Incognito portal loads tool model, masked serial, quote estimate, and live status stage via `publicDeliveries/{token}` and `/api/customer-portal/stream` SSE.
+  - Response JSON contains zero client phone numbers, email addresses, internal technician notes, or GST tax IDs.
+  - Stage badge updates live in the incognito portal when the operator changes status.
+
+#### TC-SYNC-03: Android / Tablet REST API Bearer Auth & CORS Enforcement
+- **Steps**:
+  1. Send unauthenticated request: `curl -i http://localhost:3000/api/jobs`.
+  2. Send CORS preflight request: `curl -i -X OPTIONS -H "Origin: http://localhost" -H "Access-Control-Request-Method: GET" http://localhost:3000/api/jobs`.
+  3. Send SSE preflight/auth check: `curl -i http://localhost:3000/api/sync/stream`.
+- **Expected Outcome**:
+  - Unauthenticated `/api/jobs` and `/api/sync/stream` return `HTTP 401` (`Unauthorized`).
+  - CORS `OPTIONS` returns `HTTP 204` with `Access-Control-Allow-Headers: Content-Type, Authorization`.
+  - Sending a valid Firebase ID token in `Authorization: Bearer <idToken>` returns `HTTP 200` JSON or SSE stream.
+
+#### TC-SEC-01: Firestore Security Rules Validation (`Dirty Dozen` Suite)
+- **Steps**:
+  1. Run rules static lint: `npx eslint firestore.rules` (or inspect rules).
+  2. Run emulator security test suite: `npx tsx firestore.rules.test.ts`.
+- **Expected Outcome**:
+  - Unauthenticated clients cannot list or read `/jobCards`, `/inventory`, `/schedules`, `/settings`, or `/users`.
+  - Unauthenticated clients cannot `list` the entire `/publicDeliveries` collection (only single-document `get` by secret token).
+  - Read-only/viewer roles cannot mutate `/jobCards` or `/inventory`.
+
+---
+
+## 13. Feature 12: Predictive Monthly Revenue Forecast (Recharts LineChart)
+
+### Location
+`Analytics` tab -> `Predictive Monthly Revenue Forecast` section (`RevenueForecastModule`).
+
+### Test Cases
+
+#### TC-PF-01: Historical & Seasonal LineChart Projection
+- **Preconditions**: At least 1 active or completed job card in workshop history; `revenue` metric enabled in Business Setup.
+- **Steps**:
+  1. Open the `Analytics` tab and scroll to `Predictive Monthly Revenue Forecast`.
+  2. Inspect the Recharts `LineChart` and 4 KPI summary cards (`Horizon Total`, `Projected Monthly Avg`, `Peak Seasonal Month`, `Open Job Pipeline`).
+- **Expected Outcome**:
+  - Solid line renders recorded monthly billings; dashed sky-blue line projects upcoming months from `Forecast Start`.
+  - Hovering chart points displays `Actual Revenue`, `Projected Revenue`, `Confidence Range`, `Seasonal Factor`, and `Est. Tickets`.
+
+#### TC-PF-02: Horizon (`3M`, `6M`, `12M`) & Scenario Controls
+- **Steps**:
+  1. Switch horizon from `6M Horizon` to `12M Horizon`.
+  2. Switch scenario from `Baseline` to `Growth`, then `Conservative`.
+  3. Toggle `Confidence Band` off and back on.
+- **Expected Outcome**:
+  - X-axis and forecast breakdown table dynamically recalculate across `3`, `6`, or `12` future months.
+  - Upper (`+Confidence`) and Lower (`-Confidence`) Recharts `Line` series show/hide cleanly.
+
+#### TC-PF-03: Empty Job History Handling (Edge Case)
+- **Preconditions**: All job cards deleted or marked `Cancelled`.
+- **Expected Outcome**:
+  - Empty state panel renders `"No Job Card History Available for Forecasting"` without NaN values or chart crashes.
+
+---
+
+## 14. Feature 13: Offline Service Worker Caching & Job Card Viewing
+
+### Location
+Registered globally via `src/main.tsx` (`public/sw.js` + `src/utils/offlineCache.ts` + `OfflineIndicator`).
+
+### Test Cases
+
+#### TC-SW-01: Service Worker Registration & Cache Population
+- **Steps**:
+  1. Open `http://localhost:3000` in Chrome/Edge and wait 2 seconds after load.
+  2. Open DevTools -> `Application` -> `Service Workers` and `Cache Storage`.
+- **Expected Outcome**:
+  - `/sw.js` shows status `activated and is running`.
+  - `autotrack-static-v1` holds `/`, `/index.html`, `/manifest.webmanifest`, `/icon.svg`, and PWA icons.
+  - `autotrack-data-v1` holds `/__offline-cache/jobCards.json`, `inventory.json`, `schedules.json`, and `settings.json`.
+
+#### TC-SW-02: Offline Job Card Viewing After Network Disconnect
+- **Steps**:
+  1. In DevTools `Network`, enable `Offline` throttling.
+  2. Reload `http://localhost:3000`.
+  3. Navigate between `Service Cards`, `Kanban`, `1,000 SKUs`, and open any Job Card detail modal.
+- **Expected Outcome**:
+  - Bottom-left badge displays `Offline Mode · N Cached Job Cards Readable`.
+  - App shell loads from `autotrack-static-v1`; Job Cards and Inventory remain searchable and readable without server connectivity.
+
+#### TC-SW-03: Cache Recovery When `localStorage` Is Cleared Offline
+- **Steps**:
+  1. While remaining offline, run `localStorage.clear()` in DevTools Console and reload the page.
+- **Expected Outcome**:
+  - `readOfflineCachedAllRecords()` hydrates `jobCards`, `inventory`, `schedules`, and `settings` back into React state from `autotrack-data-v1`.
+
+---
+
+## 15. Feature 14: Inventory Bulk Import (Excel TSV & CSV Paste)
+
+### Location
+`1,000 SKUs` (`InventoryManager`) tab -> `Bulk Import Excel / CSV` (`InventoryBulkImportModal`).
+
+### Test Cases
+
+#### TC-INVCSV-01: Direct Excel / Google Sheets Tab-Separated Paste
+- **Steps**:
+  1. Open `1,000 SKUs` -> click `Bulk Import Excel / CSV`.
+  2. Copy a 3-row range with header from Excel/Sheets (`sku\tname\tstockQty\tunitPrice\tbinLocation`) and paste into the modal textarea.
+- **Expected Outcome**:
+  - Parser detects `Excel TSV (Tabs)` automatically and classifies matching SKUs as `UPDATE` and unknown SKUs as `NEW`.
+
+#### TC-INVCSV-02: Merge Modes (`Update + Add New`, `Add Qty to Stock`, `New SKUs Only`)
+- **Steps**:
+  1. Click `Load 10 Sample Bosch Parts` (or upload `docs/samples/spare_parts_inventory_sample.csv`).
+  2. Toggle between `Update + Add New`, `Add Qty to Stock` (`replenish`), and `New SKUs Only`.
+  3. Click `Apply Import`.
+- **Expected Outcome**:
+  - `replenish` previews additive quantities (`prev + added`); `New SKUs Only` skips existing SKUs; `upsert` updates stock/prices and adds new rows.
+  - Changes persist to `localStorage`, Service Worker cache, and Firestore.
+
+#### TC-INVCSV-03: Invalid Row Detection & Filtering
+- **Steps**:
+  1. Paste a CSV row missing `sku` or with negative `unitPrice`.
+- **Expected Outcome**:
+  - Row highlights in the `Issues` filter tab with explicit error text; `Skip invalid rows` imports only valid items cleanly.
+
+---
+
+## 16. Feature 15: Automated Customer Feedback SMS & CSAT Ratings
+
+### Location
+Kanban / Job Card status -> `Completed`; `FeedbackSmsToast`; `CustomerView` (`&feedback=1`); `JobCardDetail`; `AnalyticsDashboard` CSAT panel.
+
+### Test Cases
+
+#### TC-CF-01: Auto-Trigger Feedback SMS on `Completed` Status
+- **Preconditions**: `Business Setup` -> `Auto-Send Customer Feedback SMS Survey upon Job Completion` is checked (default `true`). Ticket `BOSCH-2026-0041` is in `Ready for Pickup`.
+- **Steps**:
+  1. Change ticket status to `Completed` via Kanban drag, Quick Status menu, or `JobCardDetail`.
+- **Expected Outcome**:
+  - Frontend stamps `feedbackSmsSentAt`, dispatches `POST /api/messaging/send-sms`, logs a `Feedback` SMS entry in `messageLogs`, and renders `FeedbackSmsToast` with a 1-click survey URL (`?token=...&feedback=1`).
+
+#### TC-CF-02: Public Portal Star Rating & Comment Submission (`POST /api/customer-portal/feedback`)
+- **Steps**:
+  1. Open the survey link from `FeedbackSmsToast` (or click `Customer Feedback` in `JobCardDetail`).
+  2. Select `5` stars, enter comment `"Fast turnaround and quiet gearbox after overhaul."`, and submit.
+- **Expected Outcome**:
+  - Client sends `POST /api/customer-portal/feedback` and persists `customerFeedback` (`rating`, `comment`, `submittedAt`, `channel`) onto both the job card and `publicDeliveries/{token}`.
+  - `JobCardList`, `KanbanBoard`, and `JobCardDetail` display the `★ 5/5` rating badge, and `Analytics` updates Average CSAT & Star Breakdown.
+
+#### TC-CF-03: Server Validation Bounds (`rating` & `comment` length)
+- **Steps**:
+  1. Send `POST /api/customer-portal/feedback` with `rating: 0`, `rating: 6`, or a `1001`-character comment.
+- **Expected Outcome**:
+  - `server.ts` rejects invalid payloads with `HTTP 400` JSON validation error without truncating oversized comments.
+
+#### TC-CF-04: Firestore Rule Exception on `Completed` Job Cards
+- **Steps**:
+  1. Run `npx tsx firestore.rules.test.ts`.
+- **Expected Outcome**:
+  - Non-admin workshop members can update feedback fields on `Completed` job cards (`customerFeedback`, `feedbackSmsSentAt`, `messageLogs`, `auditLogs`, `updatedAtIso`, `updatedAt`), while attempts to tamper with billed totals on `Completed` tickets remain denied.
+
+---
+
+## 17. Database & Dummy Dataset Verification Matrix
+
+All 3 database engines and sample CSV files are shipped with deterministic demonstration data for immediate QA testing. Refer to [`DATABASE_SETUP_AND_INTEGRATION_GUIDE.md`](DATABASE_SETUP_AND_INTEGRATION_GUIDE.md) for installation commands.
+
+| Target Environment | Artifact / Entry Point | Verification Command / Action | Expected Seed Result |
+| :--- | :--- | :--- | :--- |
+| **MySQL 8.0+ / MariaDB** | `/database.sql` | `node scripts/validate_sql.js` then `mysql -u root -p < database.sql` | Creates `bosch_service_db` with 11 tables, `admin` user, 5 settings rows (`auto_send_feedback_sms`, `analytics_metrics`), sample SKUs, 3 tickets (`BOSCH-2026-0046` with 5-star feedback), `'Feedback'` SMS log `msg-103`, and schedules. |
+| **PostgreSQL 16** | `/database.postgres.sql` | `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database.postgres.sql` | Creates all 11 tables using `SERIAL`, `TIMESTAMPTZ`, `JSONB`, `CHECK` constraints (`customer_feedback_rating BETWEEN 1 AND 5`), and loads demo rows including `BOSCH-2026-0046` cleanly. |
+| **Cloud Firestore (Live)** | `seedWorkshopIfEmpty()` in `src/utils/firestoreSync.ts` | Sign in with Google on an empty Firestore instance (`ai-studio-autotrackservice-2eac3d40-310f-46ba-a293-99682d0a94d7`). | Automatically seeds initial job cards, spare parts inventory, settings (including 8 analytics toggles + `autoSendFeedbackSms`), and `publicDeliveries`. |
+| **Browser Demo + Service Worker** | `src/utils/localStorageDb.ts` & `public/sw.js` | Clear browser `localStorage` and reload `http://localhost:3000`. | Hydrates demo dataset (1,000 SKUs, 7 job cards, 5 technicians, sample maintenance rows) and caches records in `autotrack-data-v1`. |
+| **CSV & Excel Fixtures** | `docs/samples/*.csv` | Load via `Servicing -> Bulk Import CSV`, `1,000 SKUs -> Bulk Import Excel / CSV`, or `Business Setup -> Restore`. | Validates headers, skips malformed rows cleanly when toggled, and persists to `recurring_maintenance` or `inventory_items`. |
+
+---
+
+## 18. End-to-End Regression Test Script
+
+Perform this 15-minute flow to verify workshop system health:
+
+1. **Authentication & Multi-Client Sync**:
+   - Sign in with Google on Browser A and Browser B (`localhost:3000`).
+2. **Camera Barcode/QR Intake**:
+   - Open `+ Intake Form`, click `Scan Serial / QR`, register tool `Bosch GBH 11 DE` for client `Metro Demolition`, capture client signature, and submit `BOSCH-2026-004X`.
+   - Confirm the new card syncs to Browser B within 2 seconds.
+3. **AI Diagnosis & Parts**:
+   - Click `Run AI Diagnosis`, inspect recommended parts, and click `Attach All Recommended Parts`.
+4. **Voice Observation**:
+   - Click `Record Voice Note`, dictate a bench note, stop recording, and confirm transcript appends to `internalRepairNotes`.
+5. **Calendar Shift Booking**:
    - Open `Time Tracking`. Assign ticket to David Miller on Thursday morning.
-5. **Finalization & Technician Signature**:
-   - Mark status `Completed`.
-   - Sign the technician sign-off pad and save.
-6. **PDF Generation & QR Scan**:
-   - Generate PDF receipt. Verify QR code renders with status link.
-7. **Client Notification**:
-   - Open `Messaging`. Generate AI Response Assistant message and dispatch via WhatsApp.
-8. **Fleet Maintenance Onboarding**:
-   - Open `Recurring Maintenance`. Click `Bulk Import CSV` and load 5 sample schedules.
-   - Confirm total tracked tools counter increments by 5.
+6. **Finalization, Technician Signature & Auto Feedback SMS**:
+   - Mark status `Completed`. Sign the technician sign-off pad and save.
+   - Verify `FeedbackSmsToast` renders and `Feedback` SMS entry appends to `messageLogs`.
+7. **PDF Receipt, Delivery Portal & Customer Rating**:
+   - Generate PDF receipt, copy the survey link (`#status?token=...&feedback=1`), open it in an incognito window, and submit a 5-star rating with comment.
+   - Confirm `★ 5/5` badge appears in List & Kanban views and updates CSAT in `Analytics`.
+8. **Analytics Forecast & Metric Toggles**:
+   - Open `Analytics` and switch Predictive Revenue Forecast between `3M`, `6M`, and `12M` horizons.
+   - Open `Business Setup`, switch `Analytics Dashboard Metrics Visibility` to `Core 4 Only`, confirm 4 KPIs render, then click `Enable All`.
+9. **Inventory Bulk Excel/CSV Paste & Offline Service Worker**:
+   - Open `1,000 SKUs`, click `Bulk Import Excel / CSV`, load 10 sample Bosch parts, and apply import.
+   - Toggle DevTools `Network -> Offline`, reload page, and confirm cached Job Cards remain viewable with the `Offline Mode` badge.
+10. **Fleet Maintenance CSV & Build Validation**:
+    - Open `Servicing`, click `Bulk Import CSV`, and import `docs/samples/recurring_maintenance_standard.csv` (10 rows).
+    - Run `node scripts/validate_sql.js && npx eslint firestore.rules && npx tsx firestore.rules.test.ts && npm run lint && npm run build`.
 
 ---
 
 ## Document Control
-- **Document Version**: 1.0.0
+- **Document Version**: 4.0.0
 - **Audience**: QA Engineers, Workshop Supervisors, Implementation Leads
 - **Classification**: Internal Technical Specification
+

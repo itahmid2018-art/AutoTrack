@@ -692,8 +692,20 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                   </span>
                 </label>
 
+                <label className="flex items-center gap-3 p-3 bg-zinc-950/60 border border-zinc-800 rounded-lg cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.autoSendFeedbackSms !== false}
+                    onChange={(e) => onUpdateSettings({ ...settings, autoSendFeedbackSms: e.target.checked })}
+                    className="w-4 h-4 accent-white rounded"
+                  />
+                  <span className="text-xs font-semibold text-zinc-200">
+                    Auto-Send Customer Feedback SMS Survey upon Job Completion
+                  </span>
+                </label>
+
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
-                  When enabled, customer signs directly on tablet or mobile touchscreen during intake. Signature is embedded into the digital PDF invoice &amp; job record.
+                  When enabled, customer signs directly on tablet or mobile touchscreen during intake, and an automated SMS survey link dispatches when a ticket reaches Completed status.
                 </p>
               </div>
             </div>
@@ -854,7 +866,7 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
             <div className="flex flex-wrap items-center gap-2 shrink-0">
               <button
                 onClick={() => {
-                  const manualText = `# BOSCH AUTHORISED SERVICE CENTER & POWER TOOLS HUB\n## End-User Operating Manual, System Specifications & Training Guide\nVersion 2.6 (2026 Enterprise Edition)\n\nFile stored in /docs/USER_MANUAL_AND_TRAINING_GUIDE.md`;
+                  const manualText = `# BOSCH AUTHORISED SERVICE CENTER & POWER TOOLS HUB\n## End-User Operating Manual, System Specifications & Training Guide\nVersion 4.0 (2026 Enterprise Multi-Client Edition)\n\nFile stored in /docs/USER_MANUAL_AND_TRAINING_GUIDE.md`;
                   const blob = new Blob([manualText], { type: 'text/markdown;charset=utf-8;' });
                   const url = URL.createObjectURL(blob);
                   const link = document.createElement('a');
@@ -873,7 +885,7 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
 
               <button
                 onClick={() => {
-                  const setupText = `# BOSCH AUTHORISED SERVICE CENTER & POWER TOOLS HUB\n## System Setup, Deployment, Database & Maintenance Guide\nVersion 2.6 (2026 Enterprise Edition)\n\nFile stored in /docs/SETUP_AND_MAINTENANCE_GUIDE.md`;
+                  const setupText = `# BOSCH AUTHORISED SERVICE CENTER & POWER TOOLS HUB\n## System Setup, Deployment, Database & Maintenance Guide\nVersion 4.0 (2026 Enterprise Multi-Client Edition)\n\nFile stored in /docs/SETUP_AND_MAINTENANCE_GUIDE.md`;
                   const blob = new Blob([setupText], { type: 'text/markdown;charset=utf-8;' });
                   const url = URL.createObjectURL(blob);
                   const link = document.createElement('a');
@@ -897,14 +909,14 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
             
             <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2">
               <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider flex items-center gap-2">
-                <span>1. System Architecture &amp; Technology Stack</span>
+                <span>1. System Architecture &amp; Technology Stack (v4.0)</span>
               </h3>
               <ul className="list-disc list-inside space-y-1 text-zinc-300 text-[11px] font-mono">
-                <li><strong className="text-white">Frontend SPA</strong>: React 18, Vite, Tailwind CSS, Framer Motion</li>
-                <li><strong className="text-white">Backend Server</strong>: Express Node.js (`server.ts`) running on Port 3000</li>
-                <li><strong className="text-white">Artificial Intelligence</strong>: `@google/genai` SDK (`gemini-3.8-flash`)</li>
-                <li><strong className="text-white">Messaging API Proxies</strong>: Twilio REST API &amp; Meta WhatsApp Cloud API Proxies</li>
-                <li><strong className="text-white">Database Engine</strong>: Synchronous `TransactionalDb` over `localStorage` + Deployable MySQL 8.0+ `database.sql`</li>
+                <li><strong className="text-white">Frontend SPA</strong>: React 19, Vite 8, Tailwind CSS v4, Recharts, Motion + Offline Service Worker (`/sw.js`)</li>
+                <li><strong className="text-white">Backend Server</strong>: Express Node 22 (`server.ts`) on Port 3000 with Bearer JWT verification &amp; SSE live sync</li>
+                <li><strong className="text-white">Artificial Intelligence</strong>: `@google/genai` SDK (`gemini-3.8-flash` / `gemini-4-hydrogen` / `gemini-3.5-transcribe`)</li>
+                <li><strong className="text-white">Messaging APIs</strong>: Twilio SMS &amp; WhatsApp REST API + Meta WhatsApp Cloud API with deep-link fallbacks</li>
+                <li><strong className="text-white">Databases</strong>: Live Cloud Firestore (`onSnapshot` + `publicDeliveries`) + `localStorage`/CacheStorage offline store + PostgreSQL 16 &amp; MySQL 8.0 SQL schemas</li>
               </ul>
             </div>
 
@@ -914,20 +926,20 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
                 <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 space-y-1">
-                  <div className="font-bold text-white">Tool Intake &amp; Job Cards</div>
-                  <div className="text-zinc-400 font-sans">Digital check-in under 60 seconds, touch signature pad, auto Job Card IDs.</div>
+                  <div className="font-bold text-white">Tool Intake, QR Scanner &amp; Job Cards</div>
+                  <div className="text-zinc-400 font-sans">Digital check-in under 60s, camera QR/barcode scanner (8 entry points), touch signatures, and PDF receipts.</div>
                 </div>
                 <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 space-y-1">
-                  <div className="font-bold text-white">Gemini AI Diagnosis &amp; Chatbot</div>
-                  <div className="text-zinc-400 font-sans">Teardown steps, failure analysis, bench chatbot, direct SKU linking.</div>
+                  <div className="font-bold text-white">Predictive Revenue &amp; CSAT Analytics</div>
+                  <div className="text-zinc-400 font-sans">Recharts LineChart revenue forecast (3M/6M/12M + seasonal index) and 1–5 star Client Feedback CSAT tracking.</div>
                 </div>
                 <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 space-y-1">
-                  <div className="font-bold text-white">AI Predictive Reorder Engine</div>
-                  <div className="text-zinc-400 font-sans">Correlates grievance velocity with stock to generate supplier PO sheets.</div>
+                  <div className="font-bold text-white">Bulk Excel/CSV Import &amp; AI Reorders</div>
+                  <div className="text-zinc-400 font-sans">Paste Excel or CSV rows directly in 1,000 SKUs to seed/upsert stock, paired with AI reorder PO analysis.</div>
                 </div>
                 <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 space-y-1">
-                  <div className="font-bold text-white">Twilio SMS &amp; WhatsApp API</div>
-                  <div className="text-zinc-400 font-sans">Server API dispatch for notifications with native deep link fallbacks.</div>
+                  <div className="font-bold text-white">Automated Feedback SMS &amp; Client Portal</div>
+                  <div className="text-zinc-400 font-sans">Auto-sends survey link (`&amp;feedback=1`) on Completed status; stores 1–5 star ratings and comments per ticket.</div>
                 </div>
               </div>
             </div>
@@ -937,7 +949,7 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                 3. Database Schemas &amp; Admin Credentials
               </h3>
               <p className="text-[11px] text-zinc-400 leading-relaxed font-sans">
-                Full DDL/DML script stored in <code className="text-white font-mono font-bold">/database.sql</code> (10 tables: `user_roles`, `users`, `business_settings`, `custom_fields`, `inventory_items`, `job_cards`, `job_card_parts`, `technician_time_logs`, `recurring_maintenance`, `message_logs`). Default Administrator login: <code className="text-white font-mono font-bold">admin</code> / <code className="text-white font-mono font-bold">123456</code>.
+                Complete 11-table DDL/DML scripts live in <code className="text-white font-mono font-bold">/database.postgres.sql</code> (PostgreSQL 16) and <code className="text-white font-mono font-bold">/database.sql</code> (MySQL 8.0), alongside live Firestore collections in <code className="text-white font-mono font-bold">/firebase-blueprint.json</code>. Default SQL Administrator credentials: <code className="text-white font-mono font-bold">admin</code> / <code className="text-white font-mono font-bold">123456</code>.
               </p>
             </div>
 
@@ -947,7 +959,9 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
               </h3>
               <div className="space-y-1.5 p-3 bg-zinc-900 rounded-lg border border-zinc-800 text-xs font-mono text-zinc-300">
                 <div>User Manual &amp; Training Guide: <code className="text-white font-bold">/docs/USER_MANUAL_AND_TRAINING_GUIDE.md</code></div>
-                <div>Setup &amp; Maintenance Guide: <code className="text-white font-bold">/docs/SETUP_AND_MAINTENANCE_GUIDE.md</code></div>
+                <div>Setup, Security &amp; Maintenance Guide: <code className="text-white font-bold">/docs/SETUP_AND_MAINTENANCE_GUIDE.md</code></div>
+                <div>Database Setup &amp; Dummy Data Guide: <code className="text-white font-bold">/docs/DATABASE_SETUP_AND_INTEGRATION_GUIDE.md</code></div>
+                <div>QA &amp; Testing Acceptance Guide: <code className="text-white font-bold">/docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md</code></div>
               </div>
             </div>
 
