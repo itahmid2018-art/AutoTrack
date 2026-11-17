@@ -2,23 +2,21 @@ import React, { useState, useRef, useEffect } from 'react';
 import { JobCard, InventoryItem } from '../types';
 import { InventoryNotification } from '../utils/inventoryNotifications';
 import { PWAInstallButton } from './PWAInstallButton';
-import { 
-  Wrench, 
-  PlusCircle, 
-  HelpCircle, 
-  Clock, 
-  Menu, 
-  X, 
-  MessageSquare, 
-  Package, 
-  FileText, 
-  LayoutGrid, 
-  BarChart3, 
-  UserCheck,
+import {
+  Wrench,
+  PlusCircle,
+  Clock,
+  Menu,
+  X,
+  MessageSquare,
+  Package,
+  FileText,
+  LayoutGrid,
+  BarChart3,
   Search,
   ChevronRight,
+  ChevronDown,
   User,
-  Tag,
   Timer,
   Bell,
   AlertTriangle,
@@ -28,14 +26,47 @@ import {
   ExternalLink,
   Settings,
   QrCode,
-  ScanBarcode,
   LogIn,
-  LogOut
+  LogOut,
 } from 'lucide-react';
 
+export type AppTab =
+  | 'intake'
+  | 'jobs'
+  | 'kanban'
+  | 'maintenance'
+  | 'inventory'
+  | 'messaging'
+  | 'analytics'
+  | 'timetracking'
+  | 'transition';
+
+type MenuGroupId = 'jobs' | 'inventory' | 'messaging' | 'analytics' | 'tools';
+
+interface MenuItemConfig {
+  id: string;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+  active?: boolean;
+  badgeText?: string;
+  badgeTone?: 'neutral' | 'warning' | 'accent';
+  onSelect: () => void;
+}
+
+interface MenuGroupConfig {
+  id: MenuGroupId;
+  label: string;
+  icon: React.ReactNode;
+  active: boolean;
+  badgeCount?: number;
+  badgeTone?: 'neutral' | 'warning';
+  items: MenuItemConfig[];
+}
+
 interface HeaderProps {
-  activeTab: 'intake' | 'jobs' | 'kanban' | 'maintenance' | 'inventory' | 'messaging' | 'analytics' | 'timetracking' | 'transition';
-  setActiveTab: (tab: 'intake' | 'jobs' | 'kanban' | 'maintenance' | 'inventory' | 'messaging' | 'analytics' | 'timetracking' | 'transition') => void;
+  activeTab: AppTab;
+  setActiveTab: (tab: AppTab) => void;
   onOpenNewJobModal: () => void;
   onOpenCustomerView?: () => void;
   activeJobCount: number;
@@ -56,6 +87,18 @@ interface HeaderProps {
   onSignIn?: () => void;
   onSignOut?: () => void;
 }
+
+const ACTIVE_TAB_LABELS: Record<AppTab, string> = {
+  intake: 'Tool Intake Form',
+  jobs: 'Service Cards',
+  kanban: 'Kanban Board',
+  maintenance: 'Recurring Servicing',
+  inventory: 'Spare Parts Catalog',
+  messaging: 'WhatsApp & SMS Center',
+  analytics: 'Analytics & Forecast',
+  timetracking: 'Time Tracking & Shifts',
+  transition: 'Settings & Setup',
+};
 
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
@@ -81,25 +124,43 @@ export const Header: React.FC<HeaderProps> = ({
   onSignOut,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<MenuGroupId | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'critical'>('all');
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const notifContainerRef = useRef<HTMLDivElement>(null);
+  const menuBarRef = useRef<HTMLDivElement>(null);
 
-  // Close search & notification dropdowns on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (searchContainerRef.current && !searchContainerRef.current.contains(target)) {
         setIsSearchOpen(false);
       }
-      if (notifContainerRef.current && !notifContainerRef.current.contains(event.target as Node)) {
+      if (notifContainerRef.current && !notifContainerRef.current.contains(target)) {
+        setIsNotifOpen(false);
+      }
+      if (menuBarRef.current && !menuBarRef.current.contains(target)) {
+        setOpenMenu(null);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpenMenu(null);
+        setIsSearchOpen(false);
         setIsNotifOpen(false);
       }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const filteredNotifs = inventoryNotifications.filter((n) => {
@@ -108,32 +169,43 @@ export const Header: React.FC<HeaderProps> = ({
     return true;
   });
 
-  const handleNavClick = (tab: 'intake' | 'jobs' | 'kanban' | 'maintenance' | 'inventory' | 'messaging' | 'analytics' | 'timetracking' | 'transition') => {
+  const handleNavClick = (tab: AppTab) => {
     setActiveTab(tab);
+    setOpenMenu(null);
     setMobileMenuOpen(false);
     setIsSearchOpen(false);
   };
 
   // Global Search Filtering
   const query = searchQuery.trim().toLowerCase();
-  
-  const matchingJobs = query ? jobCards.filter(j => 
-    j.id.toLowerCase().includes(query) ||
-    j.customerName.toLowerCase().includes(query) ||
-    j.customerPhone.includes(query) ||
-    (j.customerCompany && j.customerCompany.toLowerCase().includes(query)) ||
-    j.tool.modelNumber.toLowerCase().includes(query) ||
-    j.tool.serialNumber.toLowerCase().includes(query) ||
-    j.serviceReq.grievanceCategory.toLowerCase().includes(query)
-  ).slice(0, 5) : [];
 
-  const matchingInventory = query ? inventory.filter(i =>
-    i.sku.toLowerCase().includes(query) ||
-    i.barcode.toLowerCase().includes(query) ||
-    i.name.toLowerCase().includes(query) ||
-    i.category.toLowerCase().includes(query) ||
-    i.compatibleModels.toLowerCase().includes(query)
-  ).slice(0, 5) : [];
+  const matchingJobs = query
+    ? jobCards
+        .filter(
+          (j) =>
+            j.id.toLowerCase().includes(query) ||
+            j.customerName.toLowerCase().includes(query) ||
+            j.customerPhone.includes(query) ||
+            (j.customerCompany && j.customerCompany.toLowerCase().includes(query)) ||
+            j.tool.modelNumber.toLowerCase().includes(query) ||
+            j.tool.serialNumber.toLowerCase().includes(query) ||
+            j.serviceReq.grievanceCategory.toLowerCase().includes(query)
+        )
+        .slice(0, 5)
+    : [];
+
+  const matchingInventory = query
+    ? inventory
+        .filter(
+          (i) =>
+            i.sku.toLowerCase().includes(query) ||
+            i.barcode.toLowerCase().includes(query) ||
+            i.name.toLowerCase().includes(query) ||
+            i.category.toLowerCase().includes(query) ||
+            i.compatibleModels.toLowerCase().includes(query)
+        )
+        .slice(0, 5)
+    : [];
 
   const hasResults = matchingJobs.length > 0 || matchingInventory.length > 0;
 
@@ -142,40 +214,219 @@ export const Header: React.FC<HeaderProps> = ({
     setActiveTab('jobs');
     setSearchQuery('');
     setIsSearchOpen(false);
+    setOpenMenu(null);
     setMobileMenuOpen(false);
   };
 
-  const handleSelectInventoryResult = (item: InventoryItem) => {
+  const handleSelectInventoryResult = (_item: InventoryItem) => {
     setActiveTab('inventory');
     setSearchQuery('');
     setIsSearchOpen(false);
+    setOpenMenu(null);
     setMobileMenuOpen(false);
+  };
+
+  const inventoryAttentionCount = lowStockCount + dueMaintenanceCount;
+
+  const menuGroups: MenuGroupConfig[] = [
+    {
+      id: 'jobs',
+      label: 'Jobs & Intake',
+      icon: <Wrench className="w-3.5 h-3.5" />,
+      active: activeTab === 'intake' || activeTab === 'jobs' || activeTab === 'kanban',
+      badgeCount: activeJobCount > 0 ? activeJobCount : undefined,
+      badgeTone: 'neutral',
+      items: [
+        {
+          id: 'intake-form',
+          label: 'New Tool Intake Form',
+          description: 'Full check-in, serial warranty check, custom fields & voice intake',
+          icon: <FileText className="w-4 h-4" />,
+          active: activeTab === 'intake',
+          onSelect: () => handleNavClick('intake'),
+        },
+        {
+          id: 'quick-intake',
+          label: 'Quick Intake Modal',
+          description: 'Fast counter ticket dialog without leaving current screen',
+          icon: <PlusCircle className="w-4 h-4" />,
+          onSelect: () => {
+            setOpenMenu(null);
+            setMobileMenuOpen(false);
+            onOpenNewJobModal();
+          },
+        },
+        {
+          id: 'jobs-list',
+          label: 'Service Cards',
+          description: 'Filter cards, bulk-update statuses, print tags & send PDFs',
+          icon: <Wrench className="w-4 h-4" />,
+          active: activeTab === 'jobs',
+          badgeText: activeJobCount > 0 ? `${activeJobCount} active` : undefined,
+          badgeTone: 'neutral',
+          onSelect: () => handleNavClick('jobs'),
+        },
+        {
+          id: 'kanban-board',
+          label: 'Kanban Board',
+          description: 'Drag-and-drop workshop repair stage pipeline',
+          icon: <LayoutGrid className="w-4 h-4" />,
+          active: activeTab === 'kanban',
+          onSelect: () => handleNavClick('kanban'),
+        },
+      ],
+    },
+    {
+      id: 'inventory',
+      label: 'Inventory & Servicing',
+      icon: <Package className="w-3.5 h-3.5" />,
+      active: activeTab === 'inventory' || activeTab === 'maintenance',
+      badgeCount: inventoryAttentionCount > 0 ? inventoryAttentionCount : undefined,
+      badgeTone: lowStockCount > 0 ? 'warning' : 'neutral',
+      items: [
+        {
+          id: 'parts-catalog',
+          label: 'Spare Parts Catalog',
+          description: '1,000 SKUs, bulk CSV/Excel import & barcode lookup',
+          icon: <Package className="w-4 h-4" />,
+          active: activeTab === 'inventory',
+          badgeText: lowStockCount > 0 ? `${lowStockCount} low` : undefined,
+          badgeTone: 'warning',
+          onSelect: () => handleNavClick('inventory'),
+        },
+        {
+          id: 'stock-alerts',
+          label: 'Low-Stock Alerts',
+          description: 'Review parts below minimum threshold & quick reorder',
+          icon: <AlertTriangle className="w-4 h-4" />,
+          badgeText: unreadInventoryCount > 0 ? `${unreadInventoryCount} unread` : undefined,
+          badgeTone: 'warning',
+          onSelect: () => {
+            setOpenMenu(null);
+            setMobileMenuOpen(false);
+            if (onOpenInventoryAlerts) {
+              onOpenInventoryAlerts();
+            } else {
+              handleNavClick('inventory');
+            }
+          },
+        },
+        {
+          id: 'recurring-maintenance',
+          label: 'Recurring Servicing',
+          description: 'Preventative maintenance schedules, CSV import & job generation',
+          icon: <Clock className="w-4 h-4" />,
+          active: activeTab === 'maintenance',
+          badgeText: dueMaintenanceCount > 0 ? `${dueMaintenanceCount} due` : undefined,
+          badgeTone: 'accent',
+          onSelect: () => handleNavClick('maintenance'),
+        },
+      ],
+    },
+    {
+      id: 'messaging',
+      label: 'Messaging & Portal',
+      icon: <MessageSquare className="w-3.5 h-3.5" />,
+      active: activeTab === 'messaging',
+      items: [
+        {
+          id: 'messaging-center',
+          label: 'WhatsApp & SMS Dispatch',
+          description: 'Send estimates, ready notices, feedback links & view logs',
+          icon: <MessageSquare className="w-4 h-4" />,
+          active: activeTab === 'messaging',
+          onSelect: () => handleNavClick('messaging'),
+        },
+        ...(onOpenCustomerView
+          ? [
+              {
+                id: 'client-portal',
+                label: 'Client Status Portal',
+                description: 'Isolated status tracker, receipt PDF download & ratings',
+                icon: <ExternalLink className="w-4 h-4" />,
+                onSelect: () => {
+                  setOpenMenu(null);
+                  setMobileMenuOpen(false);
+                  onOpenCustomerView();
+                },
+              },
+            ]
+          : []),
+      ],
+    },
+    {
+      id: 'analytics',
+      label: 'Analytics & Team',
+      icon: <BarChart3 className="w-3.5 h-3.5" />,
+      active: activeTab === 'analytics' || activeTab === 'timetracking',
+      items: [
+        {
+          id: 'analytics-dashboard',
+          label: 'Analytics & Revenue Forecast',
+          description: 'Workshop KPIs, technician efficiency & seasonal revenue chart',
+          icon: <BarChart3 className="w-4 h-4" />,
+          active: activeTab === 'analytics',
+          onSelect: () => handleNavClick('analytics'),
+        },
+        {
+          id: 'time-tracking',
+          label: 'Time Tracking & Shifts',
+          description: 'Technician clock-in/out timer, shift roster & bay calendar',
+          icon: <Timer className="w-4 h-4" />,
+          active: activeTab === 'timetracking',
+          onSelect: () => handleNavClick('timetracking'),
+        },
+      ],
+    },
+    {
+      id: 'tools',
+      label: 'Settings & Tools',
+      icon: <Settings className="w-3.5 h-3.5" />,
+      active: activeTab === 'transition',
+      items: [
+        ...(onOpenGlobalScanner
+          ? [
+              {
+                id: 'global-scanner',
+                label: 'QR & Barcode Scanner',
+                description: 'Scan job tags, serial plates, or spare part barcodes',
+                icon: <QrCode className="w-4 h-4" />,
+                onSelect: () => {
+                  setOpenMenu(null);
+                  setMobileMenuOpen(false);
+                  onOpenGlobalScanner();
+                },
+              },
+            ]
+          : []),
+        {
+          id: 'business-settings',
+          label: 'Business Settings & Custom Fields',
+          description: 'Rates, stock policy, custom intake fields & SQL/JSON export',
+          icon: <Settings className="w-4 h-4" />,
+          active: activeTab === 'transition',
+          onSelect: () => handleNavClick('transition'),
+        },
+      ],
+    },
+  ];
+
+  const getBadgeClasses = (tone: MenuItemConfig['badgeTone']) => {
+    if (tone === 'warning') return 'bg-amber-500/20 text-amber-300 border border-amber-500/40';
+    if (tone === 'accent') return 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+    return 'bg-zinc-800 text-zinc-300 border border-zinc-700';
   };
 
   return (
     <header className="sticky top-0 z-40 bg-zinc-950/95 backdrop-blur border-b border-zinc-800">
-      {/* SECURITY STATUS & SETUP BANNER */}
-      <div className="bg-zinc-900 border-b border-zinc-800/80 py-1 px-4 text-[10px] font-mono text-zinc-300 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="font-bold text-white uppercase">Security Status:</span>
-          <span className="text-zinc-400">Default Admin Account Active (<code className="text-white font-bold">admin / 123456</code>). Please change admin password in Settings upon deployment.</span>
-        </div>
-
-        <div className="hidden md:flex items-center gap-3 text-[10px] text-zinc-400">
-          <span>PII Sanitization: <strong className="text-emerald-400 font-bold">Active</strong></span>
-          <span>API Rate Limit: <strong className="text-emerald-400 font-bold">Protected</strong></span>
-          <span>Audit Ledger: <strong className="text-white font-bold">Active</strong></span>
-        </div>
-      </div>
-
+      {/* Row 1: Wordmark — Prominent Global Search Bar — Essential Operator Utilities */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-2 lg:gap-4">
-          
-          {/* Zone 1: Wordmark */}
-          <button 
+        <div className="flex items-center justify-between h-16 gap-3 sm:gap-5">
+          {/* Brand Wordmark */}
+          <button
+            type="button"
             onClick={() => handleNavClick('intake')}
-            className="flex items-center gap-2 text-left focus:outline-none group shrink-0"
+            className="flex items-center gap-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded-lg group shrink-0"
           >
             <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-center text-white group-hover:bg-zinc-800 transition-colors">
               <Wrench className="w-4 h-4" />
@@ -185,10 +436,10 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </button>
 
-          {/* Zone 2: Global Search Bar */}
-          <div className="relative flex-1 max-w-xs sm:max-w-sm md:max-w-md mx-1 sm:mx-2" ref={searchContainerRef}>
+          {/* Global Search Bar */}
+          <div className="relative flex-1 max-w-xl" ref={searchContainerRef}>
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-2.5 pointer-events-none" />
+              <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-2.5 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
@@ -197,14 +448,17 @@ export const Header: React.FC<HeaderProps> = ({
                   setIsSearchOpen(true);
                 }}
                 onFocus={() => setIsSearchOpen(true)}
-                placeholder="Global search: Client, Phone, SKU (BRSH-1002), Job ID..."
-                className="w-full bg-zinc-900 border border-zinc-800 hover:border-zinc-700 focus:border-white rounded-xl pl-8 pr-16 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none font-mono transition-colors"
+                placeholder="Search job cards, client name, phone, SKU, or serial..."
+                aria-label="Global workshop search"
+                className="w-full bg-zinc-900 border border-zinc-800 hover:border-zinc-700 focus:border-white rounded-xl pl-10 pr-16 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none font-mono transition-colors"
               />
               {searchQuery && (
                 <button
+                  type="button"
                   onClick={() => setSearchQuery('')}
-                  className={`absolute top-2 text-zinc-500 hover:text-white text-xs font-bold ${
-                    onOpenGlobalScanner ? 'right-8' : 'right-2.5'
+                  aria-label="Clear search query"
+                  className={`absolute top-2.5 text-zinc-500 hover:text-white text-xs font-bold ${
+                    onOpenGlobalScanner ? 'right-9' : 'right-3'
                   }`}
                 >
                   <X className="w-3.5 h-3.5" />
@@ -214,31 +468,29 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   type="button"
                   onClick={onOpenGlobalScanner}
-                  title="Open QR / Barcode Scanner"
-                  aria-label="Open QR and Barcode Scanner"
-                  className="absolute right-2 top-1.5 p-1 rounded-md text-emerald-400 hover:text-emerald-300 hover:bg-zinc-800 transition-colors"
+                  title="Scan QR or Barcode"
+                  aria-label="Scan QR and Barcode"
+                  className="absolute right-2 top-1.5 p-1.5 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-zinc-800 transition-colors"
                 >
                   <QrCode className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
 
-            {/* Global Search Interactive Results Overlay */}
+            {/* Global Search Results Dropdown */}
             {isSearchOpen && query && (
-              <div className="absolute left-0 right-0 top-11 z-50 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden font-mono text-xs animate-in fade-in duration-150">
+              <div className="absolute left-0 right-0 top-11 z-50 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden font-mono text-xs">
                 {!hasResults ? (
                   <div className="p-4 text-center text-zinc-500">
-                    No job cards or SKU inventory matches for &quot;{searchQuery}&quot;
+                    No job cards or inventory matches for &quot;{searchQuery}&quot;
                   </div>
                 ) : (
                   <div className="max-h-96 overflow-y-auto divide-y divide-zinc-900">
-                    
-                    {/* Job Cards Matches */}
                     {matchingJobs.length > 0 && (
                       <div className="p-2 space-y-1">
                         <div className="px-2.5 py-1 text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center justify-between">
                           <span>Job Cards ({matchingJobs.length})</span>
-                          <span className="text-zinc-400">Click to view</span>
+                          <span>Select to open</span>
                         </div>
                         {matchingJobs.map((job) => (
                           <div
@@ -255,15 +507,15 @@ export const Header: React.FC<HeaderProps> = ({
                               </div>
                               <div className="text-[10px] text-zinc-400 mt-0.5 flex items-center gap-2">
                                 <span>{job.customerPhone}</span>
-                                <span>·</span>
-                                <span className="text-zinc-300 font-medium">{job.tool.brand} {job.tool.modelNumber}</span>
+                                <span aria-hidden="true">·</span>
+                                <span className="text-zinc-300 font-medium">
+                                  {job.tool.brand} {job.tool.modelNumber}
+                                </span>
                               </div>
                             </div>
 
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-[9px] px-2 py-0.5 rounded-full bg-zinc-900 text-zinc-300 border border-zinc-800">
-                                {job.status}
-                              </span>
+                              <span className="text-[10px] text-zinc-300 font-medium">{job.status}</span>
                               <ChevronRight className="w-3.5 h-3.5 text-zinc-600 group-hover:text-white transition-colors" />
                             </div>
                           </div>
@@ -271,12 +523,11 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                     )}
 
-                    {/* Inventory Spare Parts Matches */}
                     {matchingInventory.length > 0 && (
                       <div className="p-2 space-y-1">
                         <div className="px-2.5 py-1 text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center justify-between">
                           <span>Parts Inventory SKUs ({matchingInventory.length})</span>
-                          <span className="text-zinc-400">Click to open catalog</span>
+                          <span>Select to view catalog</span>
                         </div>
                         {matchingInventory.map((item) => (
                           <div
@@ -298,8 +549,12 @@ export const Header: React.FC<HeaderProps> = ({
 
                             <div className="flex items-center gap-2 shrink-0 text-right">
                               <div>
-                                <div className="text-xs font-bold text-white">${item.unitPrice.toFixed(2)}</div>
-                                <div className="text-[9px] text-zinc-400">{item.stockQty} in stock</div>
+                                <div className="text-xs font-bold text-white tabular-nums">
+                                  ${item.unitPrice.toFixed(2)}
+                                </div>
+                                <div className="text-[9px] text-zinc-400 tabular-nums">
+                                  {item.stockQty} in stock
+                                </div>
                               </div>
                               <ChevronRight className="w-3.5 h-3.5 text-zinc-600 group-hover:text-white transition-colors" />
                             </div>
@@ -307,129 +562,22 @@ export const Header: React.FC<HeaderProps> = ({
                         ))}
                       </div>
                     )}
-
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* Zone 3: Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-1 bg-zinc-900 p-1 rounded-xl border border-zinc-800">
-            <button
-              onClick={() => handleNavClick('intake')}
-              className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-all whitespace-nowrap shrink-0 ${
-                activeTab === 'intake'
-                  ? 'bg-white text-zinc-950 shadow font-bold'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-              }`}
-            >
-              + Intake Form
-            </button>
-
-            <button
-              onClick={() => handleNavClick('jobs')}
-              className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-                activeTab === 'jobs'
-                  ? 'bg-white text-zinc-950 shadow font-bold'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-              }`}
-            >
-              <span>Service Cards</span>
-              {activeJobCount > 0 && (
-                <span className={`px-1.5 py-0.2 text-[10px] font-mono rounded font-bold ${activeTab === 'jobs' ? 'bg-zinc-950 text-white' : 'bg-zinc-800 text-zinc-300'}`}>
-                  {activeJobCount}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => handleNavClick('kanban')}
-              className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-                activeTab === 'kanban'
-                  ? 'bg-white text-zinc-950 shadow font-bold'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-              }`}
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span>Kanban</span>
-            </button>
-
-            <button
-              onClick={() => handleNavClick('maintenance')}
-              className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-                activeTab === 'maintenance'
-                  ? 'bg-white text-zinc-950 shadow font-bold'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5" />
-              <span>Servicing</span>
-              {dueMaintenanceCount > 0 && (
-                <span className="px-1.5 py-0.2 text-[10px] font-mono rounded font-bold bg-white text-zinc-950 border border-white">
-                  {dueMaintenanceCount}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => handleNavClick('inventory')}
-              className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-                activeTab === 'inventory'
-                  ? 'bg-white text-zinc-950 shadow font-bold'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-              }`}
-            >
-              <span>1,000 SKUs</span>
-              {lowStockCount > 0 && (
-                <span className="px-1.5 py-0.2 text-[10px] font-mono rounded font-extrabold bg-amber-500 text-zinc-950">
-                  {lowStockCount}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => handleNavClick('messaging')}
-              className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-all whitespace-nowrap shrink-0 ${
-                activeTab === 'messaging'
-                  ? 'bg-white text-zinc-950 shadow font-bold'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-              }`}
-            >
-              WhatsApp
-            </button>
-
-            <button
-              onClick={() => handleNavClick('analytics')}
-              className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-                activeTab === 'analytics'
-                  ? 'bg-white text-zinc-950 shadow font-bold'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-              }`}
-            >
-              <BarChart3 className="w-3.5 h-3.5" />
-              <span>Analytics</span>
-            </button>
-
-            <button
-              onClick={() => handleNavClick('timetracking')}
-              className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-                activeTab === 'timetracking'
-                  ? 'bg-white text-zinc-950 shadow font-bold'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-              }`}
-            >
-              <Timer className="w-3.5 h-3.5" />
-              <span>Time Tracking</span>
-            </button>
-          </nav>
-
-          {/* Zone 4: Inventory Notification Center Bell, Primary Action & Mobile Toggle */}
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          {/* Right Essential Utilities + Primary Intake Action */}
+          <div className="flex items-center gap-2 shrink-0">
             {/* Inventory Notification Center Bell */}
             <div className="relative" ref={notifContainerRef}>
               <button
-                onClick={() => setIsNotifOpen((prev) => !prev)}
+                type="button"
+                onClick={() => {
+                  setIsNotifOpen((prev) => !prev);
+                  setOpenMenu(null);
+                }}
                 className={`relative p-2 rounded-lg border transition-colors ${
                   unreadInventoryCount > 0 || lowStockCount > 0
                     ? 'bg-zinc-900 border-amber-500/60 text-amber-300 hover:bg-zinc-800'
@@ -440,8 +588,12 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <Bell className="w-4 h-4" />
                 {(unreadInventoryCount > 0 || lowStockCount > 0) && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow">
-                    {unreadInventoryCount > 0 ? (unreadInventoryCount > 99 ? '99+' : unreadInventoryCount) : lowStockCount}
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow tabular-nums">
+                    {unreadInventoryCount > 0
+                      ? unreadInventoryCount > 99
+                        ? '99+'
+                        : unreadInventoryCount
+                      : lowStockCount}
                   </span>
                 )}
               </button>
@@ -454,13 +606,14 @@ export const Header: React.FC<HeaderProps> = ({
                         <Bell className="w-3.5 h-3.5 text-amber-400" />
                         <span>Inventory Notification Center</span>
                       </div>
-                      <div className="text-[10px] text-zinc-400 mt-0.5">
+                      <div className="text-[10px] text-zinc-400 mt-0.5 tabular-nums">
                         {inventoryNotifications.length} items below min threshold · {unreadInventoryCount} unread
                       </div>
                     </div>
 
                     {onMarkAllNotificationsRead && unreadInventoryCount > 0 && (
                       <button
+                        type="button"
                         onClick={onMarkAllNotificationsRead}
                         className="px-2 py-1 text-[10px] bg-zinc-950 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 rounded-lg flex items-center gap-1"
                       >
@@ -486,6 +639,7 @@ export const Header: React.FC<HeaderProps> = ({
                     ].map((tab) => (
                       <button
                         key={tab.id}
+                        type="button"
                         onClick={() => setNotifFilter(tab.id as 'all' | 'unread' | 'critical')}
                         className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-bold transition-colors ${
                           notifFilter === tab.id
@@ -517,7 +671,6 @@ export const Header: React.FC<HeaderProps> = ({
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1.5">
-                                  {!notif.read && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />}
                                   <span className="font-bold text-white truncate">{notif.sku}</span>
                                   <span
                                     className={`text-[9px] px-1.5 py-0.5 rounded font-bold border ${
@@ -536,7 +689,7 @@ export const Header: React.FC<HeaderProps> = ({
                                 </div>
                               </div>
 
-                              <div className="text-right shrink-0">
+                              <div className="text-right shrink-0 tabular-nums">
                                 <div className={`text-xs font-extrabold ${isOut ? 'text-rose-400' : 'text-amber-400'}`}>
                                   {notif.stockQty} / Min {notif.minStockThreshold}
                                 </div>
@@ -545,11 +698,16 @@ export const Header: React.FC<HeaderProps> = ({
                             </div>
 
                             <div className="flex items-center justify-between gap-2 pt-0.5">
-                              <span className="text-[10px] text-zinc-400">
-                                Suggest: <strong className="text-emerald-400">+{notif.suggestedReorderQty} {notif.unit}</strong> (${notif.estimatedReorderCost.toFixed(2)})
+                              <span className="text-[10px] text-zinc-400 tabular-nums">
+                                Suggest:{' '}
+                                <strong className="text-emerald-400">
+                                  +{notif.suggestedReorderQty} {notif.unit}
+                                </strong>{' '}
+                                (${notif.estimatedReorderCost.toFixed(2)})
                               </span>
                               {onQuickReorderItem && (
                                 <button
+                                  type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     onQuickReorderItem(notif.itemId, notif.suggestedReorderQty);
@@ -569,6 +727,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                   <div className="p-2.5 bg-zinc-900 border-t border-zinc-800 flex items-center justify-between">
                     <button
+                      type="button"
                       onClick={() => {
                         setIsNotifOpen(false);
                         if (onOpenInventoryAlerts) {
@@ -587,88 +746,62 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
-            <button
-              onClick={() => handleNavClick('transition')}
-              className={`p-2 rounded-lg border transition-colors ${
-                activeTab === 'transition'
-                  ? 'bg-white border-white text-zinc-950'
-                  : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800'
-              }`}
-              title="Business Settings & Analytics Configuration"
-              aria-label="Open Business Settings"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-
             {onOpenCustomerView && (
               <button
+                type="button"
                 onClick={onOpenCustomerView}
-                title="Open isolated Customer Status Portal"
-                className="hidden sm:inline-flex px-2.5 py-2 text-xs font-bold text-zinc-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg transition-colors items-center gap-1.5 whitespace-nowrap shrink-0"
+                title="Open isolated Client Status Portal"
+                className="hidden md:inline-flex px-2.5 py-2 text-xs font-bold text-zinc-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg transition-colors items-center gap-1.5 whitespace-nowrap shrink-0"
               >
                 <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Customer View</span>
+                <span>Client Portal</span>
               </button>
             )}
 
-            {!authLoading && (authUser ? (
-              onSignOut && (
-                <button
-                  type="button"
-                  onClick={onSignOut}
-                  title={`Signed in as ${authUser.email || authUser.displayName || 'Operator'} — Click to sign out`}
-                  aria-label="Sign out operator account"
-                  className="hidden sm:inline-flex px-2.5 py-2 text-xs font-mono font-bold text-zinc-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg transition-colors items-center gap-1.5 whitespace-nowrap shrink-0"
-                >
-                  <User className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="max-w-[96px] truncate">
-                    {authUser.displayName?.split(' ')[0] || authUser.email?.split('@')[0] || 'Operator'}
-                  </span>
-                  <LogOut className="w-3.5 h-3.5 text-zinc-400" />
-                </button>
-              )
-            ) : (
-              onSignIn && (
-                <button
-                  type="button"
-                  onClick={onSignIn}
-                  title="Sign in with Google to sync workshop tickets across devices"
-                  aria-label="Sign in with Google"
-                  className="hidden sm:inline-flex px-2.5 py-2 text-xs font-bold text-zinc-100 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg transition-colors items-center gap-1.5 whitespace-nowrap shrink-0"
-                >
-                  <LogIn className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Sign In</span>
-                </button>
-              )
-            ))}
+            {!authLoading &&
+              (authUser
+                ? onSignOut && (
+                    <button
+                      type="button"
+                      onClick={onSignOut}
+                      title={`Signed in as ${authUser.email || authUser.displayName || 'Operator'} — Click to sign out`}
+                      aria-label="Sign out operator account"
+                      className="hidden sm:inline-flex px-2.5 py-2 text-xs font-mono font-bold text-zinc-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg transition-colors items-center gap-1.5 whitespace-nowrap shrink-0"
+                    >
+                      <User className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="max-w-[96px] truncate">
+                        {authUser.displayName?.split(' ')[0] || authUser.email?.split('@')[0] || 'Operator'}
+                      </span>
+                      <LogOut className="w-3.5 h-3.5 text-zinc-400" />
+                    </button>
+                  )
+                : onSignIn && (
+                    <button
+                      type="button"
+                      onClick={onSignIn}
+                      title="Sign in with Google to sync workshop tickets across devices"
+                      aria-label="Sign in with Google"
+                      className="hidden sm:inline-flex px-2.5 py-2 text-xs font-bold text-zinc-100 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg transition-colors items-center gap-1.5 whitespace-nowrap shrink-0"
+                    >
+                      <LogIn className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Sign In</span>
+                    </button>
+                  ))}
 
             <PWAInstallButton />
 
-            {onOpenGlobalScanner && (
-              <button
-                type="button"
-                onClick={onOpenGlobalScanner}
-                title="Scan Barcode or QR Code"
-                aria-label="Scan Barcode or QR Code"
-                className="px-2.5 sm:px-3 py-2 text-xs font-bold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 active:scale-95"
-              >
-                <ScanBarcode className="w-4 h-4" />
-                <span className="hidden xl:inline">Scan QR / Barcode</span>
-                <span className="xl:hidden hidden sm:inline">Scan</span>
-              </button>
-            )}
-
             <button
+              type="button"
               onClick={onOpenNewJobModal}
               className="px-3 sm:px-3.5 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-lg shadow transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 active:scale-95"
             >
               <PlusCircle className="w-4 h-4" />
-              <span className="hidden xs:inline">+ New Intake</span>
-              <span className="xs:hidden">+ Intake</span>
+              <span>+ New Intake</span>
             </button>
 
-            {/* Mobile / Tablet Menu Button */}
+            {/* Mobile / Tablet Drawer Toggle */}
             <button
+              type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="lg:hidden p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white focus:outline-none"
               aria-label="Toggle Navigation Menu"
@@ -676,204 +809,190 @@ export const Header: React.FC<HeaderProps> = ({
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
-
         </div>
       </div>
 
-      {/* Responsive Mobile / Tablet Navigation Panel */}
+      {/* Row 2: Organized Dropdown Menus Directly Under the Search Bar (Desktop) */}
+      <div className="hidden lg:block border-t border-zinc-800/80 bg-zinc-950/90" ref={menuBarRef}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-11 flex items-center justify-between gap-4">
+          <nav className="flex items-center gap-1.5" aria-label="Workshop Feature Menus">
+            {menuGroups.map((group) => {
+              const isOpen = openMenu === group.id;
+              return (
+                <div key={group.id} className="relative">
+                  <button
+                    type="button"
+                    aria-expanded={isOpen}
+                    aria-haspopup="menu"
+                    onClick={() => {
+                      setIsNotifOpen(false);
+                      setIsSearchOpen(false);
+                      setOpenMenu((curr) => (curr === group.id ? null : group.id));
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 ${
+                      group.active || isOpen
+                        ? 'bg-zinc-800 text-white border border-zinc-700'
+                        : 'text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent'
+                    }`}
+                  >
+                    {group.icon}
+                    <span>{group.label}</span>
+                    {typeof group.badgeCount === 'number' && group.badgeCount > 0 && (
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold tabular-nums ${
+                          group.badgeTone === 'warning'
+                            ? 'bg-amber-500 text-zinc-950'
+                            : 'bg-zinc-950 text-zinc-200 border border-zinc-700'
+                        }`}
+                      >
+                        {group.badgeCount}
+                      </span>
+                    )}
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-150 ${
+                        isOpen ? 'rotate-180 text-white' : ''
+                      }`}
+                    />
+                  </button>
+
+                  {isOpen && (
+                    <div
+                      role="menu"
+                      aria-label={group.label}
+                      className="absolute left-0 top-10 z-50 w-80 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl p-1.5 space-y-1"
+                    >
+                      {group.items.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          role="menuitem"
+                          onClick={item.onSelect}
+                          className={`w-full text-left px-3 py-2.5 rounded-xl flex items-start gap-3 transition-colors ${
+                            item.active
+                              ? 'bg-zinc-800/90 text-white border border-zinc-700'
+                              : 'text-zinc-300 hover:bg-zinc-900 hover:text-white border border-transparent'
+                          }`}
+                        >
+                          <div
+                            className={`mt-0.5 shrink-0 ${
+                              item.active ? 'text-emerald-400' : 'text-zinc-400'
+                            }`}
+                          >
+                            {item.icon}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-bold truncate">{item.label}</span>
+                              {item.badgeText && (
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold shrink-0 tabular-nums ${getBadgeClasses(
+                                    item.badgeTone
+                                  )}`}
+                                >
+                                  {item.badgeText}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-zinc-400 leading-snug mt-0.5">
+                              {item.description}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+
+          {/* Subtle Current View Indicator */}
+          <div className="text-[11px] font-mono text-zinc-400 whitespace-nowrap shrink-0 flex items-center gap-1.5">
+            <span>View:</span>
+            <span className="text-zinc-200 font-semibold">{ACTIVE_TAB_LABELS[activeTab]}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Responsive Mobile / Tablet Categorized Drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-zinc-950 border-b border-zinc-800 px-4 py-3 space-y-1.5 shadow-2xl animate-in slide-in-from-top duration-200 font-mono text-xs">
-          {onOpenGlobalScanner && (
-            <button
-              type="button"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenGlobalScanner();
-              }}
-              className="w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between text-zinc-950 bg-emerald-400 hover:bg-emerald-300"
-            >
-              <div className="flex items-center gap-2">
-                <ScanBarcode className="w-4 h-4" />
-                <span>QR Code &amp; Barcode Scanner</span>
+        <div className="lg:hidden bg-zinc-950 border-t border-zinc-800 px-4 py-4 space-y-4 max-h-[80vh] overflow-y-auto shadow-2xl font-mono text-xs">
+          {menuGroups.map((group) => (
+            <div key={group.id} className="space-y-1.5">
+              <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 flex items-center justify-between">
+                <span>{group.label}</span>
+                {typeof group.badgeCount === 'number' && group.badgeCount > 0 && (
+                  <span className="text-zinc-300 tabular-nums">{group.badgeCount}</span>
+                )}
               </div>
-            </button>
-          )}
-
-          <button
-            onClick={() => handleNavClick('intake')}
-            className={`w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between ${
-              activeTab === 'intake' ? 'bg-white text-zinc-950' : 'text-zinc-300 hover:bg-zinc-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              <span>+ New Tool Intake Form</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => handleNavClick('jobs')}
-            className={`w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between ${
-              activeTab === 'jobs' ? 'bg-white text-zinc-950' : 'text-zinc-300 hover:bg-zinc-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Wrench className="w-4 h-4" />
-              <span>Service Job Cards</span>
-            </div>
-            {activeJobCount > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] bg-zinc-800 text-white">
-                {activeJobCount} Active
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => handleNavClick('kanban')}
-            className={`w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between ${
-              activeTab === 'kanban' ? 'bg-white text-zinc-950' : 'text-zinc-300 hover:bg-zinc-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <LayoutGrid className="w-4 h-4" />
-              <span>Kanban Board (Drag &amp; Drop)</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => handleNavClick('maintenance')}
-            className={`w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between ${
-              activeTab === 'maintenance' ? 'bg-white text-zinc-950' : 'text-zinc-300 hover:bg-zinc-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              <span>Recurring Tool Maintenance</span>
-            </div>
-            {dueMaintenanceCount > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] bg-white text-zinc-950 font-extrabold">
-                {dueMaintenanceCount} Due
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => handleNavClick('inventory')}
-            className={`w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between ${
-              activeTab === 'inventory' ? 'bg-white text-zinc-950' : 'text-zinc-300 hover:bg-zinc-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Package className="w-4 h-4" />
-              <span>1,000 Tool Spare Parts Catalog</span>
-            </div>
-            {lowStockCount > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] bg-zinc-800 text-zinc-300">
-                {lowStockCount} Low
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => handleNavClick('messaging')}
-            className={`w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between ${
-              activeTab === 'messaging' ? 'bg-white text-zinc-950' : 'text-zinc-300 hover:bg-zinc-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              <span>WhatsApp &amp; SMS Dispatch</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => handleNavClick('analytics')}
-            className={`w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between ${
-              activeTab === 'analytics' ? 'bg-white text-zinc-950' : 'text-zinc-300 hover:bg-zinc-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <UserCheck className="w-4 h-4" />
-              <span>Technician Efficiency &amp; Analytics</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => handleNavClick('timetracking')}
-            className={`w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between ${
-              activeTab === 'timetracking' ? 'bg-white text-zinc-950' : 'text-zinc-300 hover:bg-zinc-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Timer className="w-4 h-4" />
-              <span>Employee Time-Tracking &amp; Clock-In</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => handleNavClick('transition')}
-            className={`w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between ${
-              activeTab === 'transition' ? 'bg-white text-zinc-950' : 'text-zinc-400 hover:bg-zinc-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              <span>Business Settings &amp; Setup</span>
-            </div>
-          </button>
-
-          {onOpenCustomerView && (
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenCustomerView();
-              }}
-              className="w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between text-emerald-300 bg-emerald-950/30 border border-emerald-800/60 hover:bg-emerald-950/60"
-            >
-              <div className="flex items-center gap-2">
-                <ExternalLink className="w-4 h-4" />
-                <span>Customer Status Portal (Customer View)</span>
+              <div className="space-y-1">
+                {group.items.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={item.onSelect}
+                    className={`w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between gap-2 ${
+                      item.active
+                        ? 'bg-white text-zinc-950'
+                        : 'text-zinc-200 bg-zinc-900/60 hover:bg-zinc-900'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="shrink-0">{item.icon}</span>
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                    {item.badgeText && (
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 tabular-nums ${
+                          item.active
+                            ? 'bg-zinc-950 text-white'
+                            : getBadgeClasses(item.badgeTone)
+                        }`}
+                      >
+                        {item.badgeText}
+                      </span>
+                    )}
+                  </button>
+                ))}
               </div>
-            </button>
-          )}
-
-          {!authLoading && (authUser ? (
-            onSignOut && (
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onSignOut();
-                }}
-                className="w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between text-zinc-200 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800"
-              >
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-emerald-400" />
-                  <span>Sign Out ({authUser.displayName || authUser.email || 'Operator'})</span>
-                </div>
-                <LogOut className="w-4 h-4 text-zinc-400" />
-              </button>
-            )
-          ) : (
-            onSignIn && (
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onSignIn();
-                }}
-                className="w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between text-zinc-100 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800"
-              >
-                <div className="flex items-center gap-2">
-                  <LogIn className="w-4 h-4 text-emerald-400" />
-                  <span>Operator Sign In (Google)</span>
-                </div>
-              </button>
-            )
+            </div>
           ))}
+
+          {!authLoading &&
+            (authUser
+              ? onSignOut && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onSignOut();
+                    }}
+                    className="w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between text-zinc-200 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800"
+                  >
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-emerald-400" />
+                      <span>Sign Out ({authUser.displayName || authUser.email || 'Operator'})</span>
+                    </div>
+                    <LogOut className="w-4 h-4 text-zinc-400" />
+                  </button>
+                )
+              : onSignIn && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onSignIn();
+                    }}
+                    className="w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between text-zinc-100 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800"
+                  >
+                    <div className="flex items-center gap-2">
+                      <LogIn className="w-4 h-4 text-emerald-400" />
+                      <span>Operator Sign In (Google)</span>
+                    </div>
+                  </button>
+                ))}
         </div>
       )}
-
     </header>
   );
 };
