@@ -68,4 +68,3 @@ customerName,toolBrand,toolCategory,modelNumber,serialNumber,intervalMonths,reco
 - **MySQL 8.0+ Schema & Dummy Seed**: [`/database.sql`](../../database.sql)
 - **Database Setup & Multi-Client Integration**: [`../DATABASE_SETUP_AND_INTEGRATION_GUIDE.md`](../DATABASE_SETUP_AND_INTEGRATION_GUIDE.md)
 - **QA CSV & Database Verification Tests**: [`../TESTING_AND_QA_ACCEPTANCE_GUIDE.md`](../TESTING_AND_QA_ACCEPTANCE_GUIDE.md)
-

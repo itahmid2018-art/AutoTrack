@@ -1,5 +1,6 @@
 import React from 'react';
-import { JobCard } from '../types';
+import { BusinessSettings, JobCard } from '../types';
+import { getEffectiveJobBilling } from '../utils/billing';
 import { Printer, X, Wrench, CheckSquare, Tag, Shield, Scissors, User, Phone } from 'lucide-react';
 import {
   buildCustomerPortalUrl,
@@ -9,10 +10,17 @@ import {
 
 interface PrintableJobCardModalProps {
   job: JobCard;
+  settings?: BusinessSettings;
   onClose: () => void;
 }
 
-export const PrintableJobCardModal: React.FC<PrintableJobCardModalProps> = ({ job, onClose }) => {
+export const PrintableJobCardModal: React.FC<PrintableJobCardModalProps> = ({ job, settings, onClose }) => {
+  const billing = getEffectiveJobBilling(job);
+  const currency = settings?.currencySymbol || '$';
+  const centerName = settings?.centerName || 'BOSCH & VENDOR AUTHORISED SERVICE CENTER';
+  const contactLine = settings
+    ? [settings.address, settings.phone].filter(Boolean).join(' · ')
+    : 'Industrial Estate, Bay 4';
   const accessToken = ensurePublicAccessToken(job);
   const customerPortalUrl = buildCustomerPortalUrl({
     id: job.id,
@@ -70,7 +78,7 @@ export const PrintableJobCardModal: React.FC<PrintableJobCardModalProps> = ({ jo
               <div className="flex justify-between items-start border-b-2 border-black pb-3">
                 <div>
                   <div className="text-xs font-extrabold tracking-widest font-mono uppercase text-zinc-800">
-                    BOSCH &amp; VENDOR AUTHORISED SERVICE CENTER
+                    {centerName}
                   </div>
                   <h1 className="text-xl font-black font-mono tracking-tight uppercase">WORKSHOP REPAIR TAG</h1>
                   <p className="text-[11px] text-zinc-700 font-mono">Attach this upper section to tool carrying case or workbench rack</p>
@@ -131,7 +139,7 @@ export const PrintableJobCardModal: React.FC<PrintableJobCardModalProps> = ({ jo
               <div className="border-2 border-black p-3 rounded bg-zinc-50 space-y-1">
                 <div className="flex justify-between font-bold text-[11px]">
                   <span className="uppercase text-black">DEFECT / GRIEVANCE: {job.serviceReq.grievanceCategory}</span>
-                  <span className="font-mono">Pre-Approve Limit: ${job.serviceReq.preApprovedLimit.toFixed(2)}</span>
+                  <span className="font-mono">Pre-Approve Limit: {currency}{job.serviceReq.preApprovedLimit.toFixed(2)}</span>
                 </div>
                 <p className="font-mono text-xs font-semibold leading-normal">{job.serviceReq.detailedComplaint}</p>
               </div>
@@ -174,8 +182,8 @@ export const PrintableJobCardModal: React.FC<PrintableJobCardModalProps> = ({ jo
                           <td className="p-1 font-bold">{p.sku}</td>
                           <td className="p-1">{p.name}</td>
                           <td className="p-1 text-center font-bold">{p.quantity}</td>
-                          <td className="p-1 text-right">${p.unitPrice.toFixed(2)}</td>
-                          <td className="p-1 text-right">${p.total.toFixed(2)}</td>
+                          <td className="p-1 text-right">{currency}{p.unitPrice.toFixed(2)}</td>
+                          <td className="p-1 text-right">{currency}{p.total.toFixed(2)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -226,9 +234,9 @@ export const PrintableJobCardModal: React.FC<PrintableJobCardModalProps> = ({ jo
               
               <div className="flex justify-between items-start border-b border-black pb-3">
                 <div>
-                  <div className="text-[10px] font-extrabold uppercase tracking-wider font-mono">BOSCH AUTHORISED SERVICE CENTER</div>
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider font-mono">{centerName}</div>
                   <h2 className="text-lg font-black font-mono uppercase">CUSTOMER SERVICE RECEIPT</h2>
-                  <p className="text-[10px] text-zinc-600">Industrial Estate, Bay 4 · Customer Service Line: (555) 019-2831</p>
+                  <p className="text-[10px] text-zinc-600">{contactLine}</p>
                 </div>
 
                 <div className="text-right font-mono">
@@ -284,11 +292,14 @@ export const PrintableJobCardModal: React.FC<PrintableJobCardModalProps> = ({ jo
                 </div>
 
                 <div className="text-right font-mono text-xs space-y-1 shrink-0">
-                  <div>Labor Charge: ${(job.laborHours * job.laborRate).toFixed(2)}</div>
-                  <div>Parts Total: ${job.parts.reduce((s, p) => s + p.total, 0).toFixed(2)}</div>
-                  <div>Tax ({job.taxRate}%): ${(((job.totalAmount * job.taxRate) / (100 + job.taxRate))).toFixed(2)}</div>
+                  <div>Labor Charge: {currency}{billing.laborSubtotal.toFixed(2)}</div>
+                  <div>Parts Total: {currency}{billing.partsSubtotal.toFixed(2)}</div>
+                  {billing.operationalExpensesSubtotal > 0 && (
+                    <div>Operational Expenses: {currency}{billing.operationalExpensesSubtotal.toFixed(2)}</div>
+                  )}
+                  <div>Tax ({job.taxRate}%): {currency}{billing.taxAmount.toFixed(2)}</div>
                   <div className="text-sm font-extrabold border-t border-black pt-1">
-                    TOTAL ESTIMATE: ${job.totalAmount.toFixed(2)}
+                    TOTAL ESTIMATE: {currency}{billing.totalAmount.toFixed(2)}
                   </div>
                 </div>
               </div>

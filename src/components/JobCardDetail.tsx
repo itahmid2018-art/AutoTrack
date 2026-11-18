@@ -5,6 +5,7 @@ import { adjudicateWarranty, autoAdjudicateJobCard } from '../utils/warrantyAdju
 import { calculateJobBilling } from '../utils/billing';
 import { applyStockLifecycleTransition, InventoryDelta } from '../utils/stockDeduction';
 import { generateJobCardPdf } from '../utils/generatePdf';
+import { buildPdfBrandMeta } from '../utils/pdfBrandMeta';
 import { buildCustomerFeedbackUrl, buildCustomerPortalUrl } from '../utils/customerPortalUrl';
 import { resolveApiUrl } from '../utils/apiBase';
 import { SerialBarcodeScannerModal } from './SerialBarcodeScannerModal';
@@ -1734,15 +1735,7 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
   })();
 
   const handleDownloadPdf = () => {
-    const brandMeta = settings
-      ? {
-          centerName: settings.centerName,
-          phone: settings.phone,
-          email: settings.email,
-          address: settings.address,
-          appOrigin: typeof window !== 'undefined' ? window.location.origin : undefined,
-        }
-      : undefined;
+    const brandMeta = settings ? buildPdfBrandMeta(settings) : undefined;
     const { doc, filename } = generateJobCardPdf(currentJob, brandMeta, customFields);
     doc.save(filename);
 

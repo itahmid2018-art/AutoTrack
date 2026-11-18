@@ -1247,6 +1247,7 @@ export default function App() {
       {printableJob && (
         <PrintableJobCardModal
           job={printableJob}
+          settings={settings}
           onClose={() => setPrintableJob(null)}
         />
       )}

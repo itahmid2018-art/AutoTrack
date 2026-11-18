@@ -143,10 +143,10 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
           onRestoreDatabase(parsed.data || parsed);
           showNotice('Database restored successfully from backup file!');
         } else {
-          alert('Invalid JSON backup file structure.');
+          showNotice('Invalid JSON backup file structure.');
         }
       } catch (err: any) {
-        alert(`Failed to parse backup JSON file: ${err.message}`);
+        showNotice(`Failed to parse backup JSON file: ${err.message}`);
       }
     };
     reader.readAsText(file);

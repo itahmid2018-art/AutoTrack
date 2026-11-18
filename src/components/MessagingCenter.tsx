@@ -3,6 +3,7 @@ import { JobCard, MessageLog, BusinessSettings } from '../types';
 import { getEffectiveJobBilling } from '../utils/billing';
 import { buildCustomerFeedbackUrl, buildCustomerPortalUrl } from '../utils/customerPortalUrl';
 import { resolveApiUrl } from '../utils/apiBase';
+import { isApiConfirmed, sentStatusFor } from '../utils/messagingStatus';
 import {
   MessageSquare,
   Copy,
@@ -254,6 +255,16 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
     const encoded = encodeURIComponent(messageText);
     const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encoded}`;
 
+    const buildLog = (apiConfirmed: boolean): MessageLog => ({
+      id: `msg-${Date.now()}`,
+      timestamp: new Date().toLocaleString(),
+      type: templateType,
+      recipientPhone: activeJob.customerPhone,
+      text: messageText,
+      channel: 'WhatsApp',
+      status: sentStatusFor(apiConfirmed),
+    });
+
     try {
       const res = await fetch(resolveApiUrl('/api/messaging/send-whatsapp'), {
         method: 'POST',
@@ -265,8 +276,9 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
         }),
       });
       const data = await res.json();
+      const apiConfirmed = isApiConfirmed(res.ok, data);
 
-      if (data.success) {
+      if (apiConfirmed) {
         setSendFeedback({
           type: 'success',
           text: `WhatsApp Sent via ${data.provider}! ${data.sid ? `(SID: ${data.sid})` : ''}`,
@@ -279,28 +291,10 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
         window.open(data.fallbackUrl || whatsappUrl, '_blank');
       }
 
-      const log: MessageLog = {
-        id: `msg-${Date.now()}`,
-        timestamp: new Date().toLocaleString(),
-        type: templateType,
-        recipientPhone: activeJob.customerPhone,
-        text: messageText,
-        channel: 'WhatsApp',
-        status: data.success ? 'Sent' : 'Pending',
-      };
-      onLogMessageSent(activeJob.id, log);
+      onLogMessageSent(activeJob.id, buildLog(apiConfirmed));
     } catch (err: any) {
       console.error(err);
-      const log: MessageLog = {
-        id: `msg-${Date.now()}`,
-        timestamp: new Date().toLocaleString(),
-        type: templateType,
-        recipientPhone: activeJob.customerPhone,
-        text: messageText,
-        channel: 'WhatsApp',
-        status: 'Pending',
-      };
-      onLogMessageSent(activeJob.id, log);
+      onLogMessageSent(activeJob.id, buildLog(false));
       setSendFeedback({
         type: 'info',
         text: 'WhatsApp API unreachable — opened WhatsApp Web fallback and logged as Pending.',
@@ -319,6 +313,16 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
     const encoded = encodeURIComponent(messageText);
     const smsUrl = `sms:${activeJob.customerPhone}?body=${encoded}`;
 
+    const buildLog = (apiConfirmed: boolean): MessageLog => ({
+      id: `msg-${Date.now()}`,
+      timestamp: new Date().toLocaleString(),
+      type: templateType,
+      recipientPhone: activeJob.customerPhone,
+      text: messageText,
+      channel: 'SMS',
+      status: sentStatusFor(apiConfirmed),
+    });
+
     try {
       const res = await fetch(resolveApiUrl('/api/messaging/send-sms'), {
         method: 'POST',
@@ -330,8 +334,9 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
         }),
       });
       const data = await res.json();
+      const apiConfirmed = isApiConfirmed(res.ok, data);
 
-      if (data.success) {
+      if (apiConfirmed) {
         setSendFeedback({
           type: 'success',
           text: `Twilio SMS Dispatched! SID: ${data.sid}`,
@@ -344,28 +349,10 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
         window.location.href = data.fallbackUrl || smsUrl;
       }
 
-      const log: MessageLog = {
-        id: `msg-${Date.now()}`,
-        timestamp: new Date().toLocaleString(),
-        type: templateType,
-        recipientPhone: activeJob.customerPhone,
-        text: messageText,
-        channel: 'SMS',
-        status: data.success ? 'Sent' : 'Pending',
-      };
-      onLogMessageSent(activeJob.id, log);
+      onLogMessageSent(activeJob.id, buildLog(apiConfirmed));
     } catch (err: any) {
       console.error(err);
-      const log: MessageLog = {
-        id: `msg-${Date.now()}`,
-        timestamp: new Date().toLocaleString(),
-        type: templateType,
-        recipientPhone: activeJob.customerPhone,
-        text: messageText,
-        channel: 'SMS',
-        status: 'Pending',
-      };
-      onLogMessageSent(activeJob.id, log);
+      onLogMessageSent(activeJob.id, buildLog(false));
       setSendFeedback({
         type: 'info',
         text: 'SMS API unreachable — opened device SMS fallback and logged as Pending.',

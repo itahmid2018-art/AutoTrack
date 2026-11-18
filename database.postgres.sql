@@ -292,7 +292,7 @@ CREATE TABLE message_logs (
   recipient_phone VARCHAR(50) NOT NULL,
   text TEXT NOT NULL,
   channel VARCHAR(20) NOT NULL CHECK (channel IN ('WhatsApp', 'SMS')),
-  status VARCHAR(50) NOT NULL DEFAULT 'Sent',
+  status VARCHAR(50) NOT NULL DEFAULT 'Pending',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

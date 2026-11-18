@@ -1,5 +1,7 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 
 const PORT = 3199;
@@ -9,6 +11,38 @@ const DIST_SERVER = path.resolve(process.cwd(), 'dist-server', 'server.cjs');
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Without ADC, @google-cloud/firestore throws an uncaught credentials error
+ * while opening a gRPC channel, which kills the server mid-request. The smoke
+ * harness only needs the endpoint to degrade to a clean 503, so give it an
+ * ephemeral, deliberately invalid service-account credential. Real credentials
+ * from the environment are never overridden.
+ */
+function createEphemeralCredentials() {
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) return null;
+
+  const { privateKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'autotrack-smoke-'));
+  const file = path.join(dir, 'firestore-adc.json');
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      type: 'service_account',
+      project_id: 'autotrack-smoke',
+      private_key_id: 'smoke-only',
+      private_key: privateKey,
+      client_email: 'smoke-only@autotrack-smoke.iam.gserviceaccount.com',
+      client_id: '000000000000000000000',
+      auth_uri: 'https://accounts.google.com/o/oauth2/auth',
+      token_uri: 'https://oauth2.googleapis.com/token',
+    })
+  );
+  return { dir, file };
 }
 
 async function waitForServerReady(child, exitedRef, timeoutMs = 15000) {
@@ -56,6 +90,7 @@ async function run() {
     process.exit(1);
   }
 
+  const smokeCredentials = createEphemeralCredentials();
   const exitedRef = { exited: false, code: null, signal: null };
   let stderrTail = '';
 
@@ -66,6 +101,7 @@ async function run() {
       HOST: '127.0.0.1',
       NODE_ENV: 'production',
       VALIDATE_GEMINI_MODELS_ON_START: 'false',
+      ...(smokeCredentials ? { GOOGLE_APPLICATION_CREDENTIALS: smokeCredentials.file } : {}),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -125,6 +161,9 @@ async function run() {
     process.exitCode = 1;
   } finally {
     await terminateChild(child);
+    if (smokeCredentials) {
+      fs.rmSync(smokeCredentials.dir, { recursive: true, force: true });
+    }
   }
 }
 

@@ -296,7 +296,7 @@ CREATE TABLE `message_logs` (
   `recipient_phone` VARCHAR(50) NOT NULL,
   `text` TEXT NOT NULL,
   `channel` ENUM('WhatsApp', 'SMS') NOT NULL,
-  `status` VARCHAR(50) NOT NULL DEFAULT 'Sent',
+  `status` VARCHAR(50) NOT NULL DEFAULT 'Pending',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`job_card_id`) REFERENCES `job_cards`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BusinessSettings, CustomField, JobCard } from '../types';
 import { generateJobCardPdf } from '../utils/generatePdf';
 import { getEffectiveJobBilling } from '../utils/billing';
+import { buildPdfBrandMeta } from '../utils/pdfBrandMeta';
 import { FileText, Download, MessageSquare, Phone, X, CheckCircle2, ArrowUpRight, Share2 } from 'lucide-react';
 
 interface PdfViewModalProps {
@@ -19,16 +20,8 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
   onClose,
   onLogMessageSent,
 }) => {
-  const brandMeta = settings
-    ? {
-        centerName: settings.centerName,
-        phone: settings.phone,
-        email: settings.email,
-        address: settings.address,
-        appOrigin: typeof window !== 'undefined' ? window.location.origin : undefined,
-      }
-    : undefined;
-  const centerPhone = settings?.phone || '(555) 019-2831';
+  const brandMeta = settings ? buildPdfBrandMeta(settings) : undefined;
+  const centerPhone = settings?.phone || 'Not configured';
   const centerName = settings?.centerName || 'Bosch Service Center';
   const effectiveTotal = getEffectiveJobBilling(job).totalAmount;
   const { doc, filename, dataUrl } = generateJobCardPdf(job, brandMeta, customFields);
@@ -122,7 +115,7 @@ export const PdfViewModal: React.FC<PdfViewModalProps> = ({
           {sentSuccess && (
             <span className="text-xs font-bold text-white flex items-center gap-1">
               <CheckCircle2 className="w-4 h-4" />
-              <span>PDF Dispatched to Customer!</span>
+              <span>PDF link opened — delivery not confirmed</span>
             </span>
           )}
         </div>

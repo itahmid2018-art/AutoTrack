@@ -1030,7 +1030,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                 </label>
                 <span className="text-[11px] text-zinc-500">Click a preset below to auto-fill</span>
               </div>
-              
+
               <textarea
                 required={detailedComplaintCfg.required}
                 rows={3}
