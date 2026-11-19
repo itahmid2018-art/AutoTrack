@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { InventoryItem, JobCard } from '../types';
 import { resolveApiUrl } from '../utils/apiBase';
+import { generatePurchaseOrderPdf } from '../utils/generatePdf';
 import { 
   Sparkles, 
   RefreshCw, 
@@ -13,7 +14,8 @@ import {
   Layers, 
   ChevronRight,
   ShieldAlert,
-  BrainCircuit
+  BrainCircuit,
+  FileText
 } from 'lucide-react';
 
 interface AiReorderRecommendationsProps {
@@ -234,6 +236,12 @@ export const AiReorderRecommendations: React.FC<AiReorderRecommendationsProps> =
 
   const totalReorderValue = recommendations.reduce((sum, r) => sum + r.estimatedTotalCost, 0);
 
+  const handleDownloadDraftPoPdf = () => {
+    if (recommendations.length === 0) return;
+    const { doc, filename } = generatePurchaseOrderPdf(recommendations);
+    doc.save(filename);
+  };
+
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-6 shadow-xl font-mono">
       
@@ -271,13 +279,24 @@ export const AiReorderRecommendations: React.FC<AiReorderRecommendationsProps> =
           </button>
 
           {recommendations.length > 0 && (
-            <button
-              onClick={handleDownloadAiPoCsv}
-              className="px-3.5 py-2 text-xs font-bold text-white bg-zinc-950 hover:bg-zinc-800 border border-zinc-700 rounded-xl transition-all flex items-center gap-1.5"
-            >
-              <Download className="w-4 h-4" />
-              <span>Export AI PO CSV</span>
-            </button>
+            <>
+              <button
+                onClick={handleDownloadDraftPoPdf}
+                className="px-3.5 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl transition-all flex items-center gap-1.5 shadow"
+                title="Generate and download Draft Purchase Order as PDF"
+              >
+                <FileText className="w-4 h-4 text-emerald-600" />
+                <span>Download Draft PO PDF</span>
+              </button>
+
+              <button
+                onClick={handleDownloadAiPoCsv}
+                className="px-3.5 py-2 text-xs font-bold text-white bg-zinc-950 hover:bg-zinc-800 border border-zinc-700 rounded-xl transition-all flex items-center gap-1.5"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export AI PO CSV</span>
+              </button>
+            </>
           )}
         </div>
       </div>

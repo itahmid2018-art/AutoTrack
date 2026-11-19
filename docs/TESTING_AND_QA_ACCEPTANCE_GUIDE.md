@@ -1,6 +1,6 @@
 # Quality Assurance & Testing Acceptance Guide
 
-This guide defines acceptance tests for the AutoTrack Pro service center application. It covers 15 core features, multi-client database synchronization, offline Service Worker resilience, and relational SQL verification scripts.
+This guide defines acceptance tests for the AutoTrack Pro service center application. It covers 20 core features, multi-client database synchronization, offline Service Worker resilience, Kanban cloud sync indicators, and automated dev-team verification suites.
 
 ---
 
@@ -21,8 +21,12 @@ This guide defines acceptance tests for the AutoTrack Pro service center applica
 14. [Feature 13: Offline Service Worker Caching & Job Card Viewing](#14-feature-13-offline-service-worker-caching--job-card-viewing)
 15. [Feature 14: Inventory Bulk Import (Excel TSV & CSV Paste)](#15-feature-14-inventory-bulk-import-excel-tsv--csv-paste)
 16. [Feature 15: Automated Customer Feedback SMS & CSAT Ratings](#16-feature-15-automated-customer-feedback-sms--csat-ratings)
-17. [Database & Dummy Dataset Verification Matrix](#17-database--dummy-dataset-verification-matrix)
-18. [End-to-End Regression Test Script](#18-end-to-end-regression-test-script)
+17. [Feature 16: Job Card Email Notifications & Portal Links](#17-feature-16-job-card-email-notifications--portal-links)
+18. [Feature 17: Grouped Header Menus, Bulk Status Update & Intake Signature Calibration](#18-feature-17-grouped-header-menus-bulk-status-update--intake-signature-calibration)
+19. [Feature 18: Draft Purchase Order PDF, 30-Day Op Expenses vs. Labor Chart & D3.js Consumption Trends](#19-feature-18-draft-purchase-order-pdf-30-day-op-expenses-vs-labor-chart--d3js-consumption-trends)
+20. [Feature 19: Kanban Board Cloud Sync Status Indicator & Offline Queue Recovery](#20-feature-19-kanban-board-cloud-sync-status-indicator--offline-queue-recovery)
+21. [Database & Dummy Dataset Verification Matrix](#21-database--dummy-dataset-verification-matrix)
+22. [End-to-End Regression Test Script & Dev-Team Automation](#22-end-to-end-regression-test-script--dev-team-automation)
 
 ---
 
@@ -686,55 +690,206 @@ Kanban / Job Card status -> `Completed`; `FeedbackSmsToast`; `CustomerView` (`&f
 
 ---
 
-## 17. Database & Dummy Dataset Verification Matrix
+## 17. Feature 16: Job Card Email Notifications & Portal Links
+
+### Location
+`Service Cards` -> Open ticket (`JobCardDetail`) -> Header **Email Customer** button -> `POST /api/messaging/send-email` -> `GET /api/messaging/status`.
+
+### Test Cases
+
+#### TC-EMAIL-01: Dispatching Repair Update & Portal Link via Email Modal
+- **Preconditions**: Ticket has a valid `customerEmail` (or operator enters one in the modal). Optional provider keys (`SENDGRID_API_KEY` + `MAIL_FROM`, `RESEND_API_KEY` + `MAIL_FROM`, or `SMTP_HOST`/`SMTP_USER`/`SMTP_PASS`) configured in `.env`.
+- **Steps**:
+  1. Open ticket `BOSCH-2026-0041` in `JobCardDetail`.
+  2. Click **Email Customer**.
+  3. Confirm pre-filled recipient email, subject, and body containing the live Client Portal URL (`/?view=customer&token=...`).
+  4. Click **Send Email Update**.
+- **Expected Outcome**:
+  - Frontend posts to `/api/messaging/send-email` with `to`, `subject`, `body`, and `jobId`.
+  - When a provider succeeds, `messageLogs` appends an `'Email'` channel record (`recipientEmail` populated) with status `'Sent'`.
+  - When no server email credentials are configured, fallback behavior logs `'Pending'` without exposing server secrets, matching `MessageLog['status']` invariants.
+
+#### TC-EMAIL-02: Messaging Provider Status Probe & SQL Export Parity
+- **Steps**:
+  1. Run `curl http://localhost:3000/api/messaging/status`.
+  2. In `Business Setup` or `1,000 SKUs`, click **Export Local MySQL DB (.sql)** and inspect `message_logs` table DDL and `INSERT` rows.
+- **Expected Outcome**:
+  - `/api/messaging/status` returns boolean provider flags (`sendgrid`, `resend`, `smtp`) and `mailFrom` without leaking API keys or passwords.
+  - Exported SQL `message_logs` includes `'Email'` in the `channel` enum/check constraint and `recipient_email VARCHAR(254)`.
+
+---
+
+## 18. Feature 17: Grouped Header Menus, Bulk Status Update & Intake Signature Calibration
+
+### Location
+Top navigation bar (`Header.tsx`), `Service Cards` list (`JobCardList.tsx`), and `Tool Intake Form` signature pad (`BoschIntakeForm.tsx`).
+
+### Test Cases
+
+#### TC-NAV-01: Grouped Dropdown Navigation Beneath Global Search Bar
+- **Steps**:
+  1. Inspect desktop layout (`>= 1024px`) in `Header.tsx`.
+  2. Click each group trigger beneath the search bar (`Jobs & Intake`, `Inventory & Servicing`, `Messaging & Portal`, `Analytics & Team`, `Settings & Tools`).
+  3. Press `Escape` or click outside the menu bar.
+- **Expected Outcome**:
+  - All 5 categorized dropdown menus open cleanly under the search bar with live badge counts (`activeJobCount`, `lowStockCount`, `dueMaintenanceCount`).
+  - Clicking outside or pressing `Escape` closes the open dropdown immediately.
+
+#### TC-BULK-01: Multi-Select & Bulk Status Update with Stock Lifecycle Consistency
+- **Preconditions**: At least 2 tickets exist in `Intake` or `Diagnosis` with attached parts and `deductStockOn: 'InService'`.
+- **Steps**:
+  1. Open `Service Cards` (`JobCardList`).
+  2. Select 2 cards via individual checkboxes (or click `Select All`).
+  3. Choose `In Service` in the `Bulk update target status` dropdown and click **Bulk Update Status (2)**.
+- **Expected Outcome**:
+  - Both cards transition to `In Service`, append `STAGE_CHANGED` audit entries (`Bulk Status: In Service`), trigger `applyStockLifecycleTransition` once per card, and clear the active selection with a confirmation banner.
+  - Repeating with target `Completed` triggers completion feedback SMS for eligible tickets.
+
+#### TC-SIG-CAL-01: Intake Digital Signature Cursor-to-Canvas Calibration
+- **Steps**:
+  1. Open `+ Intake Form` (`BoschIntakeForm.tsx`) at desktop (`1440px`), tablet (`768px`), and resized split-screen widths.
+  2. Slowly draw a diagonal X from top-left corner to bottom-right corner inside the Client Authorization Signature `<canvas>`.
+- **Expected Outcome**:
+  - Drawn stroke tracks directly beneath the pointer/touch cursor with zero horizontal or vertical drift regardless of CSS container scaling (`scaleX = canvas.width / rect.width`, `scaleY = canvas.height / rect.height`).
+
+---
+
+## 19. Feature 18: Draft Purchase Order PDF, 30-Day Op Expenses vs. Labor Chart & D3.js Consumption Trends
+
+### Location
+`1,000 SKUs` / `Analytics` -> `AiReorderRecommendations` (`Download Draft PO PDF`) and `AnalyticsDashboard` financial charts.
+
+### Test Cases
+
+#### TC-PO-01: Draft Purchase Order PDF Generation
+- **Preconditions**: At least 1 inventory item is at or below `minStockThreshold`.
+- **Steps**:
+  1. Open `1,000 SKUs` -> expand **AI Reorder Recommendations** -> click **Spark AI Reorder Analysis**.
+  2. Click **Download Draft PO PDF** (`generatePurchaseOrderPdf`).
+- **Expected Outcome**:
+  - Browser downloads `Draft_PO_Bosch_Parts_YYYY-MM-DD.pdf`.
+  - PDF renders `DRAFT PURCHASE ORDER` header banner, part SKUs, current vs. min stock thresholds, suggested reorder quantities, unit costs, extended totals, and grand PO total.
+
+#### TC-D3-01: 30-Day Operational Expenses vs. Labor Income & D3.js Monthly Consumption Chart
+- **Preconditions**: `Revenue` metric enabled in `Business Setup`.
+- **Steps**:
+  1. Navigate to `Analytics` and scroll below `Monthly Service Revenue`.
+  2. Inspect **Operational Expenses vs Labor Income (Last 30 Days)** Recharts `BarChart` and **D3.js Monthly Consumption Trends (High-Frequency Parts)** SVG chart.
+- **Expected Outcome**:
+  - Recharts `BarChart` plots daily `laborIncome` (`#34d399`) alongside `operationalExpenses` (`#f59e0b`) over the last 30 days with interactive tooltips.
+  - D3.js SVG renders smoothed monotone curves, data points, X/Y axes, and color legend for high-frequency SKUs without console errors or duplicate SVG nodes on re-render.
+
+---
+
+## 20. Feature 19: Kanban Board Cloud Sync Status Indicator & Offline Queue Recovery
+
+### Location
+`Kanban Board` (`KanbanBoard.tsx`), `src/App.tsx`, `src/utils/firestoreSync.ts`, `src/utils/cloudSyncStatus.ts`.
+
+### Test Cases
+
+#### TC-KSYNC-01: Signed-Out Local Mode Badge State
+- **Preconditions**: Operator is signed out of Google Auth (`authUser === null`).
+- **Steps**:
+  1. Open `Kanban Board`.
+  2. Inspect the `Cloud Sync` summary card and individual job cards.
+- **Expected Outcome**:
+  - Every card displays **Pending Offline Sync · Sign In** (amber/local styling), and the board summary reports `N Pending`.
+
+#### TC-KSYNC-02: Signed-In Live Cloud Sync Confirmation
+- **Preconditions**: Sign in with a verified Google account on `localhost:3000` with internet active.
+- **Steps**:
+  1. Open `Kanban Board`.
+  2. Drag card `BOSCH-2026-0041` to the next column (e.g., `Ready for Pickup`).
+- **Expected Outcome**:
+  - Card saves to Firestore (`upsertJobCardInFirestore`), `{ includeMetadataChanges: true }` confirms `hasPendingWrites === false` and `fromCache === false`, and card badge renders emerald **Synced to Cloud**.
+
+#### TC-KSYNC-03: Offline Mutation Queue & Automatic Reconnect Flush
+- **Preconditions**: Signed in with verified Google account and cards initially showing **Synced to Cloud**.
+- **Steps**:
+  1. In DevTools -> `Network`, set throttling to `Offline`.
+  2. Drag `BOSCH-2026-0041` (or click `<` / `>`) to change its stage while offline.
+  3. Inspect `localStorage` key `autotrack_pending_cloud_sync_jobs_v1` and Kanban card badges.
+  4. Restore `Online` connectivity in DevTools (keep tab focused).
+- **Expected Outcome**:
+  - While offline, the modified card immediately displays amber **Pending Offline Sync**, persists its ID in `autotrack_pending_cloud_sync_jobs_v1`, and untouched cards remain **Synced to Cloud**.
+  - On reconnect, `App.tsx` automatically flushes `pendingCloudSyncIds` to Firestore without overwriting the offline status edit, clears the card from `pendingCloudSyncIds`, and flips its indicator back to emerald **Synced to Cloud**.
+  - Reloading mid-offline preserves **Pending Offline Sync** until connectivity returns; clicking manual **Sync** while online/authenticated retries any single pending card immediately.
+
+---
+
+## 21. Database & Dummy Dataset Verification Matrix
 
 All 3 database engines and sample CSV files are shipped with deterministic demonstration data for immediate QA testing. Refer to [`DATABASE_SETUP_AND_INTEGRATION_GUIDE.md`](DATABASE_SETUP_AND_INTEGRATION_GUIDE.md) for installation commands.
 
 | Target Environment | Artifact / Entry Point | Verification Command / Action | Expected Seed Result |
 | :--- | :--- | :--- | :--- |
-| **MySQL 8.0+ / MariaDB** | `/database.sql` | `node scripts/validate_sql.js` then `mysql -u root -p < database.sql` | Creates `bosch_service_db` with 11 tables, `admin` user, 5 settings rows (`auto_send_feedback_sms`, `analytics_metrics`), sample SKUs, 3 tickets (`BOSCH-2026-0046` with 5-star feedback), `'Feedback'` SMS log `msg-103`, and schedules. |
-| **PostgreSQL 16** | `/database.postgres.sql` | `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database.postgres.sql` | Creates all 11 tables using `SERIAL`, `TIMESTAMPTZ`, `JSONB`, `CHECK` constraints (`customer_feedback_rating BETWEEN 1 AND 5`), and loads demo rows including `BOSCH-2026-0046` cleanly. |
+| **MySQL 8.0+ / MariaDB** | `/database.sql` | `node scripts/validate_sql.js` then `mysql -u root -p < database.sql` | Creates `bosch_service_db` with 11 tables, `admin` user, 5 settings rows (`auto_send_feedback_sms`, `analytics_metrics`), sample SKUs, 3 tickets (`BOSCH-2026-0046` with 5-star feedback), `'Feedback'` & `'Email'` `message_logs`, and schedules. |
+| **PostgreSQL 16** | `/database.postgres.sql` | `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database.postgres.sql` | Creates all 11 tables using `SERIAL`, `TIMESTAMPTZ`, `JSONB`, `CHECK` constraints (`customer_feedback_rating BETWEEN 1 AND 5`, `'Email'` channel + `recipient_email`), and loads demo rows including `BOSCH-2026-0046` cleanly. |
 | **Cloud Firestore (Live)** | `seedWorkshopIfEmpty()` in `src/utils/firestoreSync.ts` | Sign in with Google on an empty Firestore instance (`ai-studio-autotrackservice-2eac3d40-310f-46ba-a293-99682d0a94d7`). | Automatically seeds initial job cards, spare parts inventory, settings (including 8 analytics toggles + `autoSendFeedbackSms`), and `publicDeliveries`. |
 | **Browser Demo + Service Worker** | `src/utils/localStorageDb.ts` & `public/sw.js` | Clear browser `localStorage` and reload `http://localhost:3000`. | Hydrates demo dataset (1,000 SKUs, 7 job cards, 5 technicians, sample maintenance rows) and caches records in `autotrack-data-v1`. |
 | **CSV & Excel Fixtures** | `docs/samples/*.csv` | Load via `Servicing -> Bulk Import CSV`, `1,000 SKUs -> Bulk Import Excel / CSV`, or `Business Setup -> Restore`. | Validates headers, skips malformed rows cleanly when toggled, and persists to `recurring_maintenance` or `inventory_items`. |
 
 ---
 
-## 18. End-to-End Regression Test Script
+## 22. End-to-End Regression Test Script & Dev-Team Automation
 
-Perform this 15-minute flow to verify workshop system health:
+### 22.1 Automated Dev-Team Verification Suite
+Run the full automated suite before every release or PR merge:
 
-1. **Authentication & Multi-Client Sync**:
-   - Sign in with Google on Browser A and Browser B (`localhost:3000`).
-2. **Camera Barcode/QR Intake**:
-   - Open `+ Intake Form`, click `Scan Serial / QR`, register tool `Bosch GBH 11 DE` for client `Metro Demolition`, capture client signature, and submit `BOSCH-2026-004X`.
+```bash
+# Single-command UAT environment probe + lint + unit tests + rules + SQL + prod build + smoke check
+./scripts/uat_local_setup.sh          # Linux / macOS
+scripts\uat_local_setup.bat           # Windows
+
+# Or execute individual checks:
+node scripts/check_local_services.mjs # Probe PostgreSQL, MySQL, SQLite, Redis, Mongo, Firebase, Docker, port 3000
+npm run lint                          # Strict TypeScript check (tsc --noEmit)
+npm test                              # Unit tests (billing, stockDeduction, jobId, portalUrl, warranty, CSV, barcode, cloudSyncStatus)
+npm run validate:sql                  # State-machine lexer over database.sql & database.postgres.sql
+npx eslint firestore.rules            # Firestore rules security static analysis
+npx tsx firestore.rules.test.ts       # Dirty Dozen & schema boundary rules checks
+npx tsx scripts/verify_message_status.ts
+npx tsx scripts/verify_portal_gate.ts
+npx tsx scripts/verify_stock_ledger.ts
+npm run build                         # Build Vite client + dist-server/server.cjs
+npm run smoke                         # Boot built server on port 3199 & verify /, customer portal, /api/messaging/status
+```
+
+### 22.2 Manual E2E Flow (15-Minute Regression)
+
+1. **Authentication, Grouped Navigation & Multi-Client Sync**:
+   - Sign in with Google on Browser A and Browser B (`localhost:3000`) and verify the 5 grouped menus beneath the search bar (`Jobs & Intake`, `Inventory & Servicing`, `Messaging & Portal`, `Analytics & Team`, `Settings & Tools`).
+2. **Camera Barcode/QR & Calibrated Signature Intake**:
+   - Open `+ Intake Form`, click `Scan Serial / QR`, register tool `Bosch GBH 11 DE`, verify the signature stroke aligns under cursor at any viewport width, and submit `BOSCH-2026-004X`.
    - Confirm the new card syncs to Browser B within 2 seconds.
-3. **AI Diagnosis & Parts**:
-   - Click `Run AI Diagnosis`, inspect recommended parts, and click `Attach All Recommended Parts`.
-4. **Voice Observation**:
-   - Click `Record Voice Note`, dictate a bench note, stop recording, and confirm transcript appends to `internalRepairNotes`.
-5. **Calendar Shift Booking**:
+3. **Kanban Cloud Sync Badge & Offline Reconnect Queue**:
+   - Open `Kanban Board`, verify `BOSCH-2026-004X` displays **Synced to Cloud**.
+   - Toggle DevTools `Network -> Offline`, move a card stage, verify **Pending Offline Sync**, restore `Online`, and verify automatic flush returns the card to **Synced to Cloud**.
+4. **Bulk Status Update & AI Diagnosis**:
+   - In `Service Cards`, select 2 cards via checkboxes and apply **Bulk Update Status**; open a ticket, click `Run AI Diagnosis`, and click `Attach All Recommended Parts`.
+5. **Voice Observation & Email Dispatch**:
+   - Click `Record Voice Note`, dictate a bench note, then click **Email Customer** in `JobCardDetail` and confirm `/api/messaging/send-email` logs an `'Email'` entry.
+6. **Calendar Shift Booking**:
    - Open `Time Tracking`. Assign ticket to David Miller on Thursday morning.
-6. **Finalization, Technician Signature & Auto Feedback SMS**:
-   - Mark status `Completed`. Sign the technician sign-off pad and save.
-   - Verify `FeedbackSmsToast` renders and `Feedback` SMS entry appends to `messageLogs`.
-7. **PDF Receipt, Delivery Portal & Customer Rating**:
-   - Generate PDF receipt, copy the survey link (`/?view=customer&token=...&feedback=1`), open it in an incognito window, and submit a 5-star rating with comment.
+7. **Finalization, Technician Signature & Auto Feedback SMS**:
+   - Mark status `Completed`. Sign the technician sign-off pad and save. Verify `FeedbackSmsToast` renders.
+8. **PDF Receipt, Delivery Portal & Customer Rating**:
+   - Generate PDF receipt, open `/?view=customer&token=...&feedback=1` in an incognito window, and submit a 5-star rating.
    - Confirm `★ 5/5` badge appears in List & Kanban views and updates CSAT in `Analytics`.
-8. **Analytics Forecast & Metric Toggles**:
-   - Open `Analytics` and switch Predictive Revenue Forecast between `3M`, `6M`, and `12M` horizons.
-   - Open `Business Setup`, switch `Analytics Dashboard Metrics Visibility` to `Core 4 Only`, confirm 4 KPIs render, then click `Enable All`.
-9. **Inventory Bulk Excel/CSV Paste & Offline Service Worker**:
-   - Open `1,000 SKUs`, click `Bulk Import Excel / CSV`, load 10 sample Bosch parts, and apply import.
-   - Toggle DevTools `Network -> Offline`, reload page, and confirm cached Job Cards remain viewable with the `Offline Mode` badge.
-10. **Fleet Maintenance CSV & Build Validation**:
-    - Open `Servicing`, click `Bulk Import CSV`, and import `docs/samples/recurring_maintenance_standard.csv` (10 rows).
-    - Run `npm test && npm run validate:sql && npx eslint firestore.rules && npx tsx firestore.rules.test.ts && npm run lint && npm run build && npm run smoke`.
+9. **Analytics Forecast, 30-Day Op Expense Chart, D3 Trends & Draft PO PDF**:
+   - Open `Analytics`: inspect `Operational Expenses vs Labor Income (Last 30 Days)`, `D3.js Monthly Consumption Trends`, and `Predictive Monthly Revenue Forecast` (`3M`, `6M`, `12M`).
+   - Open `Business Setup`, test `Analytics Dashboard Metrics Visibility` (`Core 4 Only` -> `Enable All`).
+   - Open `1,000 SKUs -> AI Reorder Recommendations -> Spark AI Reorder Analysis` and download a **Draft PO PDF**.
+10. **Inventory Bulk Excel/CSV, Fleet Maintenance CSV & Offline Cache**:
+    - Test `Bulk Import Excel / CSV` in `1,000 SKUs` and `Bulk Import CSV` (`docs/samples/recurring_maintenance_standard.csv`) in `Servicing`.
+    - Toggle DevTools `Network -> Offline`, reload page, and confirm cached Job Cards remain viewable with the `Offline Mode` badge.
 
 ---
 
 ## Document Control
-- **Document Version**: 4.0.0
-- **Audience**: QA Engineers, Workshop Supervisors, Implementation Leads
+- **Document Version**: 4.2.0
+- **Audience**: QA Engineers, Software Developers, Workshop Supervisors, Implementation Leads
 - **Classification**: Internal Technical Specification
+
 

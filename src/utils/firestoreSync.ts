@@ -410,6 +410,9 @@ export function buildInventoryCreatePayload(
     unit,
     binLocation: clampString(item.binLocation, 64, 'Bin A-01'),
     lastRestocked: clampString(item.lastRestocked, 40, new Date().toISOString().split('T')[0]),
+    ...(item.lowStockTimestamp?.trim()
+      ? { lowStockTimestamp: clampString(item.lowStockTimestamp, 40) }
+      : {}),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -431,6 +434,9 @@ export function buildInventoryUpdatePatch(item: InventoryItem, staffUids: string
     unit,
     binLocation: clampString(item.binLocation, 64, 'Bin A-01'),
     lastRestocked: clampString(item.lastRestocked, 40, new Date().toISOString().split('T')[0]),
+    ...(item.lowStockTimestamp?.trim()
+      ? { lowStockTimestamp: clampString(item.lowStockTimestamp, 40) }
+      : {}),
     staffUids,
     updatedAt: serverTimestamp(),
   });
@@ -756,6 +762,11 @@ export function subscribeWorkshopData(
   user: User,
   callbacks: {
     onJobCards: (jobs: JobCard[]) => void;
+    onJobSyncMetadata?: (meta: {
+      pendingWritesById: Record<string, boolean>;
+      confirmedIds: string[];
+      fromCache: boolean;
+    }) => void;
     onInventoryItems: (items: InventoryItem[]) => void;
     onSchedules: (schedules: RecurringMaintenance[]) => void;
     onSettings: (settings: Partial<BusinessSettings>) => void;
@@ -780,7 +791,25 @@ export function subscribeWorkshopData(
 
   const unsubJobs = onSnapshot(
     buildCollectionQuery('jobCards'),
+    { includeMetadataChanges: true },
     (snap) => {
+      const pendingWritesById: Record<string, boolean> = {};
+      const confirmedIds: string[] = [];
+      for (const d of snap.docs) {
+        const data = d.data();
+        const cardId = typeof data.id === 'string' && data.id ? data.id : d.id;
+        const hasPending = Boolean(d.metadata.hasPendingWrites);
+        pendingWritesById[cardId] = hasPending;
+        if (!hasPending && !snap.metadata.fromCache) {
+          confirmedIds.push(cardId);
+        }
+      }
+      callbacks.onJobSyncMetadata?.({
+        pendingWritesById,
+        confirmedIds,
+        fromCache: snap.metadata.fromCache,
+      });
+
       if (snap.empty) return;
       const list = snap.docs
         .map((d) => docToJobCard(d.data()))

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { BusinessSettings, CustomField, JobCard, JobStatus, InventoryItem, JobPart, TimeLog, OperationalExpense, OperationalExpenseCategory } from '../types';
+import { BusinessSettings, CustomField, JobCard, JobStatus, InventoryItem, JobPart, TimeLog, OperationalExpense, OperationalExpenseCategory, MessageLog } from '../types';
 import { SHOP_TECHNICIANS } from '../data/mockTechnicians';
 import { adjudicateWarranty, autoAdjudicateJobCard } from '../utils/warrantyAdjudicator';
 import { calculateJobBilling } from '../utils/billing';
@@ -19,7 +19,7 @@ import {
   CheckCircle2, FileText, User, Phone, Wrench, Search, AlertCircle, PenTool, Check, UserCheck,
   Bot, Send, Copy, RotateCcw, Zap, Timer, Play, Square, Clock, ShieldCheck, ShieldAlert, RefreshCw,
   Camera, Video, VideoOff, Upload, Maximize2, X, Download, Image as ImageIcon, Receipt,
-  Mic, MicOff, Loader2, Package, QrCode, ScanBarcode, Star, ExternalLink
+  Mic, MicOff, Loader2, Package, QrCode, ScanBarcode, Star, ExternalLink, Mail
 } from 'lucide-react';
 
 interface SpeechRecognitionAlternativeLike {
@@ -127,6 +127,69 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
   const [isChatSending, setIsChatSending] = useState(false);
   const [copiedLogId, setCopiedLogId] = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+
+  // Email Notification Modal State
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [emailTo, setEmailTo] = useState(job.customerEmail || '');
+  const [emailSubject, setEmailSubject] = useState(`Repair Status Update: Job #${job.id} (${job.tool.brand} ${job.tool.modelNumber})`);
+  const [emailMessage, setEmailMessage] = useState(`Dear ${job.customerName},\n\nYour tool service status for Job #${job.id} is currently: ${job.status}.\n\nModel: ${job.tool.brand} ${job.tool.modelNumber}\nSerial Number: ${job.tool.serialNumber}\nTotal Amount: $${job.totalAmount.toFixed(2)}\n\nYou can view live service progress and download service records here:\n${buildCustomerPortalUrl(job)}\n\nThank you for choosing our service center!`);
+  const [isEmailSending, setIsEmailSending] = useState(false);
+  const [emailResultMsg, setEmailResultMsg] = useState<{ success: boolean; text: string } | null>(null);
+
+  const handleSendEmailNotification = async () => {
+    if (!emailTo || !emailMessage) {
+      setEmailResultMsg({ success: false, text: 'Recipient email and message text are required.' });
+      return;
+    }
+    setIsEmailSending(true);
+    setEmailResultMsg(null);
+    try {
+      const res = await fetch(resolveApiUrl('/api/messaging/send-email'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: emailTo,
+          subject: emailSubject,
+          message: emailMessage,
+          jobId: currentJob.id,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to send email notification.');
+      }
+
+      const newLog: MessageLog = {
+        id: `msg-email-${Date.now()}`,
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
+        type: 'Custom',
+        recipientEmail: emailTo,
+        text: emailMessage,
+        channel: 'Email',
+        status: 'Sent',
+      };
+
+      const updatedJob: JobCard = {
+        ...currentJob,
+        customerEmail: emailTo,
+        messageLogs: [newLog, ...(currentJob.messageLogs || [])],
+        updatedAt: new Date().toISOString(),
+      };
+
+      setCurrentJob(updatedJob);
+      onUpdateJob(updatedJob);
+      setEmailResultMsg({ success: true, text: `Email successfully sent via ${data.provider || 'Mail Relay'}.` });
+      setTimeout(() => {
+        setIsEmailModalOpen(false);
+        setEmailResultMsg(null);
+      }, 1500);
+    } catch (err: any) {
+      console.error('Email dispatch error:', err);
+      setEmailResultMsg({ success: false, text: err.message || 'Failed to dispatch email.' });
+    } finally {
+      setIsEmailSending(false);
+    }
+  };
 
   // Parts search state
   const [partSearch, setPartSearch] = useState('');
@@ -1856,6 +1919,15 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
             >
               <MessageSquare className="w-4 h-4" />
               <span>WhatsApp Customer</span>
+            </button>
+
+            <button
+              onClick={() => setIsEmailModalOpen(true)}
+              className="px-3 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl transition-all flex items-center gap-1.5 shadow"
+              title="Send repair update and PDF link via Email"
+            >
+              <Mail className="w-4 h-4 text-emerald-600" />
+              <span>Email Customer</span>
             </button>
 
             <button
@@ -3917,6 +3989,84 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
           onDetected={handleDetailScannerDetected}
           onClose={() => setScannerTarget(null)}
         />
+      )}
+
+      {isEmailModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Mail className="w-4 h-4 text-emerald-400" />
+                <span>Send Email Repair Update &amp; PDF Link</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsEmailModalOpen(false)}
+                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {emailResultMsg && (
+              <div className={`p-3 rounded-xl text-xs font-medium border ${emailResultMsg.success ? 'bg-emerald-950/40 border-emerald-800 text-emerald-300' : 'bg-red-950/40 border-red-800 text-red-300'}`}>
+                {emailResultMsg.text}
+              </div>
+            )}
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-zinc-400 mb-1 font-semibold">Customer Email Address</label>
+                <input
+                  type="email"
+                  value={emailTo}
+                  onChange={(e) => setEmailTo(e.target.value)}
+                  placeholder="customer@company.com"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-zinc-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 mb-1 font-semibold">Subject Line</label>
+                <input
+                  type="text"
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-zinc-500 font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 mb-1 font-semibold">Message Content (Includes Customer Portal &amp; PDF Link)</label>
+                <textarea
+                  rows={8}
+                  value={emailMessage}
+                  onChange={(e) => setEmailMessage(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white focus:outline-none focus:border-zinc-500 font-sans text-xs leading-relaxed"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setIsEmailModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSendEmailNotification}
+                disabled={isEmailSending}
+                className="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-bold transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {isEmailSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                <span>{isEmailSending ? 'Sending Email...' : 'Send Email Update'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

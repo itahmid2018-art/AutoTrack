@@ -11,14 +11,44 @@ interface CachedEnvelope<T> {
   data: T | null;
 }
 
+function isCacheableAppUrl(pathname: string, search: string): boolean {
+  if (
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/__offline-cache/') ||
+    pathname.startsWith('/src/') ||
+    pathname.startsWith('/@vite/') ||
+    pathname.startsWith('/@react-refresh') ||
+    pathname.startsWith('/@id/') ||
+    pathname.startsWith('/@fs/') ||
+    pathname.startsWith('/node_modules/') ||
+    pathname === '/sw.js' ||
+    /\.(ts|tsx)$/i.test(pathname)
+  ) {
+    return false;
+  }
+  if (search) {
+    const params = new URLSearchParams(search);
+    if (params.has('v') || params.has('t') || params.has('import')) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function collectLoadedAssetUrls(): string[] {
   if (typeof window === 'undefined') return [];
   const urls = new Set<string>(['/', '/index.html']);
 
   document.querySelectorAll('script[src], link[href]').forEach((el) => {
     const attr = el.getAttribute('src') || el.getAttribute('href');
-    if (attr && attr.startsWith('/')) {
-      urls.add(attr);
+    if (!attr || !attr.startsWith('/')) return;
+    try {
+      const parsed = new URL(attr, window.location.origin);
+      if (parsed.origin === window.location.origin && isCacheableAppUrl(parsed.pathname, parsed.search)) {
+        urls.add(parsed.pathname + parsed.search);
+      }
+    } catch {
+      // Ignore malformed attribute URL
     }
   });
 
@@ -29,8 +59,7 @@ function collectLoadedAssetUrls(): string[] {
         const parsed = new URL(entry.name);
         if (
           parsed.origin === window.location.origin &&
-          !parsed.pathname.startsWith('/api/') &&
-          !parsed.pathname.startsWith('/__offline-cache/')
+          isCacheableAppUrl(parsed.pathname, parsed.search)
         ) {
           urls.add(parsed.pathname + parsed.search);
         }
@@ -60,7 +89,15 @@ export async function registerWorkshopServiceWorker(): Promise<ServiceWorkerRegi
   }
 
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    if (typeof caches !== 'undefined') {
+      void caches.delete('autotrack-static-v1').catch(() => false);
+    }
+
+    const registration = await navigator.serviceWorker.register('/sw.js', {
+      scope: '/',
+      updateViaCache: 'none',
+    });
+    void registration.update().catch(() => null);
 
     if (registration.active) {
       void warmStaticAssetsInSw(registration);

@@ -39,13 +39,13 @@ The **Bosch Authorised Service Center & Power Tools Hub** is a full-stack, multi
 It digitizes tool servicing across leading brands—including **Bosch Professional**, **Bosch DIY (Green)**, **Makita**, **DeWalt**, **Milwaukee**, **Hilti**, **Metabo**, **Festool**, and **Stihl**.
 
 #### Key Objectives & Core Capabilities:
-1. **Accelerated Intake & Camera Scanning**: Complete check-in under 60 seconds with camera barcode/QR scanning (8 UI entry points), digital client signature capture, and automatic Job Card IDs (`BOSCH-2026-0041`).
-2. **Real-Time Multi-Client Sync & Offline Service Worker**: Powered by **Firebase Auth (Google Sign-In)** and **Cloud Firestore** (`onSnapshot`), **Express SSE/REST API** (with `VITE_API_BASE_URL` for Android Capacitor builds), and `/sw.js` offline asset + Job Card caching.
+1. **Accelerated Intake & Camera Scanning**: Complete check-in under 60 seconds with camera barcode/QR scanning (8 UI entry points), calibrated digital client signature capture, and automatic Job Card IDs (`BOSCH-2026-0041`).
+2. **Real-Time Multi-Client Sync, Kanban Sync Badges & Offline Service Worker**: Powered by **Firebase Auth (Google Sign-In)** and **Cloud Firestore** (`onSnapshot` with metadata change tracking), **Express SSE/REST API** (with `VITE_API_BASE_URL` for Android Capacitor builds), per-card **Sync Status to Cloud** badges (`Synced to Cloud` / `Pending Offline Sync`), and `/sw.js` offline caching.
 3. **Zero-PII Public Client Delivery Portal & Feedback**: Secret-token repair tracking (`/?view=customer&token=...` via `publicDeliveries` + SSE, or `jobId` + last-4 phone verification) shows repair stages and collects post-service 1–5 star feedback (`&feedback=1`) without exposing client phone numbers, email, or internal notes.
 4. **Server-Side Gemini AI Diagnosis & Vision**: Uses `@google/genai` for repair troubleshooting, spare-part matching, response suggestions, voice transcription, and fallback serial label extraction (`/api/ai/scan-serial`).
-5. **Predictive Revenue & Configurable Analytics Dashboard**: Includes Recharts `LineChart` monthly revenue forecasting (seasonal indices + scenario selector), Customer Satisfaction (CSAT) analytics, and Business Settings visibility toggles across 8 core KPIs.
-6. **Twilio SMS & Meta WhatsApp API Integration**: Automated completion feedback SMS triggers and server-side dispatch with 1-click browser deep-link fallback.
-7. **Bulk Excel/CSV Import, PostgreSQL 16 & MySQL 8.0+**: Paste Excel/Google Sheets or CSV rows into `1,000 SKUs`, run `database.postgres.sql` or `database.sql`, or export live UI state cleanly.
+5. **Predictive Revenue, D3.js Consumption Trends & Configurable Analytics**: Includes Recharts `LineChart` monthly revenue forecasting, **30-Day Operational Expenses vs. Labor Income** comparison bar chart, **D3.js Monthly Consumption Trends** SVG chart, CSAT analytics, and Business Settings visibility toggles across 8 core KPIs.
+6. **Twilio SMS, Meta WhatsApp & Email Dispatch**: Automated completion feedback SMS triggers, server-side SMS/WhatsApp relays, and direct **Email Customer** dispatch (`POST /api/messaging/send-email` via SendGrid, Resend, or SMTP) with portal/PDF links.
+7. **Bulk Job Status Updates, Draft PO PDFs, Excel/CSV Import & SQL**: Multi-select checkboxes and **Bulk Update Status** in `Service Cards`, downloadable **Draft PO PDFs** in AI Reorder Recommendations, Excel/CSV bulk inventory paste, and PostgreSQL 16 / MySQL 8.0+ schemas.
 
 ---
 
@@ -107,6 +107,7 @@ It digitizes tool servicing across leading brands—including **Bosch Profession
   - `VITE_API_BASE_URL`: Backend URL injected into Android Capacitor builds so client API calls target your hosted Express server.
   - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `TWILIO_WHATSAPP_NUMBER` *(Optional)*.
   - `WHATSAPP_CLOUD_API_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` *(Optional)*.
+  - `SENDGRID_API_KEY`, `RESEND_API_KEY`, `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` *(Optional email relay credentials)*.
 
 ---
 
@@ -125,18 +126,22 @@ It digitizes tool servicing across leading brands—including **Bosch Profession
 10. **Technician Repair Sign-Off**: Once repairs conclude, bench technicians sign off using the HTML5 canvas signature pad before marking tickets `Completed`.
 11. **Unique QR Code Receipts**: Printed PDF job cards embed a QR matrix linking directly to `/?view=customer&token=...`.
 
-#### 4.2 Global Real-Time Search, Scanner & Multi-Client Sync
-Located in the center and right header navigation bar:
+#### 4.2 Grouped Navigation, Global Real-Time Search & Multi-Client Sync
+Located in the top two header rows:
 - **Global Search**: Real-time instant search across all Job Cards and 1,000 Inventory Spare Parts SKUs by Client Name, Mobile Phone Number, Job Ticket ID, Part SKU, Model Number, or Serial Number.
+- **Grouped Feature Menus**: Beneath the search bar, 5 dropdown groups (**Jobs & Intake**, **Inventory & Servicing**, **Messaging & Portal**, **Analytics & Team**, **Settings & Tools**) organize every workspace view with live badge counts.
 - **Global Barcode / QR Button**: Opens the camera scanner anywhere in the app and routes matches to `GlobalScanResultModal` (jump directly to the ticket or spare part).
+- **Bulk Job Status Update (`Service Cards`)**: Select multiple cards via row checkboxes or **Select All**, pick a target status, and click **Bulk Update Status** to update statuses, audit logs, and inventory stock deductions together.
 - **Google Sign-In Sync**: Sign in with Google to synchronize live intakes, inventory stock counts, settings, and delivery statuses across every active operator browser and tablet within seconds.
 
-#### 4.3 Drag-and-Drop Kanban Board
-1. Click the **`Kanban`** tab.
-2. Monitor 6 workshop pipeline columns:
-   - `1. Intake` -> `2. Diagnosis` -> `3. Approval` -> `4. In Service` -> `5. Ready` -> `6. Completed`.
-3. Drag any job ticket card and drop it into a new column. Status, timestamps, and public delivery trackers update automatically across all connected clients.
-4. Use quick step arrow buttons (`<` and `>`) for touch-screen operation.
+#### 4.3 Drag-and-Drop Kanban Board & Cloud Sync Status Badges
+1. Open **Jobs & Intake -> Kanban Board**.
+2. Monitor the 7 workshop pipeline columns (`1. Intake` -> `2. Diagnosis` -> `3. Approval` -> `4. Awaiting Parts` -> `5. In Repair` -> `6. Ready` -> `7. Completed`) alongside the top **Cloud Sync** summary tile.
+3. Inspect the **Sync Status to Cloud** badge on each job card:
+   - **Synced to Cloud (Green)**: Card's current status and fields are committed in Firebase Firestore (`hasPendingWrites === false`).
+   - **Pending Offline Sync (Amber)**: Card has local/offline edits queued in `autotrack_pending_cloud_sync_jobs_v1` (or in-flight writes) awaiting Firestore commit. Click **Sync** on any card (or the header sync button) when online, or let reconnect auto-flush automatically.
+   - **Pending Offline Sync · Sign In**: Operator is not signed in with Google; changes are stored in `localStorage` and `/sw.js` cache until signed in.
+4. Drag any job ticket card and drop it into a new column, or use quick step arrow buttons (`<` and `>`) for touch-screen operation.
 
 #### 4.4 Gemini AI Repair Diagnosis & AI Recommended Parts
 1. Open any Job Card from **`Service Cards`** or click **`Diagnose`**.
@@ -144,43 +149,46 @@ Located in the center and right header navigation bar:
 3. **AI Recommended Parts Analyzer**: Click `Recommend Parts` under the parts table to match tool models and reported complaints against catalog inventory. Click `+ Add to Job` or `Attach All Recommended Parts`.
 4. **Workbench AI Diagnostic Chatbot**: Select the `💬 AI Repair Chatbot` tab to query multimeter check values or attach parts directly from assistant replies.
 
-#### 4.5 AI Predictive Inventory Reorder Recommendation Engine
+#### 4.5 AI Predictive Inventory Reorder & Draft Purchase Order PDF
 1. Navigate to **`1,000 SKUs`** or **`Analytics`**.
 2. Click **`✨ AI Reorder Recommendations`** -> **`Spark AI Reorder Analysis`** to match repair frequency against stock thresholds.
-3. Click **`+ Receive Restock`** to increment stock or **`Export AI PO CSV`** for supplier procurement.
+3. Click **`Download Draft PO PDF`** (`generatePurchaseOrderPdf`) to generate a print-ready `DRAFT PURCHASE ORDER` PDF listing low-stock SKUs, reorder quantities, unit costs, and estimated totals, click **`Export AI PO CSV`**, or click **`+ Receive Restock`** to increment stock.
 
 #### 4.6 Technician Bench Time Tracking & Workshop Capacity Scheduler
-1. Click **`Time Tracking`** on the header bar.
+1. Click **`Analytics & Team -> Time Tracking & Shifts`** on the header menu bar.
 2. **Clock In & Out**: Track active bench sessions and sync labor hours to ticket costs.
 3. **Weekly Workshop Calendar & Capacity Scheduler**: Assign repair slots across Monday–Sunday, monitor weekly technician hour capacity bars, and filter by individual technician.
 
 #### 4.7 1,000 Spare Parts Inventory, Camera Scanner & Bulk Excel/CSV Import
-1. Click **`1,000 SKUs`**.
+1. Click **`Inventory & Servicing -> Spare Parts Catalog`**.
 2. Filter parts by SKU, Category, Bin Location, or Low Stock Alert.
 3. **Camera Barcode & QR Scanner**: Click `Barcode / QR Scan` in the catalog toolbar or inside `Add Inventory` to locate an item or pre-fill barcode numbers using device cameras or USB HID scanners.
 4. **Bulk Excel / CSV Paste Import**: Click **`Bulk Import Excel / CSV`** to paste tab-separated cells directly from Microsoft Excel or Google Sheets, upload `.csv`/`.tsv` files, or load 10 sample Bosch parts. Choose `Update + Add New` (`upsert`), `Add Qty to Stock` (`replenish`), or `New SKUs Only` (`insertOnly`), review validation rows, and apply.
 5. **Quick Restock**: Click `+10` on any row to increment stock count and sync updates live.
 
 #### 4.8 Recurring Maintenance Tracker & Bulk CSV Import
-1. Click **`Servicing`**.
+1. Click **`Inventory & Servicing -> Recurring Servicing`**.
 2. Track commercial contractor equipment registered for 3, 6, or 12-month overhauls (`Upcoming`, `Due Soon`, `Overdue`) or click `Scan Tool QR` to jump to a machine's maintenance record.
 3. **Bulk CSV Import Engine**: Click `Bulk Import CSV` to load `docs/samples/recurring_maintenance_standard.csv` or `recurring_maintenance_full.csv`, preview row validations, and append clean schedules to `recurring_maintenance`.
 4. **CSV Export**: Click `Export CSV` to download all client schedules in RFC 4180 format.
 5. Click **`+ Generate Intake Ticket`** to convert due maintenance tools into active job cards.
 
-#### 4.9 WhatsApp, Automated Feedback SMS & Public Client Delivery Portal
-1. Click **`WhatsApp`** on the top header bar.
-2. Select target client job ticket and optionally use **AI Response Assistant** (`Status Update`, `Pricing / Estimate`, `Completion Notice`, `Parts Delay`) or Milestone Templates (`Intake`, `Estimate`, `Ready`, `Invoice`, `Feedback`) to populate the composer.
-3. Click **`Send Twilio SMS API`**, **`Send WhatsApp API`**, or open WhatsApp Web deep links (`wa.me/`).
-4. **Automated Completion Feedback SMS**: When a job ticket moves to `Completed` (and **Auto-Send Customer Feedback SMS** is enabled in Business Setup), the system automatically dispatches an SMS with a direct survey link (`?token=...&feedback=1`) and opens `FeedbackSmsToast`.
-5. **Public Client Delivery Portal & Survey (`CustomerView`)**: Share `/?view=customer&token=<publicAccessToken>` (or the receipt QR code). Clients can also look up by `jobId` after verifying the last 4 digits of their phone number, track live repair stages, download verified receipts, and submit 1–5 star feedback ratings without logging in.
+#### 4.9 Email Notifications, WhatsApp, Automated Feedback SMS & Client Delivery Portal
+1. **Email Customer (`JobCardDetail`)**: Open any ticket and click **Email Customer** in the detail header to send repair progress updates and the direct Client Portal / PDF tracking link (`POST /api/messaging/send-email`). Outbound emails append to `messageLogs` (`channel: 'Email'`, `recipientEmail`).
+2. Click **`Messaging & Portal -> WhatsApp & SMS Dispatch`** in the top header menu.
+3. Select target client job ticket and optionally use **AI Response Assistant** (`Status Update`, `Pricing / Estimate`, `Completion Notice`, `Parts Delay`) or Milestone Templates (`Intake`, `Estimate`, `Ready`, `Invoice`, `Feedback`) to populate the composer.
+4. Click **`Send Twilio SMS API`**, **`Send WhatsApp API`**, or open WhatsApp Web deep links (`wa.me/`).
+5. **Automated Completion Feedback SMS**: When a job ticket moves to `Completed` (and **Auto-Send Customer Feedback SMS** is enabled in Business Setup), the system automatically dispatches an SMS with a direct survey link (`?token=...&feedback=1`) and opens `FeedbackSmsToast`.
+6. **Public Client Delivery Portal & Survey (`CustomerView`)**: Share `/?view=customer&token=<publicAccessToken>` (or the receipt QR code). Clients can also look up by `jobId` after verifying the last 4 digits of their phone number, track live repair stages, download verified receipts, and submit 1–5 star feedback ratings without logging in.
 
-#### 4.10 Predictive Revenue Forecast, CSAT Analytics & CSV Reporting
-1. Click **`Analytics`**.
+#### 4.10 Predictive Revenue Forecast, 30-Day Expense/Labor Comparison, D3.js Consumption Trends & CSAT
+1. Click **`Analytics & Team -> Analytics & Revenue Forecast`**.
 2. Review workshop KPIs and sections configured in Business Settings: **Active Jobs**, **Low Inventory**, **Revenue**, **Today's Appointments**, **Average Repair Time**, **Top Grievances**, **Technician Performance**, and **Tool Category Volume**.
-3. **Predictive Monthly Revenue Forecast**: Inside the Recharts `LineChart` module, toggle `3M / 6M / 12M Horizon`, `Conservative / Baseline / Growth` scenarios, and `Confidence Band` to project monthly revenue from recorded billings, seasonal tool demand multipliers, and upcoming fleet maintenance.
-4. **Customer Satisfaction (CSAT) & Feedback Breakdown**: View overall 5-star average rating, response rate, star distribution bars, and recent client comments captured from completion surveys.
-5. Click **`Download Jobs CSV`** and **`Download Inventory CSV`** for spreadsheet auditing.
+3. **Operational Expenses vs Labor Income (Last 30 Days)**: Compare daily technician labor revenue (`#34d399`) against operational expenses (`#f59e0b`) in the Recharts `BarChart` to spot high-cost service trends.
+4. **D3.js Monthly Consumption Trends**: Inspect the D3.js SVG curve chart tracking monthly usage of high-frequency parts (`BRSH-1002`, `GRS-3001`, `SW-4001`) to anticipate seasonal demand.
+5. **Predictive Monthly Revenue Forecast**: Inside the Recharts `LineChart` module, toggle `3M / 6M / 12M Horizon`, `Conservative / Baseline / Growth` scenarios, and `Confidence Band` to project monthly revenue from recorded billings, seasonal tool demand multipliers, and upcoming fleet maintenance.
+6. **Customer Satisfaction (CSAT) & Feedback Breakdown**: View overall 5-star average rating, response rate, star distribution bars, and recent client comments captured from completion surveys.
+7. Click **`Download Jobs CSV`** and **`Download Inventory CSV`** for spreadsheet auditing.
 
 #### 4.11 UI Customization, Analytics Toggles, Feedback Rule & Business Settings
 1. Open **`Business Setup`** (`TransitionView`).
@@ -271,11 +279,11 @@ See [`docs/DATABASE_SETUP_AND_INTEGRATION_GUIDE.md`](DATABASE_SETUP_AND_INTEGRAT
 
 ### 9. QUALITY ASSURANCE & TESTING ACCEPTANCE GUIDE
 
-For complete test matrices covering Features 1–15, security rules tests, SQL/CSV validation scripts, and E2E verification checklists, refer to:
+For complete test matrices covering Features 1–20, security rules tests, SQL/CSV validation scripts, and E2E verification checklists, refer to:
 
 - **[`docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md`](TESTING_AND_QA_ACCEPTANCE_GUIDE.md)**
 - **[`docs/DATABASE_SETUP_AND_INTEGRATION_GUIDE.md`](DATABASE_SETUP_AND_INTEGRATION_GUIDE.md)**
 - **[`docs/SETUP_AND_MAINTENANCE_GUIDE.md`](SETUP_AND_MAINTENANCE_GUIDE.md)**
 
 ---
-*Manual compiled and maintained for Bosch Authorised Service Hub Operations (v4.0).*
+*Manual compiled and maintained for Bosch Authorised Service Hub Operations (v4.2).*

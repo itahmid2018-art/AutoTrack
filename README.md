@@ -80,6 +80,22 @@ A One-page, high-efficiency **Job Card tracking, ~1,000-item spare parts invento
     * Moving a ticket to `Completed` automatically dispatches a completion SMS link (`&feedback=1`) when enabled in Business Setup.
     * Clients submit 1–5 star ratings and comments (up to 1,000 chars) via `POST /api/customer-portal/feedback`, updating job cards, list/Kanban rating badges, and the **Customer Satisfaction (CSAT)** panel in **Analytics**.
 
+19. **📧 Job Card Email Notifications & Portal Links (`JobCardDetail`)**:
+    * Dispatches repair progress emails with direct Client Status Portal / PDF links to the client's email address via `POST /api/messaging/send-email` (SendGrid, Resend, or SMTP relay).
+    * Records outbound `'Email'` channel entries and `recipientEmail` across `MessageLog`, PostgreSQL, MySQL, and Cloud Firestore.
+
+20. **🧭 Grouped Search-Bar Navigation & Bulk Card Status Updates (`Header` & `JobCardList`)**:
+    * Organizes top bar links into categorized dropdown groups (`Jobs & Intake`, `Inventory & Servicing`, `Messaging & Portal`, `Analytics & Team`, `Settings & Tools`) positioned beneath the global search bar.
+    * Adds multi-select checkboxes, **Select All**, and **Bulk Update Status** in `JobCardList` with atomic stock lifecycle reconciliation (`applyStockLifecycleTransition`) and audit entries.
+
+21. **📄 Draft Purchase Order PDFs, 30-Day Expense/Labor Comparison & D3.js Consumption Trends**:
+    * Generates downloadable **Draft Purchase Order (PO)** PDFs (`generatePurchaseOrderPdf`) inside **AI Reorder Recommendations** when stock falls below reorder thresholds.
+    * Adds a **30-Day Operational Expenses vs. Labor Income** Recharts `BarChart` and a **D3.js Monthly Consumption Trends** SVG line chart inside **Analytics**.
+
+22. **☁️ Kanban Cloud Sync Status Indicator (`KanbanBoard`) & Calibrated Intake Canvas (`BoschIntakeForm`)**:
+    * Displays a live **Sync Status to Cloud** badge on every Kanban card (`Synced to Cloud`, `Pending Offline Sync`, or `Pending Offline Sync · Sign In`), tracks Firestore `hasPendingWrites` metadata, persists offline edits in a local retry queue (`autotrack_pending_cloud_sync_jobs_v1`), and flushes updates automatically on reconnect.
+    * Applies CSS-to-canvas coordinate scaling (`scaleX`/`scaleY`) on the `BoschIntakeForm` signature pad to keep cursor/touch strokes aligned across responsive layouts.
+
 ---
 
 ## 🧰 Tech Stack & Packages
@@ -90,8 +106,8 @@ A One-page, high-efficiency **Job Card tracking, ~1,000-item spare parts invento
 * **Vite 8** (`@vitejs/plugin-react`, `@tailwindcss/vite`)
 * **Tailwind CSS v4** (`@import "tailwindcss";`)
 * **Lucide React** (`lucide-react`) for industrial icon sets
-* **jsPDF** (`jspdf`) & **qrcode** for client-side PDF document & QR generation
-* **Recharts** (`recharts`) & **Motion** (`motion`)
+* **jsPDF** (`jspdf`) & **qrcode** for client-side PDF documents, Draft POs & QR matrices
+* **Recharts** (`recharts`), **D3.js** (`d3`), & **Motion** (`motion`) for analytics visualizations and Kanban transitions
 
 ### Backend & AI
 * **Node.js 22** with `express` 4.21 (bundled for production into `dist-server/server.cjs`)
@@ -157,9 +173,21 @@ To type-check, run unit tests, validate SQL scripts, build the production client
 npm run lint
 npm test
 npm run validate:sql
+npx eslint firestore.rules
+npx tsx firestore.rules.test.ts
 npm run build
 npm run smoke
 npm start
+```
+
+Or run the cross-platform UAT setup and service probe scripts (`PostgreSQL`, `MySQL`, `SQLite3`, `Redis`, `MongoDB`, `Firebase`, `Docker`, port `3000`):
+
+```bash
+# macOS / Linux
+./scripts/uat_local_setup.sh
+
+# Windows PowerShell / CMD
+scripts\uat_local_setup.bat
 ```
 
 ---
@@ -208,9 +236,10 @@ Both SQL demonstration scripts provision starter staff accounts in `users` using
 | `POST` | `/api/ai/recommend-reorders` | Predictive inventory reorder planner correlating historical failures with stock velocity. |
 | `POST` | `/api/ai/recommend-parts` | Suggests catalog spare parts matching tool model and reported complaint with confidence scores. |
 | `POST` | `/api/ai/transcribe` | Transcribes recorded microphone audio observations into Detailed Complaint or Internal Notes. |
-| `GET`  | `/api/messaging/status` | Reports live credentials status for Twilio SMS and Meta WhatsApp Cloud API providers. |
+| `GET`  | `/api/messaging/status` | Reports live credentials status for Twilio SMS, Meta WhatsApp Cloud API, and Email (SendGrid / Resend / SMTP) providers. |
 | `POST` | `/api/messaging/send-sms` | Dispatches outbound SMS messages via Twilio REST API. |
 | `POST` | `/api/messaging/send-whatsapp` | Dispatches outbound WhatsApp messages via Twilio or Meta Graph Cloud API. |
+| `POST` | `/api/messaging/send-email` | Dispatches repair updates and portal/PDF links to client email addresses via SendGrid, Resend, or configurable SMTP relay. |
 | `GET`  | `/api/sync/stream` | Authenticated SSE live sync stream (`Bearer <idToken>`) pushing ticket, inventory, and schedule updates to Android/tablet clients. |
 | `GET/POST/PUT` | `/api/jobs`, `/api/jobs/:id` | Authenticated Firestore-backed job card CRUD endpoints with automatic `publicDeliveries` projection sync. |
 | `GET/POST/PATCH` | `/api/inventory`, `/api/inventory/:id/stock` | Authenticated Firestore-backed spare parts catalog and stock quantity adjustments. |
@@ -226,7 +255,7 @@ Both SQL demonstration scripts provision starter staff accounts in `users` using
 1. **[Database Setup, Integration & Dummy Data Guide](docs/DATABASE_SETUP_AND_INTEGRATION_GUIDE.md)**:
    * Step-by-step guides for Cloud Firestore live sync, PostgreSQL 16 (`/database.postgres.sql`), MySQL 8.0 (`/database.sql`), Service Worker offline cache, Android/tablet `VITE_API_BASE_URL` + Bearer APIs, and 5 ready-to-use dummy datasets.
 2. **[Testing & QA Acceptance Guide](docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md)**:
-   * Test matrices, steps, pre-conditions, and expected results covering Voice Notes, AI Diagnosis, Calendar, Sign-Offs, Bulk CSV & Excel Inventory Import, Analytics Toggles, Revenue Forecast, Camera Barcode/QR Scanner, Offline Service Worker, Customer Feedback SMS, and Multi-Client Firebase Sync + Security Rules tests.
+   * Test matrices, steps, pre-conditions, and expected results covering Features 1–20: Voice Notes, AI Diagnosis, Calendar, Sign-Offs, Bulk CSV & Excel Inventory Import, Analytics Toggles, Revenue Forecast, D3.js Consumption Trends, 30-Day Expense vs. Labor Chart, Draft PO PDFs, Email Dispatch, Bulk Status Updates, Kanban Cloud Sync Status, Intake Signature Calibration, Customer Feedback SMS, and Multi-Client Firebase Sync + Security Rules tests.
 3. **[End-User Operating Manual & Training Guide](docs/USER_MANUAL_AND_TRAINING_GUIDE.md)**:
    * Counter intake protocols, camera barcode/QR scanning, Predictive Revenue charts, offline Service Worker behavior, live Google Auth sync, Client delivery portal (`/?view=customer&token=...`) & feedback survey usage, and staff checklists.
 4. **[Setup, Security & Maintenance Guide](docs/SETUP_AND_MAINTENANCE_GUIDE.md)**:

@@ -3,6 +3,7 @@ import { JobCard, JobStatus, JobPriority } from '../types';
 import { SHOP_TECHNICIANS } from '../data/mockTechnicians';
 import { adjudicateWarranty } from '../utils/warrantyAdjudicator';
 import { getEffectiveJobBilling } from '../utils/billing';
+import { CloudSyncState } from '../utils/cloudSyncStatus';
 import { 
   Search, 
   Wrench, 
@@ -21,7 +22,11 @@ import {
   ShieldAlert,
   Settings2,
   Hourglass,
-  Star
+  Star,
+  Cloud,
+  CloudOff,
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -34,6 +39,11 @@ interface KanbanBoardProps {
   onSendPdfToCustomer: (job: JobCard) => void;
   onOpenWhatsApp: (job: JobCard) => void;
   onOpenAiDiagnosis?: (job: JobCard) => void;
+  cloudSyncStatusById?: Record<string, CloudSyncState>;
+  isCloudConnected?: boolean;
+  isOnline?: boolean;
+  onRetryCloudSync?: (jobId: string) => void;
+  onRetryAllCloudSync?: () => void;
 }
 
 const KANBAN_COLUMNS: { status: JobStatus; title: string; subtitle: string; badgeClass: string; matchStatuses?: JobStatus[] }[] = [
@@ -173,6 +183,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onSendPdfToCustomer,
   onOpenWhatsApp,
   onOpenAiDiagnosis,
+  cloudSyncStatusById,
+  isCloudConnected = false,
+  isOnline = true,
+  onRetryCloudSync,
+  onRetryAllCloudSync,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTechFilter, setSelectedTechFilter] = useState<string>('All');
@@ -240,6 +255,16 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   const fiveDayWarningCount = jobCards.filter((j) => getTimeInStage(j).isFiveDayStageWarning).length;
   const overdueCount = jobCards.filter((j) => getTimeInStage(j).isOverdue).length;
+
+  const getCardSyncState = (jobId: string): CloudSyncState => {
+    if (cloudSyncStatusById && cloudSyncStatusById[jobId]) {
+      return cloudSyncStatusById[jobId];
+    }
+    return isCloudConnected && isOnline ? 'synced' : isCloudConnected ? 'pending' : 'local';
+  };
+
+  const syncedCardsCount = jobCards.filter((j) => getCardSyncState(j.id) === 'synced').length;
+  const pendingCardsCount = jobCards.length - syncedCardsCount;
 
   // Filter jobs based on search term, technician, priority, and SLA breach toggle
   const filteredJobs = jobCards.filter((job) => {
@@ -456,7 +481,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         )}
 
         {/* Stats Summary Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-3 border-t border-zinc-800 text-xs font-mono">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-3 border-t border-zinc-800 text-xs font-mono">
           <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 flex items-center justify-between">
             <span className="text-zinc-500">In Workshop</span>
             <span className="text-white font-bold">{jobCards.filter(j => j.status !== 'Completed' && j.status !== 'Cancelled').length} Cards</span>
@@ -486,6 +511,37 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             <span className={`font-extrabold ${fiveDayWarningCount > 0 ? 'text-rose-300' : overdueCount > 0 ? 'text-amber-300' : 'text-emerald-400'}`}>
               {fiveDayWarningCount} Warnings
             </span>
+          </div>
+          <div className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 ${
+            pendingCardsCount === 0
+              ? 'bg-emerald-950/30 border-emerald-800/70'
+              : 'bg-amber-950/30 border-amber-700/70'
+          }`}>
+            <span className="text-zinc-400 flex items-center gap-1.5 truncate">
+              {pendingCardsCount === 0 ? (
+                <Cloud className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              ) : (
+                <CloudOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              )}
+              <span className="truncate">Cloud Sync</span>
+            </span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className={`font-bold ${pendingCardsCount === 0 ? 'text-emerald-300' : 'text-amber-300'}`}>
+                {pendingCardsCount === 0
+                  ? `${syncedCardsCount}/${jobCards.length} Synced`
+                  : `${pendingCardsCount} Pending`}
+              </span>
+              {pendingCardsCount > 0 && isCloudConnected && isOnline && onRetryAllCloudSync && (
+                <button
+                  type="button"
+                  onClick={onRetryAllCloudSync}
+                  title="Flush pending offline cards to Firebase Firestore"
+                  className="p-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-600/50 transition-colors"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
         {jobCards.some(j => j.status === 'Cancelled') && (
@@ -751,6 +807,79 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                               ${getEffectiveJobBilling(job).totalAmount.toFixed(0)}
                             </span>
                           </div>
+
+                          {/* Sync Status to Cloud Indicator */}
+                          {(() => {
+                            const syncState = getCardSyncState(job.id);
+                            const isSynced = syncState === 'synced';
+                            const isPendingOffline = syncState === 'pending';
+
+                            return (
+                              <div
+                                title={
+                                  isSynced
+                                    ? 'Sync Status to Cloud: Card status committed to Firebase Firestore'
+                                    : isPendingOffline
+                                    ? 'Sync Status to Cloud: Local change queued and pending sync to Firebase Firestore'
+                                    : 'Sync Status to Cloud: Saved locally only — sign in with Google to sync with Firebase'
+                                }
+                                aria-label={`Sync Status to Cloud: ${
+                                  isSynced
+                                    ? 'Synced to Firebase'
+                                    : isPendingOffline
+                                    ? 'Pending Offline Sync'
+                                    : 'Pending Offline Sync (Local Mode)'
+                                }`}
+                                className={`mt-2 px-2 py-1 rounded-lg border flex items-center justify-between gap-1.5 text-[10px] font-mono ${
+                                  isSynced
+                                    ? 'bg-emerald-950/35 border-emerald-800/60 text-emerald-300'
+                                    : isPendingOffline
+                                    ? 'bg-amber-950/45 border-amber-700/70 text-amber-300'
+                                    : 'bg-zinc-900/90 border-amber-800/50 text-amber-200/90'
+                                }`}
+                              >
+                                <span className="flex items-center gap-1.5 min-w-0">
+                                  {isSynced ? (
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                                  ) : (
+                                    <CloudOff className="w-3 h-3 text-amber-400 shrink-0" />
+                                  )}
+                                  <span className="truncate font-semibold">
+                                    {isSynced
+                                      ? 'Synced to Cloud'
+                                      : isPendingOffline
+                                      ? 'Pending Offline Sync'
+                                      : 'Pending Offline Sync · Sign In'}
+                                  </span>
+                                </span>
+
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {isSynced ? (
+                                    <Cloud className="w-3 h-3 text-emerald-400" />
+                                  ) : isPendingOffline && isCloudConnected && isOnline && onRetryCloudSync ? (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onRetryCloudSync(job.id);
+                                      }}
+                                      title="Retry syncing this job card to Firebase"
+                                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 border border-amber-600/50 font-bold text-[9px] transition-colors"
+                                    >
+                                      <RefreshCw className="w-2.5 h-2.5" />
+                                      <span>Sync</span>
+                                    </button>
+                                  ) : (
+                                    <span
+                                      className={`w-2 h-2 rounded-full ${
+                                        isPendingOffline ? 'bg-amber-400 animate-pulse' : 'bg-amber-500/80'
+                                      }`}
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
 
                           {/* Action Bar (PDF, Print, WhatsApp, Quick Shift) */}
                           <div className="mt-3 pt-2 border-t border-zinc-900 flex items-center justify-between gap-1">

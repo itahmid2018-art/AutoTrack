@@ -182,7 +182,7 @@ service cloud.firestore {
           'id', 'ownerUid', 'staffUids', 'sku', 'barcode', 'name', 'category',
           'brand', 'compatibleModels', 'unitPrice', 'costPrice', 'stockQty',
           'minStockThreshold', 'unit', 'binLocation', 'lastRestocked',
-          'createdAt', 'updatedAt'
+          'lowStockTimestamp', 'createdAt', 'updatedAt'
         ])
         && isValidId(data.id)
         && isValidId(data.ownerUid)
@@ -200,6 +200,7 @@ service cloud.firestore {
         && data.unit in ['pcs', 'sets', 'bottles', 'boxes', 'pairs', 'meters']
         && data.binLocation is string && data.binLocation.size() >= 1 && data.binLocation.size() <= 64
         && data.lastRestocked is string && data.lastRestocked.size() >= 4 && data.lastRestocked.size() <= 40
+        && (!('lowStockTimestamp' in data) || (data.lowStockTimestamp is string && data.lowStockTimestamp.size() <= 40))
         && data.createdAt is timestamp
         && data.updatedAt is timestamp;
     }
@@ -455,11 +456,11 @@ service cloud.firestore {
         && (isMemberRecord(existing()) || isAdmin())
         && (
           isAdmin() ||
-          incoming().diff(existing()).affectedKeys().hasOnly(['stockQty', 'lastRestocked', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['stockQty', 'lastRestocked', 'lowStockTimestamp', 'updatedAt']) ||
           incoming().diff(existing()).affectedKeys().hasOnly([
             'sku', 'barcode', 'name', 'category', 'brand', 'compatibleModels',
             'unitPrice', 'costPrice', 'stockQty', 'minStockThreshold', 'unit',
-            'binLocation', 'lastRestocked', 'staffUids', 'updatedAt'
+            'binLocation', 'lastRestocked', 'lowStockTimestamp', 'staffUids', 'updatedAt'
           ])
         );
       allow delete: if isValidId(itemId) && isAdmin();

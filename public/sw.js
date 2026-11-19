@@ -1,4 +1,4 @@
-const STATIC_CACHE = 'autotrack-static-v1';
+const STATIC_CACHE = 'autotrack-static-v2';
 const DATA_CACHE = 'autotrack-data-v1';
 
 const APP_SHELL_URLS = [
@@ -103,6 +103,14 @@ self.addEventListener('message', (event) => {
             try {
               const parsed = new URL(rawUrl, self.location.origin);
               if (parsed.origin !== self.location.origin) return;
+              if (
+                isViteDevRequest(parsed) ||
+                parsed.pathname === '/sw.js' ||
+                parsed.pathname.startsWith('/api/') ||
+                parsed.pathname.startsWith('/__offline-cache/')
+              ) {
+                return;
+              }
               const existing = await cache.match(parsed.href);
               if (existing) return;
               const resp = await fetch(parsed.href, { credentials: 'same-origin' });
@@ -119,6 +127,25 @@ self.addEventListener('message', (event) => {
   }
 });
 
+function isViteDevRequest(url) {
+  if (url.origin !== self.location.origin) return false;
+  if (
+    url.pathname.startsWith('/src/') ||
+    url.pathname.startsWith('/@vite/') ||
+    url.pathname.startsWith('/@react-refresh') ||
+    url.pathname.startsWith('/@id/') ||
+    url.pathname.startsWith('/@fs/') ||
+    url.pathname.startsWith('/node_modules/')
+  ) {
+    return true;
+  }
+  return (
+    url.searchParams.has('v') ||
+    url.searchParams.has('t') ||
+    url.searchParams.has('import')
+  );
+}
+
 function isStaticAssetRequest(url) {
   if (
     url.origin === 'https://fonts.googleapis.com' ||
@@ -127,15 +154,14 @@ function isStaticAssetRequest(url) {
     return true;
   }
   if (url.origin !== self.location.origin) return false;
+  if (isViteDevRequest(url)) return false;
+  if (url.pathname === '/sw.js') return false;
   if (url.pathname.startsWith('/__offline-cache/')) return false;
   if (url.pathname.startsWith('/api/')) return false;
 
   return (
     url.pathname.startsWith('/assets/') ||
-    url.pathname.startsWith('/src/') ||
-    url.pathname.startsWith('/@vite/') ||
-    url.pathname.startsWith('/node_modules/') ||
-    /\.(js|mjs|ts|tsx|css|png|jpg|jpeg|svg|ico|woff|woff2|webmanifest|json)$/i.test(
+    /\.(js|mjs|css|png|jpg|jpeg|svg|ico|woff|woff2|webmanifest|json)$/i.test(
       url.pathname
     )
   );
@@ -149,6 +175,9 @@ self.addEventListener('fetch', (event) => {
   if (accept.includes('text/event-stream')) return;
 
   const url = new URL(request.url);
+
+  // Never intercept or cache Vite dev modules or source files
+  if (isViteDevRequest(url)) return;
 
   // Serve virtual offline record snapshots straight from DATA_CACHE
   if (url.origin === self.location.origin && url.pathname.startsWith('/__offline-cache/')) {

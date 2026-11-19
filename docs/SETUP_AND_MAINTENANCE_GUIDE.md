@@ -25,8 +25,8 @@
 This technical manual covers setup, security policies, database management, and deployment for the **Bosch Authorised Service Center & Power Tools Hub**.
 
 #### Multi-Counter Architecture Model:
-- **Client Frontend (React 19 + Vite 8 + Tailwind v4)**: High-contrast workshop interface for counter intake, camera barcode/QR scanning, Kanban dispatch, Recharts monthly revenue forecasting, Excel/CSV inventory import, and post-service feedback ratings. Combines `localStorage` (`TransactionalDb`) with a Service Worker (`public/sw.js` `autotrack-static-v1` & `autotrack-data-v1`) so cached Job Cards remain viewable offline.
-- **Express Backend Server (`server.ts`)**: Listens on Port `3000` (compiled to `dist-server/server.cjs` for production), enforces Bearer token verification via `firebase-admin` (`requireAuth`) on sync APIs, serves Gemini AI diagnosis/vision endpoints, handles Twilio SMS/WhatsApp + `/api/customer-portal/feedback`, and broadcasts SSE updates (`/api/sync/stream`, `/api/customer-portal/stream`) with CORS headers for native Android/Capacitor tablet clients (configured via `VITE_API_BASE_URL` or `resolveApiUrl()`).
+- **Client Frontend (React 19 + Vite 8 + Tailwind v4)**: High-contrast workshop interface for counter intake (with CSS-scaled signature calibration), camera barcode/QR scanning, Kanban dispatch with per-card **Sync Status to Cloud** badges, Recharts & D3.js analytics, Draft PO PDF export, Excel/CSV inventory import, Email Customer notifications, and post-service feedback ratings. Combines `localStorage` (`TransactionalDb` + `autotrack_pending_cloud_sync_jobs_v1`) with a Service Worker (`public/sw.js` `autotrack-static-v1` & `autotrack-data-v1`) so cached Job Cards remain viewable offline and queued edits flush upon reconnect.
+- **Express Backend Server (`server.ts`)**: Listens on Port `3000` (compiled to `dist-server/server.cjs` for production), enforces Bearer token verification via `firebase-admin` (`requireAuth`) on sync APIs, serves Gemini AI diagnosis/vision endpoints, handles Twilio SMS/WhatsApp, Email dispatch (`/api/messaging/send-email`), and `/api/customer-portal/feedback`, and broadcasts SSE updates (`/api/sync/stream`, `/api/customer-portal/stream`) with CORS headers for native Android/Capacitor tablet clients (configured via `VITE_API_BASE_URL` or `resolveApiUrl()`).
 - **Cloud Firestore Live Store (`firebase-applet-config.json`)**: Named Enterprise database (`ai-studio-autotrackservice-2eac3d40-310f-46ba-a293-99682d0a94d7`) synchronizing job cards, inventory deltas, maintenance schedules, business settings, and `publicDeliveries`.
 - **Relational SQL Schemas (`database.postgres.sql` & `database.sql`)**: Complete 11-table schemas with demonstration seed data (including completed feedback ticket `BOSCH-2026-0046`) for PostgreSQL 16+ and MySQL 8.0+ deployments.
 
@@ -94,6 +94,14 @@ TWILIO_WHATSAPP_NUMBER="+14155238886"
 WHATSAPP_CLOUD_API_TOKEN="EAAGxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 WHATSAPP_PHONE_NUMBER_ID="123456789012345"
 
+# EMAIL NOTIFICATION DISPATCH (Optional - SendGrid, Resend, or SMTP Relay)
+SENDGRID_API_KEY="SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+RESEND_API_KEY="re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+SMTP_HOST="smtp.mailprovider.com"
+SMTP_USER="smtp_username"
+SMTP_PASS="smtp_password"
+MAIL_FROM="service@autotrackpro.local"
+
 # ANDROID / CAPACITOR EXTERNAL BACKEND ORIGIN (Optional)
 VITE_API_BASE_URL=""
 ```
@@ -115,6 +123,11 @@ npx tsx firestore.rules.test.ts
 npm run validate:sql
 npm test
 npm run lint
+
+# 4. Automated cross-platform UAT setup + local DB service probe
+./scripts/uat_local_setup.sh          # Linux / macOS
+scripts\uat_local_setup.bat           # Windows
+node scripts/check_local_services.mjs # Probe PostgreSQL, MySQL, SQLite, Redis, Mongo, Firebase, Docker
 ```
 
 ---

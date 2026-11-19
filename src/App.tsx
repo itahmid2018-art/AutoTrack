@@ -12,6 +12,12 @@ import { buildCustomerFeedbackUrl, ensurePublicAccessToken } from './utils/custo
 import { nextJobCardId } from './utils/jobId';
 import { applyStockLifecycleTransition, InventoryDelta } from './utils/stockDeduction';
 import { resolveApiUrl } from './utils/apiBase';
+import { useOnlineStatus } from './hooks/useOnlineStatus';
+import {
+  buildCloudSyncStatusMap,
+  loadPendingCloudSyncIds,
+  savePendingCloudSyncIds,
+} from './utils/cloudSyncStatus';
 import {
   readOfflineCachedAllRecords,
   syncRecordsToServiceWorker,
@@ -39,6 +45,11 @@ import {
   isItemBelowThreshold,
   syncInventoryNotifications,
 } from './utils/inventoryNotifications';
+import {
+  backfillSeededLowStockTimestamps,
+  reconcileInventoryLowStockTimestamps,
+  reconcileItemLowStockTimestamp,
+} from './utils/inventoryReplenishment';
 
 import { Header } from './components/Header';
 import { BoschIntakeForm } from './components/BoschIntakeForm';
@@ -105,7 +116,12 @@ export default function App() {
   const [jobCards, setJobCards] = useState<JobCard[]>(() =>
     TransactionalDb.loadJobCards(INITIAL_JOB_CARDS).map(normalizeJobCard)
   );
-  const [inventory, setInventory] = useState<InventoryItem[]>(() => TransactionalDb.loadInventory(INITIAL_INVENTORY));
+  const [inventory, setInventory] = useState<InventoryItem[]>(() =>
+    backfillSeededLowStockTimestamps(
+      TransactionalDb.loadInventory(INITIAL_INVENTORY),
+      INITIAL_INVENTORY
+    )
+  );
   const [schedules, setSchedules] = useState<RecurringMaintenance[]>(() =>
     TransactionalDb.loadRecurringMaintenance(INITIAL_RECURRING_MAINTENANCE)
   );
@@ -163,6 +179,22 @@ export default function App() {
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const isOnline = useOnlineStatus();
+  const [pendingCloudSyncIds, setPendingCloudSyncIds] = useState<string[]>(() =>
+    loadPendingCloudSyncIds()
+  );
+  const [inFlightCloudSyncIds, setInFlightCloudSyncIds] = useState<string[]>([]);
+  const [firestorePendingWritesById, setFirestorePendingWritesById] = useState<Record<string, boolean>>({});
+  const [cloudConfirmedJobIds, setCloudConfirmedJobIds] = useState<Set<string>>(() => new Set());
+
+  const jobCardsRef = useRef(jobCards);
+  jobCardsRef.current = jobCards;
+  const authUserRef = useRef(authUser);
+  authUserRef.current = authUser;
+  const isOnlineRef = useRef(isOnline);
+  isOnlineRef.current = isOnline;
+  const pendingCloudSyncIdsRef = useRef<Set<string>>(new Set(pendingCloudSyncIds));
+  pendingCloudSyncIdsRef.current = new Set(pendingCloudSyncIds);
 
   const initialSeedSnapshotRef = useRef({
     jobCards,
@@ -267,6 +299,10 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    savePendingCloudSyncIds(pendingCloudSyncIds);
+  }, [pendingCloudSyncIds]);
+
   // Multi-client real-time sync subscription for verified operators
   useEffect(() => {
     let activeUnsub: (() => void) | null = null;
@@ -282,6 +318,8 @@ export default function App() {
       setAuthError(null);
 
       if (!user || !user.emailVerified) {
+        setFirestorePendingWritesById({});
+        setCloudConfirmedJobIds(new Set());
         return;
       }
 
@@ -294,11 +332,41 @@ export default function App() {
 
         activeUnsub = subscribeWorkshopData(user, {
           onJobCards: (remoteJobs) => {
-            const normalized = remoteJobs.map(normalizeJobCard);
-            setJobCards(normalized);
+            const normalizedRemote = remoteJobs.map(normalizeJobCard);
+            const pendingSet = pendingCloudSyncIdsRef.current;
+            let merged = normalizedRemote;
+            if (pendingSet.size > 0) {
+              const localById = new Map(jobCardsRef.current.map((j) => [j.id, j]));
+              const remoteIds = new Set(normalizedRemote.map((j) => j.id));
+              merged = normalizedRemote.map((rj) =>
+                pendingSet.has(rj.id) && localById.has(rj.id) ? (localById.get(rj.id) as JobCard) : rj
+              );
+              for (const pendingId of pendingSet) {
+                const localUnsynced = localById.get(pendingId);
+                if (localUnsynced && !remoteIds.has(pendingId)) {
+                  merged = [localUnsynced, ...merged];
+                }
+              }
+            }
+            setJobCards(merged);
             setSelectedJob((curr) =>
-              curr ? normalized.find((j) => j.id === curr.id) || curr : null
+              curr ? merged.find((j) => j.id === curr.id) || curr : null
             );
+          },
+          onJobSyncMetadata: (meta) => {
+            setFirestorePendingWritesById(meta.pendingWritesById);
+            if (meta.confirmedIds.length > 0) {
+              setCloudConfirmedJobIds((prev) => {
+                const next = new Set(prev);
+                const pendingSet = pendingCloudSyncIdsRef.current;
+                for (const id of meta.confirmedIds) {
+                  if (!pendingSet.has(id)) {
+                    next.add(id);
+                  }
+                }
+                return next;
+              });
+            }
           },
           onInventoryItems: (remoteItems) => {
             setInventory((prev) => {
@@ -352,12 +420,75 @@ export default function App() {
     }
   };
 
-  const syncJobToCloud = (job: JobCard) => {
-    if (!authUser?.emailVerified) return;
-    void upsertJobCardInFirestore(job, authUser).catch((err) =>
-      console.warn('Job card sync failed:', err)
-    );
+  const markJobPendingCloudSync = (jobId: string) => {
+    setPendingCloudSyncIds((prev) => (prev.includes(jobId) ? prev : [...prev, jobId]));
   };
+
+  const markJobSyncedToCloud = (jobId: string) => {
+    setPendingCloudSyncIds((prev) => prev.filter((id) => id !== jobId));
+    setCloudConfirmedJobIds((prev) => {
+      const next = new Set(prev);
+      next.add(jobId);
+      return next;
+    });
+  };
+
+  const syncJobToCloud = (job: JobCard) => {
+    markJobPendingCloudSync(job.id);
+
+    const activeUser = authUserRef.current;
+    if (!activeUser?.emailVerified || !isOnlineRef.current) {
+      return;
+    }
+
+    setInFlightCloudSyncIds((prev) => (prev.includes(job.id) ? prev : [...prev, job.id]));
+    void upsertJobCardInFirestore(job, activeUser)
+      .then(() => {
+        markJobSyncedToCloud(job.id);
+      })
+      .catch((err) => {
+        console.warn('Job card sync failed (queued for retry):', err);
+        markJobPendingCloudSync(job.id);
+      })
+      .finally(() => {
+        setInFlightCloudSyncIds((prev) => prev.filter((id) => id !== job.id));
+      });
+  };
+
+  const handleRetryCloudSync = (targetJobId?: string) => {
+    const activeUser = authUserRef.current;
+    if (!activeUser?.emailVerified || !isOnlineRef.current) return;
+
+    const idsToFlush = targetJobId
+      ? [targetJobId]
+      : Array.from(pendingCloudSyncIdsRef.current);
+
+    for (const jobId of idsToFlush) {
+      const matched = jobCardsRef.current.find((j) => j.id === jobId);
+      if (matched) {
+        syncJobToCloud(matched);
+      } else {
+        setPendingCloudSyncIds((prev) => prev.filter((id) => id !== jobId));
+      }
+    }
+  };
+
+  // Automatically flush queued offline job card edits once connectivity & verified auth return
+  useEffect(() => {
+    if (!isOnline || !authUser?.emailVerified) return;
+    if (pendingCloudSyncIds.length === 0) return;
+
+    const idsToFlush = [...pendingCloudSyncIds];
+    for (const jobId of idsToFlush) {
+      if (inFlightCloudSyncIds.includes(jobId)) continue;
+      const matched = jobCardsRef.current.find((j) => j.id === jobId);
+      if (matched) {
+        syncJobToCloud(matched);
+      } else {
+        setPendingCloudSyncIds((prev) => prev.filter((id) => id !== jobId));
+      }
+    }
+  }, [isOnline, authUser]);
 
   const syncInventoryDeltaToCloud = (nextInventory: InventoryItem[]) => {
     if (!authUser?.emailVerified) return;
@@ -374,7 +505,8 @@ export default function App() {
         prevItem.sku !== item.sku ||
         prevItem.barcode !== item.barcode ||
         prevItem.binLocation !== item.binLocation ||
-        prevItem.lastRestocked !== item.lastRestocked
+        prevItem.lastRestocked !== item.lastRestocked ||
+        prevItem.lowStockTimestamp !== item.lowStockTimestamp
       );
     });
     if (changed.length > 0) {
@@ -382,6 +514,12 @@ export default function App() {
         console.warn('Inventory sync failed:', err)
       );
     }
+  };
+
+  const handleUpdateInventoryList = (nextInv: InventoryItem[]) => {
+    const reconciled = reconcileInventoryLowStockTimestamps(nextInv, inventory);
+    setInventory(reconciled);
+    syncInventoryDeltaToCloud(reconciled);
   };
 
   // Handlers
@@ -729,15 +867,20 @@ export default function App() {
     }
     if (deltaByPart.size === 0) return;
 
+    const nowIso = new Date().toISOString();
     const changedItems: InventoryItem[] = [];
     setInventory((prev) =>
       prev.map((item) => {
         const delta = deltaByPart.get(item.id);
         if (!delta) return item;
-        const nextItem: InventoryItem = {
-          ...item,
-          stockQty: Math.max(0, item.stockQty + delta),
-        };
+        const nextItem: InventoryItem = reconcileItemLowStockTimestamp(
+          {
+            ...item,
+            stockQty: Math.max(0, item.stockQty + delta),
+          },
+          item,
+          nowIso
+        );
         changedItems.push(nextItem);
         return nextItem;
       })
@@ -754,9 +897,10 @@ export default function App() {
   };
 
   const handleAddInventoryItem = (newItem: InventoryItem) => {
-    setInventory([newItem, ...inventory]);
+    const reconciledItem = reconcileItemLowStockTimestamp(newItem);
+    setInventory([reconciledItem, ...inventory]);
     if (authUser?.emailVerified) {
-      void upsertInventoryItemsInFirestore([newItem], authUser).catch((err) =>
+      void upsertInventoryItemsInFirestore([reconciledItem], authUser).catch((err) =>
         console.warn('New inventory item sync failed:', err)
       );
     }
@@ -768,11 +912,14 @@ export default function App() {
     setInventory((prev) =>
       prev.map((item) => {
         if (item.id === itemId) {
-          changedItem = {
-            ...item,
-            stockQty: item.stockQty + addQty,
-            lastRestocked: today,
-          };
+          changedItem = reconcileItemLowStockTimestamp(
+            {
+              ...item,
+              stockQty: item.stockQty + addQty,
+              lastRestocked: today,
+            },
+            item
+          );
           return changedItem;
         }
         return item;
@@ -1077,6 +1224,18 @@ export default function App() {
                 onSendPdfToCustomer={(jobForPdf) => setPdfModalJob(jobForPdf)}
                 onOpenWhatsApp={handleOpenWhatsAppForJob}
                 onOpenAiDiagnosis={(jobForAi) => setAiDiagnosisJob(jobForAi)}
+                cloudSyncStatusById={buildCloudSyncStatusMap(jobCards, {
+                  isOnline,
+                  isAuthenticated: Boolean(authUser?.emailVerified),
+                  pendingQueueIds: pendingCloudSyncIds,
+                  inFlightIds: inFlightCloudSyncIds,
+                  firestorePendingWritesById,
+                  cloudConfirmedIds: cloudConfirmedJobIds,
+                })}
+                isCloudConnected={Boolean(authUser?.emailVerified)}
+                isOnline={isOnline}
+                onRetryCloudSync={(jobId) => handleRetryCloudSync(jobId)}
+                onRetryAllCloudSync={() => handleRetryCloudSync()}
               />
             )}
 
@@ -1115,10 +1274,7 @@ export default function App() {
             {activeTab === 'inventory' && (
               <InventoryManager
                 inventory={inventory}
-                onUpdateInventory={(newInv) => {
-                  setInventory(newInv);
-                  syncInventoryDeltaToCloud(newInv);
-                }}
+                onUpdateInventory={handleUpdateInventoryList}
                 onOpenAddItemModal={() => setIsAddInventoryModalOpen(true)}
                 jobCards={jobCards}
                 schedules={schedules}
@@ -1150,10 +1306,8 @@ export default function App() {
               <AnalyticsDashboard
                 jobCards={jobCards}
                 inventory={inventory}
-                onUpdateInventory={(newInv) => {
-                  setInventory(newInv);
-                  syncInventoryDeltaToCloud(newInv);
-                }}
+                onUpdateInventory={handleUpdateInventoryList}
+                notifications={inventoryNotifications}
                 settings={settings}
                 schedules={schedules}
                 onOpenAnalyticsSettings={() => {

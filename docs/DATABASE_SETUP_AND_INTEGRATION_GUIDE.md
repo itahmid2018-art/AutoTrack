@@ -42,7 +42,7 @@ AutoTrack Pro supports 4 storage backends: live Cloud Firestore sync, PostgreSQL
 2. On login, `testFirestoreConnection()` verifies connectivity via `getDocFromServer(doc(db, 'test', 'connection'))`.
 3. `upsertWorkshopUser(user)` creates or refreshes the operator profile.
 4. `seedWorkshopIfEmpty(user, [user.uid], defaults)` seeds `settings/workshop-default`, the 7 sample `jobCards`, 4 `schedules`, 14 `customFields`, core referenced SKUs plus the first 25 `inventory` items, and `/publicDeliveries/{token}` documents if the workspace is empty.
-5. Real-time `onSnapshot` listeners update open tabs immediately when intakes, Kanban stages, inventory restocks, or settings change.
+5. Real-time `onSnapshot` listeners (configured with `{ includeMetadataChanges: true }` on `jobCards`) update open tabs immediately and feed per-card **Sync Status to Cloud** badges (`Synced to Cloud` vs. `Pending Offline Sync`) backed by `autotrack_pending_cloud_sync_jobs_v1` automatic reconnect flushing.
 
 ### 2.4 Security Verification Commands & Rule Hardening Notice
 Run these checks after any rule change:
@@ -98,7 +98,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const pgDb = drizzle(pool);
 ```
-Column definitions in `database.postgres.sql` map 1-to-1 to `JobCard` (including `stock_deducted_at`, `parts_deducted_json`, `custom_field_values_json`, `customer_feedback_rating`, `customer_feedback_comment`, `customer_feedback_submitted_at`, `customer_feedback_json`, and `feedback_sms_sent_at`), `InventoryItem`, `RecurringMaintenance`, `BusinessSettings` (including `auto_send_feedback_sms` and `analytics_metrics`), and `CustomField` in `src/types/index.ts`. Both `database.postgres.sql` and `database.sql` use canonical bcrypt hash `$2b$10$32i.0QG3W55o8K6A4GgVMe/2vH98gO.X1Mv1qQe4u6aY0g7l.0q5i` for the demo `admin / 123456` account.
+Column definitions in `database.postgres.sql` map 1-to-1 to `JobCard` (including `stock_deducted_at`, `parts_deducted_json`, `custom_field_values_json`, `customer_feedback_rating`, `customer_feedback_comment`, `customer_feedback_submitted_at`, `customer_feedback_json`, and `feedback_sms_sent_at`), `MessageLog` (`'WhatsApp' | 'SMS' | 'Email'` channel constraint + `recipient_email`), `InventoryItem`, `RecurringMaintenance`, `BusinessSettings` (including `auto_send_feedback_sms` and `analytics_metrics`), and `CustomField` in `src/types/index.ts`. Both `database.postgres.sql` and `database.sql` use canonical bcrypt hash `$2b$10$32i.0QG3W55o8K6A4GgVMe/2vH98gO.X1Mv1qQe4u6aY0g7l.0q5i` for the demo `admin / 123456` account.
 
 ---
 
@@ -117,14 +117,15 @@ docker run -d \
 mysql -h 127.0.0.1 -u root -prootpass < database.sql
 ```
 
-### 4.2 Verifying MySQL & PostgreSQL Syntax Without Running a Server
+### 4.2 Verifying MySQL, PostgreSQL & Local Database Services
 ```bash
 npm run validate:sql
+node scripts/check_local_services.mjs
 ```
-`scripts/validate_sql.js` runs a state-machine SQL lexer over both `/database.sql` (MySQL) and `/database.postgres.sql` (PostgreSQL), verifying balanced quotes, backticks, dollar-quoted blocks, parentheses, and statement terminators across all 11 tables and seed statements.
+`scripts/validate_sql.js` runs a state-machine SQL lexer over both `/database.sql` (MySQL) and `/database.postgres.sql` (PostgreSQL), verifying balanced quotes, backticks, dollar-quoted blocks, parentheses, and statement terminators across all 11 tables and seed statements. `scripts/check_local_services.mjs` probes running local services (`PostgreSQL`, `MySQL`, `SQLite3`, `Redis`, `MongoDB`, `Firebase Firestore`, `Docker`, and port `3000`).
 
 ### 4.3 Exporting Live UI State to MySQL `.sql`
-Inside **1,000 SKUs** (`InventoryManager`) or **Business Settings** (`TransitionView`), click **Export Local MySQL DB (.sql)** to download a fresh SQL script containing `CREATE TABLE IF NOT EXISTS` statements (all 11 tables including `custom_fields`) and `INSERT INTO` dumps for active records.
+Inside **1,000 SKUs** (`InventoryManager`) or **Business Settings** (`TransitionView`), click **Export Local MySQL DB (.sql)** to download a fresh SQL script containing `CREATE TABLE IF NOT EXISTS` statements (all 11 tables including `custom_fields` and `'Email'` channel support on `message_logs`) and `INSERT INTO` dumps for active records.
 
 ---
 

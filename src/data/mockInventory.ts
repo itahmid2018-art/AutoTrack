@@ -131,6 +131,22 @@ export function generateMockInventory(): InventoryItem[] {
     const shelf = String.fromCharCode(65 + (i % 6));
     const binNumber = 1 + (i % 30);
     const binLocation = `Bin ${shelf}-${binNumber < 10 ? '0' : ''}${binNumber}`;
+    const lastRestocked = '2026-11-05';
+
+    let lowStockTimestamp: string | undefined;
+    if (stockQty < minStockThreshold) {
+      const lowDays = ['2026-11-14T09:30:00.000Z', '2026-11-15T11:15:00.000Z', '2026-11-16T14:45:00.000Z', '2026-11-17T08:20:00.000Z'];
+      lowStockTimestamp = lowDays[i % lowDays.length];
+    } else if (i % 6 === 0) {
+      const priorLowDays = [
+        '2026-10-31T10:00:00.000Z',
+        '2026-11-01T14:00:00.000Z',
+        '2026-11-02T08:30:00.000Z',
+        '2026-11-03T11:00:00.000Z',
+        '2026-11-04T09:00:00.000Z',
+      ];
+      lowStockTimestamp = priorLowDays[(i / 6) % priorLowDays.length];
+    }
 
     items.push({
       id: `item-${count}`,
@@ -146,7 +162,8 @@ export function generateMockInventory(): InventoryItem[] {
       minStockThreshold,
       unit: catObj.unit as any,
       binLocation,
-      lastRestocked: '2026-11-05',
+      lastRestocked,
+      ...(lowStockTimestamp ? { lowStockTimestamp } : {}),
     });
     count++;
   }

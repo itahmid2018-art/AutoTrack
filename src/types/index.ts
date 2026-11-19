@@ -93,9 +93,10 @@ export interface MessageLog {
   id: string;
   timestamp: string;
   type: 'Intake' | 'Estimate' | 'In Progress' | 'Ready' | 'Invoice' | 'Feedback' | 'Recurring Reminder' | 'Custom';
-  recipientPhone: string;
+  recipientPhone?: string;
+  recipientEmail?: string;
   text: string;
-  channel: 'WhatsApp' | 'SMS';
+  channel: 'WhatsApp' | 'SMS' | 'Email';
   status: 'Sent' | 'Pending';
 }
 
@@ -283,6 +284,7 @@ export interface InventoryItem {
   unit: 'pcs' | 'sets' | 'bottles' | 'boxes' | 'pairs' | 'meters';
   binLocation: string;
   lastRestocked: string;
+  lowStockTimestamp?: string;
 }
 
 export interface AnalyticsMetricsConfig {
