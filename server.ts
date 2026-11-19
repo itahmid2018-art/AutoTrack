@@ -174,6 +174,140 @@ async function validateConfiguredGeminiModels() {
   }
 }
 
+const DEPRECATED_GEMINI_MODEL_PATTERNS = [
+  /^gemini-1\./i,
+  /^gemini-2\.0/i,
+  /^gemini-pro$/i,
+];
+
+function isProhibitedDeprecatedModel(modelId: string): boolean {
+  const clean = modelId.replace(/^models\//, '').trim();
+  return DEPRECATED_GEMINI_MODEL_PATTERNS.some((pattern) => pattern.test(clean));
+}
+
+function isNotFoundModelError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  const status = (err as { status?: number })?.status;
+  return status === 404 || /404|NOT_FOUND|is not found for API version/i.test(msg);
+}
+
+let cachedResolvedTextModel: string | null = null;
+let cachedResolvedAudioModel: string | null = null;
+
+async function listSupportedGenerateContentModels(): Promise<string[]> {
+  try {
+    const pager = await ai.models.list();
+    const ids: string[] = [];
+    for await (const m of pager) {
+      const clean = String(m.name || '').replace(/^models\//, '').trim();
+      if (!clean || isProhibitedDeprecatedModel(clean)) continue;
+      const actions = Array.isArray(m.supportedActions) ? m.supportedActions : [];
+      if (actions.length === 0 || actions.includes('generateContent')) {
+        ids.push(clean);
+      }
+    }
+    return ids;
+  } catch {
+    return [];
+  }
+}
+
+function pickCandidateModels(kind: 'text' | 'audio', preferred: string, available: string[]): string[] {
+  const textPreferredOrder = [
+    preferred,
+    'gemini-4-hydrogen',
+    'gemini-3.1-flash-lite',
+    'gemini-3.1-pro-preview',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-2.5-pro',
+  ];
+  const audioPreferredOrder = [
+    preferred,
+    'gemini-3.5-transcribe',
+    'gemini-3.1-flash-lite',
+    'gemini-2.5-flash',
+  ];
+
+  const isNonTextUtility = (id: string) =>
+    /embedding|imagen|veo|lyria|-tts\b|transcribe-live|live-translate|gemma|robotics|computer-use|image/i.test(id);
+
+  const ordered = new Set<string>();
+  const priorityList = kind === 'audio' ? audioPreferredOrder : textPreferredOrder;
+  for (const candidate of priorityList) {
+    const clean = candidate.replace(/^models\//, '').trim();
+    if (clean && !isProhibitedDeprecatedModel(clean)) {
+      ordered.add(clean);
+    }
+  }
+  for (const id of available) {
+    if (kind === 'text' && isNonTextUtility(id)) continue;
+    if (kind === 'audio' && /embedding|imagen|veo|lyria|-tts\b/i.test(id)) continue;
+    ordered.add(id);
+  }
+  return Array.from(ordered);
+}
+
+async function generateContentWithModelFallback(
+  kind: 'text' | 'audio',
+  params: Omit<Parameters<typeof ai.models.generateContent>[0], 'model'>
+) {
+  const configured = kind === 'audio' ? GEMINI_AUDIO_MODEL : GEMINI_TEXT_MODEL;
+  const cached = kind === 'audio' ? cachedResolvedAudioModel : cachedResolvedTextModel;
+  const primaryModel = cached || configured;
+
+  try {
+    return await ai.models.generateContent({ ...params, model: primaryModel });
+  } catch (err) {
+    if (!isNotFoundModelError(err)) {
+      throw err;
+    }
+
+    const available = await listSupportedGenerateContentModels();
+    const candidates = pickCandidateModels(kind, configured, available).filter(
+      (m) => m !== primaryModel
+    );
+
+    let lastErr: unknown = err;
+    for (const candidate of candidates) {
+      try {
+        const result = await ai.models.generateContent({ ...params, model: candidate });
+        if (kind === 'audio') {
+          cachedResolvedAudioModel = candidate;
+        } else {
+          cachedResolvedTextModel = candidate;
+        }
+        console.warn(
+          `[gemini] Configured ${kind} model "${configured}" returned 404; resolved to "${candidate}".`
+        );
+        return result;
+      } catch (retryErr) {
+        if (!isNotFoundModelError(retryErr)) {
+          throw retryErr;
+        }
+        lastErr = retryErr;
+      }
+    }
+    throw lastErr;
+  }
+}
+
+// Read-only Gemini model availability check (never exposes API keys)
+app.get('/api/ai/status', async (_req, res) => {
+  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+  const keyConfigured = Boolean(apiKey && apiKey !== 'MY_GEMINI_API_KEY');
+  const availableModels = keyConfigured ? await listSupportedGenerateContentModels() : [];
+  return res.json({
+    keyConfigured,
+    configuredTextModel: GEMINI_TEXT_MODEL,
+    resolvedTextModel: cachedResolvedTextModel || GEMINI_TEXT_MODEL,
+    configuredAudioModel: GEMINI_AUDIO_MODEL,
+    resolvedAudioModel: cachedResolvedAudioModel || GEMINI_AUDIO_MODEL,
+    availableModelCount: availableModels.length,
+    availableModels: availableModels.slice(0, 20),
+  });
+});
+
 // Server-side Gemini Power Tool Fault Diagnosis Endpoint
 app.post('/api/ai/diagnose', async (req, res) => {
   try {
@@ -203,8 +337,7 @@ Diagnose the fault and return structured JSON:
 4. Recommended Replacement Parts needed from the catalog sample (list partId, sku, name, quantity, and specific reason)
 5. Technical Notes for Service Ticket`;
 
-    const response = await ai.models.generateContent({
-      model: GEMINI_TEXT_MODEL,
+    const response = await generateContentWithModelFallback('text', {
       contents: prompt,
       config: {
         systemInstruction: 'Respond ONLY with valid structured JSON matching the declared schema.',
@@ -267,8 +400,7 @@ Job Ticket Info:
 
 Keep under 220 characters. Include clear call to action.`;
 
-    const response = await ai.models.generateContent({
-      model: GEMINI_TEXT_MODEL,
+    const response = await generateContentWithModelFallback('text', {
       contents: prompt,
     });
 
@@ -352,8 +484,7 @@ Instructions:
 2. Provide 2 helpful "alternateReplies" tailored to common support needs (one concise SMS-ready option under 160 characters if possible, and one detailed polite WhatsApp option with exact cost/stage clarity).
 3. List up to 4 concise "keyFactsCited" referencing exact data points used from the JobCard.`;
 
-    const response = await ai.models.generateContent({
-      model: GEMINI_TEXT_MODEL,
+    const response = await generateContentWithModelFallback('text', {
       contents: prompt,
       config: {
         systemInstruction: 'Respond ONLY with valid structured JSON matching the schema. Ground all figures and statuses strictly in the supplied JobCard facts.',
@@ -434,8 +565,7 @@ Instructions:
       parts: [{ text: m.text }],
     }));
 
-    const response = await ai.models.generateContent({
-      model: GEMINI_TEXT_MODEL,
+    const response = await generateContentWithModelFallback('text', {
       contents: [
         { role: 'user', parts: [{ text: `[SYSTEM CONTEXT]: Tool Model: ${tool.brand} ${tool.modelNumber}. Grievance: ${serviceReq.grievanceCategory} - ${serviceReq.detailedComplaint}` }] },
         ...contents,
@@ -491,8 +621,7 @@ Task & Failure Pattern Analysis Rules:
 2. Cross-reference repair ticket grievances with current stock levels. Identify parts that are low OR expected to run out soon based on predicted failure velocity.
 3. Recommend exact reorder quantities, urgency levels (CRITICAL, HIGH, MEDIUM, LOW), reasoning based on tool symptoms, and estimated PO cost.`;
 
-    const response = await ai.models.generateContent({
-      model: GEMINI_TEXT_MODEL,
+    const response = await generateContentWithModelFallback('text', {
       contents: prompt,
       config: {
         systemInstruction: 'You are a Senior Bosch Master Service Inventory Specialist. Respond ONLY with valid structured JSON matching the declared schema.',
@@ -636,8 +765,7 @@ Rules:
 2. Explain concisely why each part applies to this specific tool model and failure symptom.
 3. Recommend realistic replacement quantities (usually 1, or 2 for paired bearings/brushes if applicable).`;
 
-    const response = await ai.models.generateContent({
-      model: GEMINI_TEXT_MODEL,
+    const response = await generateContentWithModelFallback('text', {
       contents: prompt,
       config: {
         systemInstruction: 'Respond ONLY with valid structured JSON matching the declared schema. Only cite partId and sku values present in the provided catalog.',
@@ -740,8 +868,7 @@ app.post('/api/ai/transcribe', async (req, res) => {
       },
     };
 
-    const response = await ai.models.generateContent({
-      model: GEMINI_AUDIO_MODEL,
+    const response = await generateContentWithModelFallback('audio', {
       contents: {
         parts: [
           audioPart,
@@ -786,8 +913,7 @@ app.post('/api/ai/scan-serial', async (req, res) => {
       },
     };
 
-    const response = await ai.models.generateContent({
-      model: GEMINI_TEXT_MODEL,
+    const response = await generateContentWithModelFallback('text', {
       contents: {
         parts: [
           imagePart,
