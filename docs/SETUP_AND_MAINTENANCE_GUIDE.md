@@ -25,8 +25,8 @@
 This technical manual covers setup, security policies, database management, and deployment for the **Bosch Authorised Service Center & Power Tools Hub**.
 
 #### Multi-Counter Architecture Model:
-- **Client Frontend (React 19 + Vite 8 + Tailwind v4)**: High-contrast workshop interface for counter intake (with CSS-scaled signature calibration), camera barcode/QR scanning, Kanban dispatch with per-card **Sync Status to Cloud** badges, Recharts & D3.js analytics, Draft PO PDF export, Excel/CSV inventory import, Email Customer notifications, and post-service feedback ratings. Combines `localStorage` (`TransactionalDb` + `autotrack_pending_cloud_sync_jobs_v1`) with a Service Worker (`public/sw.js` `autotrack-static-v1` & `autotrack-data-v1`) so cached Job Cards remain viewable offline and queued edits flush upon reconnect.
-- **Express Backend Server (`server.ts`)**: Listens on Port `3000` (compiled to `dist-server/server.cjs` for production), enforces Bearer token verification via `firebase-admin` (`requireAuth`) on sync APIs, serves Gemini AI diagnosis/vision endpoints, handles Twilio SMS/WhatsApp, Email dispatch (`/api/messaging/send-email`), and `/api/customer-portal/feedback`, and broadcasts SSE updates (`/api/sync/stream`, `/api/customer-portal/stream`) with CORS headers for native Android/Capacitor tablet clients (configured via `VITE_API_BASE_URL` or `resolveApiUrl()`).
+- **Client Frontend (React 19 + Vite 8 + Tailwind v4)**: High-contrast workshop interface for counter intake (with CSS-scaled signature calibration), camera barcode/QR scanning, Kanban dispatch with per-card **Sync Status to Cloud** badges, automated monthly-consumption reorder point analysis with direct Draft PO PDF export in `InventoryManager`, **Average Time to Replenish** KPI card, Recharts & live D3.js consumption analytics, Excel/CSV inventory import, Email Customer notifications, and post-service feedback ratings. Combines `localStorage` (`TransactionalDb` + `autotrack_pending_cloud_sync_jobs_v1`) with a Service Worker (`public/sw.js` `autotrack-static-v2` & `autotrack-data-v1`) so cached Job Cards remain viewable offline without caching Vite dev dependencies and queued edits flush upon reconnect.
+- **Express Backend Server (`server.ts`)**: Listens on Port `3000` (compiled to `dist-server/server.cjs` for production), enforces Bearer token verification via `firebase-admin` (`requireAuth`) on sync APIs, serves Gemini AI diagnosis/vision/diagnostic status (`/api/ai/status`) endpoints with alias normalization and `404`/`503`/timeout fallback across supported `generateContent` models, handles Twilio SMS/WhatsApp, Email dispatch (`/api/messaging/send-email`), and `/api/customer-portal/feedback`, and broadcasts SSE updates (`/api/sync/stream`, `/api/customer-portal/stream`) with CORS headers for native Android/Capacitor tablet clients (configured via `VITE_API_BASE_URL` or `resolveApiUrl()`).
 - **Cloud Firestore Live Store (`firebase-applet-config.json`)**: Named Enterprise database (`ai-studio-autotrackservice-2eac3d40-310f-46ba-a293-99682d0a94d7`) synchronizing job cards, inventory deltas, maintenance schedules, business settings, and `publicDeliveries`.
 - **Relational SQL Schemas (`database.postgres.sql` & `database.sql`)**: Complete 11-table schemas with demonstration seed data (including completed feedback ticket `BOSCH-2026-0046`) for PostgreSQL 16+ and MySQL 8.0+ deployments.
 
@@ -76,6 +76,7 @@ cp .env.example .env
 
 ```env
 # GEMINI AI API KEY & CONFIGURABLE MODELS
+# Note: bare alias "hydrogen" normalizes to "gemini-4-hydrogen"; server also falls back across valid generateContent models on 404/503/timeout.
 GEMINI_API_KEY="AIzaSyYourSecretGeminiKeyHere"
 GEMINI_TEXT_MODEL="gemini-4-hydrogen"
 GEMINI_AUDIO_MODEL="gemini-3.5-transcribe"
@@ -124,11 +125,14 @@ npm run validate:sql
 npm test
 npm run lint
 
-# 4. Automated cross-platform UAT setup + local DB service probe
+# 4. Automated cross-platform UAT setup + local DB & AI health probes
 ./scripts/uat_local_setup.sh          # Linux / macOS
 scripts\uat_local_setup.bat           # Windows
 node scripts/check_local_services.mjs # Probe PostgreSQL, MySQL, SQLite, Redis, Mongo, Firebase, Docker
+curl -s http://localhost:3000/api/ai/status # Verify normalized/resolved Gemini models
 ```
+
+Recorded module test results and live API key health reports are tracked in [`../testing_docs/README.md`](../testing_docs/README.md).
 
 ---
 

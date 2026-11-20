@@ -11,7 +11,10 @@ import {
   countEnabledAnalyticsMetrics,
   resolveAnalyticsMetrics,
 } from '../utils/analyticsConfig';
-import { InventoryNotification } from '../utils/inventoryNotifications';
+import {
+  InventoryNotification,
+  computeMonthlyPartConsumptionTrends,
+} from '../utils/inventoryNotifications';
 import { calculateAverageReplenishMetrics } from '../utils/inventoryReplenishment';
 import { AiReorderRecommendations } from './AiReorderRecommendations';
 import { RevenueForecastModule } from './RevenueForecastModule';
@@ -133,11 +136,17 @@ const VolumeTrendTooltip: React.FC<CustomChartTooltipProps> = ({ active, payload
 
 const D3ConsumptionTrendChart: React.FC<{ jobCards: JobCard[]; inventory: InventoryItem[] }> = ({ jobCards, inventory }) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const trendData = React.useMemo(
+    () => computeMonthlyPartConsumptionTrends(inventory, jobCards, 6),
+    [inventory, jobCards]
+  );
 
   useEffect(() => {
     if (!svgRef.current) return;
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
+
+    if (trendData.series.length === 0) return;
 
     const width = 600;
     const height = 260;
@@ -150,15 +159,14 @@ const D3ConsumptionTrendChart: React.FC<{ jobCards: JobCard[]; inventory: Invent
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
-    const months = ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
-    const series = [
-      { name: 'Carbon Brush Set (BRSH-1002)', color: '#34d399', values: [18, 24, 30, 22, 35, 42] },
-      { name: 'SDS-Max Grease (GRS-3001)', color: '#f59e0b', values: [12, 15, 20, 18, 25, 30] },
-      { name: 'Paddle Switch (SW-4001)', color: '#60a5fa', values: [8, 10, 14, 12, 19, 24] },
-    ];
+    const monthLabels = trendData.months.map((m) => m.label);
+    const maxVal = Math.max(
+      5,
+      ...trendData.series.flatMap((s) => s.values)
+    );
 
-    const xScale = d3.scalePoint().domain(months).range([0, innerWidth]).padding(0.5);
-    const yScale = d3.scaleLinear().domain([0, 50]).nice().range([innerHeight, 0]);
+    const xScale = d3.scalePoint().domain(monthLabels).range([0, innerWidth]).padding(0.5);
+    const yScale = d3.scaleLinear().domain([0, maxVal]).nice().range([innerHeight, 0]);
 
     g.append('g')
       .attr('transform', `translate(0,${innerHeight})`)
@@ -182,19 +190,22 @@ const D3ConsumptionTrendChart: React.FC<{ jobCards: JobCard[]; inventory: Invent
       .append('line')
       .attr('x1', 0)
       .attr('x2', innerWidth)
-      .attr('y1', d => yScale(d))
-      .attr('y2', d => yScale(d))
+      .attr('y1', (d) => yScale(d))
+      .attr('y2', (d) => yScale(d))
       .attr('stroke', '#27272a')
       .attr('stroke-dasharray', '3 3');
 
     const lineGen = d3.line<{ month: string; val: number }>()
-      .x(d => xScale(d.month) || 0)
-      .y(d => yScale(d.val))
+      .x((d) => xScale(d.month) || 0)
+      .y((d) => yScale(d.val))
       .curve(d3.curveMonotoneX);
 
-    series.forEach((s) => {
-      const data = months.map((m, i) => ({ month: m, val: s.values[i] }));
-      
+    trendData.series.forEach((s) => {
+      const data = trendData.months.map((m, i) => ({
+        month: m.label,
+        val: s.values[i] || 0,
+      }));
+
       g.append('path')
         .datum(data)
         .attr('fill', 'none')
@@ -202,40 +213,61 @@ const D3ConsumptionTrendChart: React.FC<{ jobCards: JobCard[]; inventory: Invent
         .attr('stroke-width', 2.5)
         .attr('d', lineGen);
 
-      g.selectAll(`.dot-${s.name.replace(/[^a-zA-Z0-9]/g, '')}`)
+      const dots = g.selectAll(`.dot-${s.sku.replace(/[^a-zA-Z0-9]/g, '')}`)
         .data(data)
         .enter()
         .append('circle')
-        .attr('cx', d => xScale(d.month) || 0)
-        .attr('cy', d => yScale(d.val))
+        .attr('cx', (d) => xScale(d.month) || 0)
+        .attr('cy', (d) => yScale(d.val))
         .attr('r', 4)
         .attr('fill', s.color)
         .attr('stroke', '#09090b')
         .attr('stroke-width', 1.5);
+
+      dots.append('title').text((d) => `${s.sku} (${s.name}) — ${d.month}: ${d.val} units`);
     });
-  }, [jobCards, inventory]);
+  }, [trendData]);
 
   return (
     <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3 font-mono">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div>
           <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
             <Activity className="w-4 h-4 text-emerald-400" />
             <span>D3.js Monthly Consumption Trends (High-Frequency Parts)</span>
           </h4>
           <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
-            Historical consumption tracking and seasonal demand forecasting powered by D3.js SVG rendering
+            Live monthly spare parts consumption from historical job cards for seasonal demand forecasting
           </p>
         </div>
+        <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-emerald-400 font-bold shrink-0">
+          {trendData.series.length} SKUs Tracked
+        </span>
       </div>
-      <div className="w-full h-64 overflow-hidden">
-        <svg ref={svgRef} className="w-full h-full" />
-      </div>
-      <div className="flex flex-wrap items-center gap-4 text-[11px] text-zinc-300 pt-1">
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#34d399] inline-block"></span> Carbon Brush Set</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#f59e0b] inline-block"></span> SDS-Max Grease</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#60a5fa] inline-block"></span> Paddle Switch</span>
-      </div>
+      {trendData.series.length === 0 ? (
+        <div className="w-full h-64 flex items-center justify-center border border-dashed border-zinc-800 rounded-lg text-xs text-zinc-500 font-sans">
+          No spare part consumption recorded on active Job Cards yet.
+        </div>
+      ) : (
+        <div className="w-full h-64 overflow-hidden">
+          <svg ref={svgRef} className="w-full h-full" />
+        </div>
+      )}
+      {trendData.series.length > 0 && (
+        <div className="flex flex-wrap items-center gap-4 text-[11px] text-zinc-300 pt-1">
+          {trendData.series.map((s) => (
+            <span key={s.itemId} className="flex items-center gap-1.5" title={s.name}>
+              <span
+                className="w-3 h-3 rounded-full inline-block shrink-0"
+                style={{ backgroundColor: s.color }}
+              />
+              <span>
+                {s.sku} ({s.totalConsumed} used · {s.jobUsageCount} jobs)
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -479,13 +511,13 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     }
 
     jobCards.forEach((j) => {
+      if (j.status === 'Cancelled') return;
       const dateKey = (j.intakeDate || j.createdAt || '').slice(0, 10);
       if (daysMap.has(dateKey)) {
         const entry = daysMap.get(dateKey)!;
         const billing = getEffectiveJobBilling(j);
         entry.laborIncome += billing.laborSubtotal;
-        const opEx = (j.operationalExpenses || []).reduce((s, e) => s + Number(e.amount), 0);
-        entry.operationalExpenses += opEx;
+        entry.operationalExpenses += billing.operationalExpensesSubtotal;
       }
     });
 

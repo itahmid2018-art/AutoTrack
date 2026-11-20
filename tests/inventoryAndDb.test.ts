@@ -5,6 +5,8 @@ import {
   computeReorderSuggestion,
   buildInventoryNotification,
   syncInventoryNotifications,
+  analyzeInventoryReorderPoints,
+  computeMonthlyPartConsumptionTrends,
 } from '../src/utils/inventoryNotifications';
 import {
   SAMPLE_INVENTORY_CSV,
@@ -22,7 +24,7 @@ import {
 import { INITIAL_JOB_CARDS } from '../src/data/initialJobCards';
 import { INITIAL_RECURRING_MAINTENANCE } from '../src/data/initialRecurringMaintenance';
 import { INITIAL_CUSTOM_FIELDS } from '../src/data/initialCustomFields';
-import { BusinessSettings, InventoryItem } from '../src/types';
+import { BusinessSettings, InventoryItem, JobCard } from '../src/types';
 
 const SAMPLE_SETTINGS: BusinessSettings = {
   centerName: 'BOSCH & VENDOR POWER TOOLS SERVICE HUB',
@@ -60,6 +62,35 @@ function makeInvItem(overrides: Partial<InventoryItem> = {}): InventoryItem {
   };
 }
 
+function makeConsumableJob(
+  id: string,
+  intakeDate: string,
+  sku: string,
+  partId: string,
+  quantity: number,
+  status: JobCard['status'] = 'Completed'
+): JobCard {
+  const base = INITIAL_JOB_CARDS[0];
+  return {
+    ...base,
+    id,
+    status,
+    intakeDate,
+    createdAt: `${intakeDate.slice(0, 10)}T09:00:00Z`,
+    updatedAt: `${intakeDate.slice(0, 10)}T12:00:00Z`,
+    parts: [
+      {
+        partId,
+        sku,
+        name: `Part ${sku}`,
+        unitPrice: 20,
+        quantity,
+        total: quantity * 20,
+      },
+    ],
+  };
+}
+
 describe('inventoryNotifications utilities', () => {
   it('flags items strictly below threshold and computes severities and reorder quantities', () => {
     const healthy = makeInvItem({ id: 'i1', stockQty: 10, minStockThreshold: 10 });
@@ -83,6 +114,60 @@ describe('inventoryNotifications utilities', () => {
     assert.equal(synced[1].itemId, 'i3'); // unread CRITICAL second
     assert.equal(synced[2].itemId, 'i2'); // read LOW_STOCK preserved read state & sorted last
     assert.equal(synced[2].read, true);
+  });
+
+  it('analyzes historical job cards for monthly consumption reorder points and monthly trends', () => {
+    const highBurnItem = makeInvItem({
+      id: 'item-brush',
+      sku: 'BRSH-1002',
+      stockQty: 12,
+      minStockThreshold: 5,
+      costPrice: 10,
+    });
+    const steadyItem = makeInvItem({
+      id: 'item-grease',
+      sku: 'GRS-3001',
+      stockQty: 20,
+      minStockThreshold: 4,
+      costPrice: 8,
+    });
+
+    const jobs: JobCard[] = [
+      makeConsumableJob('J-1', '2026-09-05 09:00', 'BRSH-1002', 'item-brush', 12, 'Completed'),
+      makeConsumableJob('J-2', '2026-10-10 10:00', 'BRSH-1002', 'item-brush', 16, 'In Service'),
+      makeConsumableJob('J-3', '2026-11-05 11:00', 'BRSH-1002', 'item-brush', 8, 'Completed'),
+      makeConsumableJob('J-4', '2026-11-06 11:00', 'GRS-3001', 'item-grease', 3, 'Completed'),
+      // Cancelled jobs must be excluded from consumption rates
+      makeConsumableJob('J-CANC', '2026-11-07 11:00', 'GRS-3001', 'item-grease', 100, 'Cancelled'),
+    ];
+
+    const analysis = analyzeInventoryReorderPoints([highBurnItem, steadyItem], jobs);
+    assert.equal(analysis.analyzedJobCount, 4);
+    assert.ok(analysis.observedMonths >= 2);
+
+    const brushEntry = analysis.items.find((e) => e.sku === 'BRSH-1002')!;
+    const greaseEntry = analysis.items.find((e) => e.sku === 'GRS-3001')!;
+
+    assert.equal(brushEntry.totalUnitsConsumed, 36);
+    assert.equal(brushEntry.jobUsageCount, 3);
+    assert.ok(brushEntry.avgMonthlyConsumptionRate >= 15);
+    assert.ok(brushEntry.suggestedReorderPoint > brushEntry.staticMinThreshold);
+    assert.equal(brushEntry.belowAutomatedThreshold, true); // stock 12 < automated point (~27)
+    assert.ok(brushEntry.suggestedOrderQty > 0);
+
+    assert.equal(greaseEntry.totalUnitsConsumed, 3); // cancelled job ignored
+    assert.equal(greaseEntry.belowAutomatedThreshold, false); // stock 20 >= point 4
+
+    assert.equal(analysis.belowThresholdItems.length, 1);
+    assert.equal(analysis.belowThresholdItems[0].sku, 'BRSH-1002');
+
+    const trends = computeMonthlyPartConsumptionTrends([highBurnItem, steadyItem], jobs, 6);
+    assert.equal(trends.months.length, 6);
+    assert.equal(trends.months[5].yearMonth, '2026-11');
+    assert.equal(trends.series.length, 2);
+    assert.equal(trends.series[0].sku, 'BRSH-1002');
+    assert.deepEqual(trends.series[0].values, [0, 0, 0, 12, 16, 8]);
+    assert.deepEqual(trends.series[1].values, [0, 0, 0, 0, 0, 3]);
   });
 });
 

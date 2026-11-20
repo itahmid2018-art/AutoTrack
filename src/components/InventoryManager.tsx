@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { InventoryItem, JobCard, BusinessSettings, RecurringMaintenance, CustomField } from '../types';
 import { generateMySqlDump } from '../utils/mysqlExport';
 import {
   InventoryNotification,
+  analyzeInventoryReorderPoints,
   computeReorderSuggestion,
   isItemBelowThreshold,
   syncInventoryNotifications,
 } from '../utils/inventoryNotifications';
+import { generatePurchaseOrderPdf } from '../utils/generatePdf';
 import { AiReorderRecommendations } from './AiReorderRecommendations';
 import { SerialBarcodeScannerModal } from './SerialBarcodeScannerModal';
 import { InventoryBulkImportModal } from './InventoryBulkImportModal';
@@ -19,8 +21,8 @@ import {
 } from '../utils/barcodeSerialParser';
 import { 
   Search, Plus, Package, AlertTriangle, Download, Barcode, 
-  RefreshCw, Database, FileCode, CheckCircle2, ShoppingCart, ShieldAlert, Sparkles, BrainCircuit,
-  Bell, CheckCheck, Minus, PackageX, ChevronDown, ChevronUp, QrCode, History, ExternalLink, Camera, FileSpreadsheet
+  RefreshCw, Database, CheckCircle2, ShoppingCart, BrainCircuit,
+  Bell, CheckCheck, Minus, PackageX, ChevronDown, ChevronUp, QrCode, History, ExternalLink, Camera, FileSpreadsheet, FileText
 } from 'lucide-react';
 
 interface InventoryManagerProps {
@@ -111,6 +113,16 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
 
   const categories = ['All', ...Array.from(new Set(inventory.map((i) => i.category)))];
 
+  const reorderAnalysis = useMemo(
+    () => analyzeInventoryReorderPoints(inventory, jobCards),
+    [inventory, jobCards]
+  );
+  const analysisByItemId = useMemo(
+    () => new Map(reorderAnalysis.items.map((entry) => [entry.itemId, entry])),
+    [reorderAnalysis]
+  );
+  const automatedReorderItems = reorderAnalysis.belowThresholdItems;
+
   const lowStockItems = inventory.filter(isItemBelowThreshold);
   const activeNotifications = notifications || syncInventoryNotifications(inventory);
   const unreadNotifCount = activeNotifications.filter((n) => !n.read).length;
@@ -138,10 +150,11 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
       item.brand.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+    const isBelowAuto = Boolean(analysisByItemId.get(item.id)?.belowAutomatedThreshold);
     const matchesStock =
       stockFilter === 'All' ||
-      (stockFilter === 'LowStock' && isItemBelowThreshold(item)) ||
-      (stockFilter === 'InStock' && !isItemBelowThreshold(item));
+      (stockFilter === 'LowStock' && (isItemBelowThreshold(item) || isBelowAuto)) ||
+      (stockFilter === 'InStock' && !isItemBelowThreshold(item) && !isBelowAuto);
 
     return matchesSearch && matchesCategory && matchesStock;
   });
@@ -262,16 +275,44 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
   };
 
   const handleDownloadReorderCsv = () => {
-    const headers = ['SKU', 'Part Name', 'Category', 'Current Stock', 'Min Threshold', 'Suggested Reorder Qty', 'Cost Per Unit', 'Estimated Reorder Total'];
-    const rows = lowStockItems.map(i => [
-      i.sku,
-      `"${i.name}"`,
-      `"${i.category}"`,
-      i.stockQty,
-      i.minStockThreshold,
-      (i.minStockThreshold * 2) - i.stockQty,
-      i.costPrice,
-      (((i.minStockThreshold * 2) - i.stockQty) * i.costPrice).toFixed(2)
+    const sourceItems =
+      automatedReorderItems.length > 0
+        ? automatedReorderItems
+        : lowStockItems.map((i) => {
+            const qty = Math.max(10, i.minStockThreshold * 2 - i.stockQty);
+            return {
+              sku: i.sku,
+              name: i.name,
+              item: i,
+              currentStock: i.stockQty,
+              suggestedReorderPoint: i.minStockThreshold,
+              avgMonthlyConsumptionRate: 0,
+              suggestedOrderQty: qty,
+              estimatedOrderCost: qty * i.costPrice,
+            };
+          });
+
+    const headers = [
+      'SKU',
+      'Part Name',
+      'Category',
+      'Current Stock',
+      'Avg Monthly Consumption',
+      'Automated Reorder Point',
+      'Suggested Reorder Qty',
+      'Cost Per Unit',
+      'Estimated Reorder Total',
+    ];
+    const rows = sourceItems.map((entry) => [
+      entry.sku,
+      `"${entry.name}"`,
+      `"${entry.item.category}"`,
+      entry.currentStock,
+      entry.avgMonthlyConsumptionRate.toFixed(2),
+      entry.suggestedReorderPoint,
+      entry.suggestedOrderQty,
+      entry.item.costPrice,
+      entry.estimatedOrderCost.toFixed(2),
     ]);
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
@@ -281,6 +322,33 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleDownloadDraftPoPdf = () => {
+    if (automatedReorderItems.length === 0) return;
+    const poItems = automatedReorderItems.map((entry) => ({
+      sku: entry.sku,
+      name: entry.name,
+      currentStock: entry.currentStock,
+      minStockThreshold: entry.suggestedReorderPoint,
+      suggestedReorderQty: entry.suggestedOrderQty,
+      costPrice: entry.item.costPrice,
+      estimatedTotalCost: entry.estimatedOrderCost,
+      suggestedSupplier: entry.suggestedSupplier,
+      urgency: entry.urgency,
+    }));
+    const { doc, filename } = generatePurchaseOrderPdf(poItems, {
+      centerName: settings.centerName,
+      address: settings.address,
+      phone: settings.phone,
+      email: settings.email,
+      currencySymbol: settings.currencySymbol,
+    });
+    doc.save(filename);
+    setRestockFeedback(
+      `Generated Draft PO PDF (${filename}) for ${poItems.length} parts below automated consumption reorder points.`
+    );
+    setTimeout(() => setRestockFeedback(null), 4500);
   };
 
   return (
@@ -375,12 +443,12 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
                   </span>
                   <span
                     className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono border ${
-                      lowStockItems.length > 0
+                      automatedReorderItems.length > 0
                         ? 'bg-rose-950 text-rose-300 border-rose-700'
                         : 'bg-emerald-950 text-emerald-300 border-emerald-700'
                     }`}
                   >
-                    {lowStockItems.length} BELOW MIN THRESHOLD
+                    {automatedReorderItems.length} BELOW AUTO REORDER PT
                   </span>
                   {unreadNotifCount > 0 && (
                     <span className="px-2 py-0.5 rounded-full bg-amber-500 text-zinc-950 text-[10px] font-extrabold font-mono">
@@ -394,8 +462,8 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
                   )}
                 </div>
                 <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
-                  Real-time threshold monitor &amp; direct reorder suggestions. Est. PO value for queued alerts:{' '}
-                  <strong className="text-white font-mono">${totalEstimatedReorderBudget.toFixed(2)}</strong>
+                  Analyzed {reorderAnalysis.analyzedJobCount} job cards ({reorderAnalysis.observedMonths} mo span) for consumption reorder points. Est. PO value:{' '}
+                  <strong className="text-white font-mono">${reorderAnalysis.totalEstimatedOrderCost.toFixed(2)}</strong>
                 </p>
               </div>
             </div>
@@ -422,6 +490,16 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
               )}
 
               <button
+                onClick={handleDownloadDraftPoPdf}
+                disabled={automatedReorderItems.length === 0}
+                className="px-3 py-1.5 text-[11px] font-bold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 disabled:opacity-40 rounded-xl flex items-center gap-1.5 transition-colors active:scale-95"
+                title="Generate Draft Purchase Order PDF for items below automated reorder point thresholds"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Download Draft PO PDF ({automatedReorderItems.length})</span>
+              </button>
+
+              <button
                 onClick={() => {
                   setStockFilter('LowStock');
                   setShowReorderPanel(true);
@@ -430,7 +508,7 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
                 className="px-3 py-1.5 text-[11px] font-bold text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-xl flex items-center gap-1.5 transition-colors"
               >
                 <ShoppingCart className="w-3.5 h-3.5" />
-                <span>Manual PO Sheet</span>
+                <span>Reorder Point Sheet</span>
               </button>
 
               <button
@@ -474,14 +552,24 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
                   ))}
                 </div>
 
-                <button
-                  onClick={handleDownloadReorderCsv}
-                  disabled={lowStockItems.length === 0}
-                  className="px-3 py-1.5 text-[11px] font-bold text-zinc-950 bg-white hover:bg-zinc-200 disabled:opacity-40 rounded-lg flex items-center gap-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Export Reorder PO CSV</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleDownloadDraftPoPdf}
+                    disabled={automatedReorderItems.length === 0}
+                    className="px-3 py-1.5 text-[11px] font-bold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 disabled:opacity-40 rounded-lg flex items-center gap-1.5"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Draft PO PDF</span>
+                  </button>
+                  <button
+                    onClick={handleDownloadReorderCsv}
+                    disabled={automatedReorderItems.length === 0}
+                    className="px-3 py-1.5 text-[11px] font-bold text-zinc-950 bg-white hover:bg-zinc-200 disabled:opacity-40 rounded-lg flex items-center gap-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Export Reorder PO CSV</span>
+                  </button>
+                </div>
               </div>
 
               {visibleNotifications.length === 0 ? (
@@ -620,7 +708,7 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
               className={`flex-1 py-1 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1 ${stockFilter === 'LowStock' ? 'bg-white text-zinc-950 font-bold' : 'text-zinc-400 hover:text-white'}`}
             >
               <AlertTriangle className="w-3 h-3" />
-              <span>Low Stock Alert ({lowStockItems.length})</span>
+              <span>Reorder Alerts ({automatedReorderItems.length})</span>
             </button>
           </div>
         </div>
@@ -635,19 +723,36 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
         />
       )}
 
-      {/* REORDER PLANNING PANEL (If open) */}
+      {/* REORDER PLANNING PANEL (Automated Monthly Consumption Reorder Points) */}
       {showReorderPanel && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xl">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5 text-white" />
-              <h2 className="text-base font-bold text-white uppercase">Supplier Reorder Planning Sheet</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5 text-white" />
+                <h2 className="text-base font-bold text-white uppercase">
+                  Automated Reorder Point &amp; Draft PO Sheet
+                </h2>
+              </div>
+              <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
+                Suggested reorder points derived from average monthly job card consumption ({reorderAnalysis.observedMonths} mo window across {reorderAnalysis.analyzedJobCount} active tickets).
+              </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={handleDownloadDraftPoPdf}
+                disabled={automatedReorderItems.length === 0}
+                className="px-3 py-1.5 text-xs font-bold text-zinc-950 bg-emerald-400 hover:bg-emerald-300 disabled:opacity-40 rounded-lg flex items-center gap-1.5"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Download Draft PO PDF</span>
+              </button>
+
               <button
                 onClick={handleDownloadReorderCsv}
-                className="px-3 py-1.5 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-lg flex items-center gap-1"
+                disabled={automatedReorderItems.length === 0}
+                className="px-3 py-1.5 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 disabled:opacity-40 rounded-lg flex items-center gap-1"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Export Reorder CSV</span>
@@ -666,7 +771,8 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
                   <th className="p-2.5">SKU</th>
                   <th className="p-2.5">Part Name</th>
                   <th className="p-2.5 text-center">Current Stock</th>
-                  <th className="p-2.5 text-center">Min Threshold</th>
+                  <th className="p-2.5 text-center">Avg / Mo Burn</th>
+                  <th className="p-2.5 text-center">Auto Reorder Pt</th>
                   <th className="p-2.5 text-center">Suggested PO Qty</th>
                   <th className="p-2.5 text-right">Cost / Unit</th>
                   <th className="p-2.5 text-right">Total Reorder Cost</th>
@@ -674,28 +780,54 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800 text-zinc-300">
-                {lowStockItems.map((item) => {
-                  const reorderQty = Math.max(10, (item.minStockThreshold * 2) - item.stockQty);
-                  return (
-                    <tr key={item.id} className="hover:bg-zinc-950/40">
-                      <td className="p-2.5 font-bold text-white">{item.sku}</td>
-                      <td className="p-2.5">{item.name}</td>
-                      <td className="p-2.5 text-center font-bold text-white bg-zinc-950">{item.stockQty} {item.unit}</td>
-                      <td className="p-2.5 text-center text-zinc-400">{item.minStockThreshold}</td>
-                      <td className="p-2.5 text-center font-bold text-white">{reorderQty}</td>
-                      <td className="p-2.5 text-right">${item.costPrice.toFixed(2)}</td>
-                      <td className="p-2.5 text-right font-bold text-white">${(reorderQty * item.costPrice).toFixed(2)}</td>
+                {automatedReorderItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="p-4 text-center text-zinc-500 font-sans">
+                      All spare part SKUs currently meet or exceed automated monthly consumption reorder points.
+                    </td>
+                  </tr>
+                ) : (
+                  automatedReorderItems.map((entry) => (
+                    <tr key={entry.itemId} className="hover:bg-zinc-950/40">
+                      <td className="p-2.5 font-bold text-white">{entry.sku}</td>
+                      <td className="p-2.5">
+                        <div>{entry.name}</div>
+                        <div className="text-[10px] text-zinc-500">
+                          {entry.totalUnitsConsumed > 0
+                            ? `${entry.totalUnitsConsumed} units across ${entry.jobUsageCount} job(s)`
+                            : 'Static threshold baseline'}
+                        </div>
+                      </td>
+                      <td className="p-2.5 text-center font-bold text-white bg-zinc-950">
+                        {entry.currentStock} {entry.item.unit}
+                      </td>
+                      <td className="p-2.5 text-center text-emerald-400 font-bold">
+                        {entry.avgMonthlyConsumptionRate.toFixed(1)}/mo
+                      </td>
+                      <td className="p-2.5 text-center text-amber-300 font-bold">
+                        {entry.suggestedReorderPoint}
+                        {entry.suggestedReorderPoint > entry.staticMinThreshold && (
+                          <span className="block text-[9px] text-zinc-500 font-normal">
+                            Static: {entry.staticMinThreshold}
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-2.5 text-center font-bold text-white">{entry.suggestedOrderQty}</td>
+                      <td className="p-2.5 text-right">${entry.item.costPrice.toFixed(2)}</td>
+                      <td className="p-2.5 text-right font-bold text-white">
+                        ${entry.estimatedOrderCost.toFixed(2)}
+                      </td>
                       <td className="p-2.5 text-center">
                         <button
-                          onClick={() => handleQuickRestock(item.id, reorderQty)}
+                          onClick={() => handleQuickRestock(entry.itemId, entry.suggestedOrderQty)}
                           className="px-2 py-1 bg-white hover:bg-zinc-200 text-zinc-950 text-[10px] font-bold rounded"
                         >
                           + Receive Restock
                         </button>
                       </td>
                     </tr>
-                  );
-                })}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -726,9 +858,17 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
                 </tr>
               ) : (
                 paginatedItems.map((item) => {
-                  const isLow = isItemBelowThreshold(item);
+                  const analysisItem = analysisByItemId.get(item.id);
+                  const isLow = isItemBelowThreshold(item) || Boolean(analysisItem?.belowAutomatedThreshold);
                   const isOut = item.stockQty <= 0;
                   const reorderSpec = isLow ? computeReorderSuggestion(item) : null;
+                  const reorderQty = analysisItem?.belowAutomatedThreshold
+                    ? analysisItem.suggestedOrderQty
+                    : reorderSpec?.suggestedReorderQty || 10;
+                  const reorderCost = analysisItem?.belowAutomatedThreshold
+                    ? analysisItem.estimatedOrderCost
+                    : reorderSpec?.estimatedReorderCost || reorderQty * item.costPrice;
+                  const activeThreshold = analysisItem?.suggestedReorderPoint ?? item.minStockThreshold;
                   return (
                     <tr key={item.id} className={`hover:bg-zinc-950/40 transition-colors ${isLow ? 'bg-zinc-950/60' : ''}`}>
                       <td className="py-3 px-4 font-mono">
@@ -755,9 +895,9 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
                         ${item.unitPrice.toFixed(2)}
                       </td>
 
-                      {/* VISUAL ALERT BADGE & REORDER SUGGESTION COLUMN */}
+                      {/* VISUAL ALERT BADGE & AUTOMATED REORDER POINT COLUMN */}
                       <td className="py-3 px-4 text-center font-mono">
-                        {isLow && reorderSpec ? (
+                        {isLow ? (
                           <div className="inline-flex flex-col items-center gap-1">
                             <span
                               className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-bold text-[11px] border shadow ${
@@ -768,18 +908,27 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
                             >
                               {isOut ? <PackageX className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
                               <span>
-                                {isOut ? 'OUT OF STOCK' : 'LOW STOCK'}: {item.stockQty} / Min {item.minStockThreshold}
+                                {isOut ? 'OUT OF STOCK' : 'LOW STOCK'}: {item.stockQty} / Pt {activeThreshold}
                               </span>
                             </span>
                             <span className="text-[10px] text-emerald-400 font-semibold">
-                              Suggest Reorder: +{reorderSpec.suggestedReorderQty} {item.unit} ($
-                              {reorderSpec.estimatedReorderCost.toFixed(2)})
+                              Suggest Reorder: +{reorderQty} {item.unit} (${reorderCost.toFixed(2)})
+                              {analysisItem && analysisItem.avgMonthlyConsumptionRate > 0
+                                ? ` · ${analysisItem.avgMonthlyConsumptionRate.toFixed(1)}/mo`
+                                : ''}
                             </span>
                           </div>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-medium text-xs bg-zinc-950 text-zinc-300 border border-zinc-800">
-                            {item.stockQty} {item.unit}
-                          </span>
+                          <div className="inline-flex flex-col items-center gap-0.5">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-medium text-xs bg-zinc-950 text-zinc-300 border border-zinc-800">
+                              {item.stockQty} {item.unit}
+                            </span>
+                            {analysisItem && analysisItem.avgMonthlyConsumptionRate > 0 && (
+                              <span className="text-[10px] text-zinc-500">
+                                Auto Pt {analysisItem.suggestedReorderPoint} ({analysisItem.avgMonthlyConsumptionRate.toFixed(1)}/mo)
+                              </span>
+                            )}
+                          </div>
                         )}
                       </td>
 
@@ -795,14 +944,14 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({
                             <span>1</span>
                           </button>
 
-                          {isLow && reorderSpec ? (
+                          {isLow ? (
                             <button
-                              onClick={() => handleQuickRestock(item.id, reorderSpec.suggestedReorderQty)}
-                              title={`Order suggested ${reorderSpec.suggestedReorderQty} ${item.unit}`}
+                              onClick={() => handleQuickRestock(item.id, reorderQty)}
+                              title={`Order suggested ${reorderQty} ${item.unit}`}
                               className="px-2.5 py-1 text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors inline-flex items-center gap-1"
                             >
                               <ShoppingCart className="w-3 h-3" />
-                              <span>Order +{reorderSpec.suggestedReorderQty}</span>
+                              <span>Order +{reorderQty}</span>
                             </button>
                           ) : (
                             <button

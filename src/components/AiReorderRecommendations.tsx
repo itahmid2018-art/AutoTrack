@@ -256,7 +256,7 @@ export const AiReorderRecommendations: React.FC<AiReorderRecommendationsProps> =
               AI-Driven Inventory Reorder &amp; Failure Pattern Engine
             </h2>
             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-950 text-white border border-zinc-700">
-              Gemini 3.8 Flash
+              Gemini AI Engine
             </span>
           </div>
           <p className="text-xs text-zinc-400 mt-1 font-sans">
@@ -475,7 +475,7 @@ export const AiReorderRecommendations: React.FC<AiReorderRecommendationsProps> =
             <BrainCircuit className="w-8 h-8 text-zinc-500 mx-auto" />
             <div className="text-sm font-bold text-white">Ready for AI Inventory Reorder Analysis</div>
             <p className="text-xs text-zinc-400 font-sans max-w-md mx-auto">
-              Click <strong className="text-white">"Spark AI Reorder Analysis"</strong> above to analyze historical tool failure patterns and forecast stock requirements using Gemini 3.8 Flash.
+              Click <strong className="text-white">"Spark AI Reorder Analysis"</strong> above to analyze historical tool failure patterns and forecast stock requirements using Gemini AI.
             </p>
           </div>
         )

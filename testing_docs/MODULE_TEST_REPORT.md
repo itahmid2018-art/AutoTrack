@@ -1,8 +1,8 @@
 # Module-by-Module Test & Verification Report
 
-**Run Timestamp:** 2026-11-19T09:35:17Z  
+**Run Timestamp:** 2026-11-20T06:25:52Z  
 **Unit Test Runner:** `npm test` (`npx tsx --test tests/*.test.ts`)  
-**Total Unit Results:** **56 / 56 tests passed** across **24 suites** (`7,951.8 ms`, `0` failures)  
+**Total Unit Results:** **57 / 57 tests passed** across **24 suites** (`4,305.91 ms`, `0` failures)  
 **Static Type Check:** `npm run lint` (`tsc --noEmit`) — **PASS (0 errors)**  
 **Component & Lib Import Verification:** **34 / 34 modules imported cleanly via `tsx`**
 
@@ -24,7 +24,7 @@ Every utility module under `src/utils/` has active unit test coverage in `tests/
 | 8 | `firestoreSync.ts` | `tests/portalPdfAndSync.test.ts` | `sanitizeDocId`, `isBootstrappedAdminUser`, all 5 collection payload builders | **PASS** |
 | 9 | `generatePdf.ts` | `tests/portalPdfAndSync.test.ts` | `generateJobCardPdf` + `generatePurchaseOrderPdf` A4 data URL generation | **PASS** |
 | 10 | `inventoryImportParser.ts` | `tests/inventoryAndDb.test.ts` | Tab/comma detection, RFC 4180 quotes, `upsert`/`replenish`/`insertOnly` | **PASS** |
-| 11 | `inventoryNotifications.ts` | `tests/inventoryAndDb.test.ts` | Threshold filter, `OUT_OF_STOCK`/`CRITICAL`/`LOW_STOCK`, read sort order | **PASS** |
+| 11 | `inventoryNotifications.ts` | `tests/inventoryAndDb.test.ts` | Threshold filter, `OUT_OF_STOCK`/`CRITICAL`/`LOW_STOCK`, read sort order, `analyzeInventoryReorderPoints`, `computeMonthlyPartConsumptionTrends` | **PASS** |
 | 12 | `inventoryReplenishment.ts` | `tests/inventoryReplenishment.test.ts` | Low-stock transition stamping, restock duration math, dashboard averages | **PASS** |
 | 13 | `jobId.ts` | `tests/jobId.test.ts` | Floor 41/0001 rules, max+1 non-shrinking IDs across jobs & schedules | **PASS** |
 | 14 | `localStorageDb.ts` | `tests/inventoryAndDb.test.ts` | Save/load persistence across jobs, settings, custom fields, JSON fallback | **PASS** |
@@ -71,5 +71,5 @@ All 30 components in `src/components/`, `src/hooks/useOnlineStatus.ts`, `src/lib
 ## 4. Test Coverage Gaps & Next Testing Priorities
 
 1. **Interactive DOM / Browser Rendering:** Unit tests validate all pure state, sync payloads, PDF output, and SQL/CSV parsers, while Vite + `tsc` verify component compilation. Adding Vitest/React Testing Library specs for complex UI trees (`KanbanBoard`, `InventoryManager`, `AnalyticsDashboard` D3 chart) would automate DOM-event regression checks.
-2. **Audio & Vision AI Payloads:** `/api/ai/transcribe` and `/api/ai/scan-serial` were verified for 400 payload validation. End-to-end audio/image inference requires valid model IDs configured for `GEMINI_AUDIO_MODEL` and `GEMINI_TEXT_MODEL` (currently failing upstream with 404 on text routes).
+2. **Audio & Vision AI Payloads:** `/api/ai/transcribe` and `/api/ai/scan-serial` passed `400` payload validation checks, and all 6 text AI routes passed live `200 OK` inference checks. End-to-end audio/image inference tests require binary `.webm`/`.jpg` media fixtures against valid `GEMINI_AUDIO_MODEL` and multimodal model targets.
 3. **Live Cloud Firestore Write Tests:** `firestoreSync.ts` payload builders passed unit assertions, and `firestore.rules.test.ts` verified rules locally; authenticated browser session testing is required to exercise live multi-user sync.

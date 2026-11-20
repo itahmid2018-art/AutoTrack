@@ -14,7 +14,7 @@ A One-page, high-efficiency **Job Card tracking, ~1,000-item spare parts invento
    * Counter Accessories Checklist & On-Screen Touch Digital Signature.
 
 2. **✨ Gemini AI Fault Diagnosis Engine**:
-   * Powered by **Gemini 3.8 Flash** (`@google/genai`).
+   * Powered by `@google/genai` with runtime-configurable `GEMINI_TEXT_MODEL` (default `gemini-4-hydrogen`, normalizing legacy aliases and falling back cleanly on model unavailability).
    * Analyzes client grievances and tool details to suggest probable root causes, step-by-step repair actions, estimated labor hours, and matched spare parts.
    * **1-Click Part Link**: Technicians auto-attach AI-recommended spare parts directly to the job card ticket.
 
@@ -88,13 +88,17 @@ A One-page, high-efficiency **Job Card tracking, ~1,000-item spare parts invento
     * Organizes top bar links into categorized dropdown groups (`Jobs & Intake`, `Inventory & Servicing`, `Messaging & Portal`, `Analytics & Team`, `Settings & Tools`) positioned beneath the global search bar.
     * Adds multi-select checkboxes, **Select All**, and **Bulk Update Status** in `JobCardList` with atomic stock lifecycle reconciliation (`applyStockLifecycleTransition`) and audit entries.
 
-21. **📄 Draft Purchase Order PDFs, 30-Day Expense/Labor Comparison & D3.js Consumption Trends**:
-    * Generates downloadable **Draft Purchase Order (PO)** PDFs (`generatePurchaseOrderPdf`) inside **AI Reorder Recommendations** when stock falls below reorder thresholds.
-    * Adds a **30-Day Operational Expenses vs. Labor Income** Recharts `BarChart` and a **D3.js Monthly Consumption Trends** SVG line chart inside **Analytics**.
+21. **📄 Consumption-Based Reorder Points, Direct Draft PO PDFs, 30-Day Expense/Labor Comparison & Live D3.js Trends**:
+    * Analyzes historical `jobCards` part consumption (`analyzeInventoryReorderPoints`) directly inside `InventoryManager` to calculate average monthly burn rates, automated reorder points, and download **Draft Purchase Order (PO)** PDFs (`generatePurchaseOrderPdf`) whenever stock falls below automated thresholds (plus AI-assisted PO export inside `AiReorderRecommendations`).
+    * Adds a **30-Day Operational Expenses vs. Labor Income** Recharts `BarChart` and a **D3.js Monthly Consumption Trends** SVG line chart (`computeMonthlyPartConsumptionTrends`) inside **Analytics**.
 
 22. **☁️ Kanban Cloud Sync Status Indicator (`KanbanBoard`) & Calibrated Intake Canvas (`BoschIntakeForm`)**:
     * Displays a live **Sync Status to Cloud** badge on every Kanban card (`Synced to Cloud`, `Pending Offline Sync`, or `Pending Offline Sync · Sign In`), tracks Firestore `hasPendingWrites` metadata, persists offline edits in a local retry queue (`autotrack_pending_cloud_sync_jobs_v1`), and flushes updates automatically on reconnect.
     * Applies CSS-to-canvas coordinate scaling (`scaleX`/`scaleY`) on the `BoschIntakeForm` signature pad to keep cursor/touch strokes aligned across responsive layouts.
+
+23. **⏱️ Average Time to Replenish KPI & Full Module Test Reports (`/testing_docs/`)**:
+    * Tracks low-stock timestamp transitions (`lowStockTimestamp`) against `lastRestocked` dates (`calculateAverageReplenishMetrics`) to display an **Average Time to Replenish** summary card (days, hours, restocked vs. awaiting counts) inside **Analytics**.
+    * Ships automated unit tests across all 24 `src/utils/` modules and 5 seed datasets alongside live API health and build verification reports in [`testing_docs/README.md`](testing_docs/README.md).
 
 ---
 
@@ -228,6 +232,7 @@ Both SQL demonstration scripts provision starter staff accounts in `users` using
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
+| `GET`  | `/api/ai/status` | Reports configured/normalized/resolved Gemini text & audio models and visible supported `generateContent` models for diagnostics (never exposes API keys). |
 | `POST` | `/api/ai/diagnose` | Accepts tool grievance details & inventory sample; returns structured root cause analysis, repair steps, labor hours, and part SKUs. |
 | `POST` | `/api/ai/scan-serial` | Extracts serial numbers, SKUs, model numbers, and brands from camera photos when hardware barcode detection falls back. |
 | `POST` | `/api/ai/generate-message` | Generates personalized client notifications for WhatsApp & SMS. |
@@ -264,6 +269,10 @@ Both SQL demonstration scripts provision starter staff accounts in `users` using
    * Archived Phase 1–9 remediation records and developer invariants (`getEffectiveJobBilling`, `applyStockLifecycleTransition`, `nextJobCardId`).
 6. **[Sample CSV Datasets Directory](docs/samples/README.md)**:
    * Pre-formatted CSV import fixtures for maintenance schedules, inventory items (including Excel/TSV & CSV bulk paste), and service tickets.
+7. **[Module & API Verification Reports](testing_docs/README.md)**:
+   * Module-by-module unit test coverage (`24` suites across `src/utils/` and `src/data/`), build/security gate outputs, and live API key health probes.
+8. **[AI Model Configuration & Messaging Sandbox Testing Guide](docs/AI_MODEL_AND_MESSAGING_SANDBOX_GUIDE.md)**:
+   * Step-by-step instructions to set explicit `GEMINI_TEXT_MODEL` / `GEMINI_AUDIO_MODEL` IDs in AI Studio Secrets for zero fallback delay and run internal sandbox tests on Twilio SMS/WhatsApp and Email routes.
 
 ---
 

@@ -149,10 +149,10 @@ Located in the top two header rows:
 3. **AI Recommended Parts Analyzer**: Click `Recommend Parts` under the parts table to match tool models and reported complaints against catalog inventory. Click `+ Add to Job` or `Attach All Recommended Parts`.
 4. **Workbench AI Diagnostic Chatbot**: Select the `💬 AI Repair Chatbot` tab to query multimeter check values or attach parts directly from assistant replies.
 
-#### 4.5 AI Predictive Inventory Reorder & Draft Purchase Order PDF
-1. Navigate to **`1,000 SKUs`** or **`Analytics`**.
-2. Click **`✨ AI Reorder Recommendations`** -> **`Spark AI Reorder Analysis`** to match repair frequency against stock thresholds.
-3. Click **`Download Draft PO PDF`** (`generatePurchaseOrderPdf`) to generate a print-ready `DRAFT PURCHASE ORDER` PDF listing low-stock SKUs, reorder quantities, unit costs, and estimated totals, click **`Export AI PO CSV`**, or click **`+ Receive Restock`** to increment stock.
+#### 4.5 Consumption-Based Reorder Points, AI Predictive Reorder & Draft Purchase Order PDF
+1. Navigate to **`1,000 SKUs`** (`InventoryManager`). The **Inventory Notification Center** and **Reorder Point Sheet** automatically analyze non-cancelled `jobCards` part history to calculate average monthly burn rates (`avgMonthlyConsumptionRate`) and automated reorder points (`suggestedReorderPoint`).
+2. Click **`Download Draft PO PDF`** directly inside the **Inventory Notification Center** or **Reorder Point Sheet** (`generatePurchaseOrderPdf`) to generate a print-ready `DRAFT PURCHASE ORDER` PDF listing every SKU currently below its automated reorder threshold.
+3. Optionally expand **`✨ AI Reorder Recommendations`** -> **`Spark AI Reorder Analysis`** to correlate defect patterns and export an AI-annotated **`Download Draft PO PDF`** or **`Export AI PO CSV`**, or click **`+ Receive Restock`** to increment stock.
 
 #### 4.6 Technician Bench Time Tracking & Workshop Capacity Scheduler
 1. Click **`Analytics & Team -> Time Tracking & Shifts`** on the header menu bar.
@@ -181,11 +181,11 @@ Located in the top two header rows:
 5. **Automated Completion Feedback SMS**: When a job ticket moves to `Completed` (and **Auto-Send Customer Feedback SMS** is enabled in Business Setup), the system automatically dispatches an SMS with a direct survey link (`?token=...&feedback=1`) and opens `FeedbackSmsToast`.
 6. **Public Client Delivery Portal & Survey (`CustomerView`)**: Share `/?view=customer&token=<publicAccessToken>` (or the receipt QR code). Clients can also look up by `jobId` after verifying the last 4 digits of their phone number, track live repair stages, download verified receipts, and submit 1–5 star feedback ratings without logging in.
 
-#### 4.10 Predictive Revenue Forecast, 30-Day Expense/Labor Comparison, D3.js Consumption Trends & CSAT
+#### 4.10 Predictive Revenue Forecast, Replenish KPI, 30-Day Expense/Labor Comparison, D3.js Trends & CSAT
 1. Click **`Analytics & Team -> Analytics & Revenue Forecast`**.
-2. Review workshop KPIs and sections configured in Business Settings: **Active Jobs**, **Low Inventory**, **Revenue**, **Today's Appointments**, **Average Repair Time**, **Top Grievances**, **Technician Performance**, and **Tool Category Volume**.
+2. Review workshop KPIs and sections configured in Business Settings: **Active Jobs**, **Low Inventory**, **Average Time to Replenish** (mean days/hours from `lowStockTimestamp` to `lastRestocked` plus awaiting count), **Revenue**, **Today's Appointments**, **Average Repair Time**, **Top Grievances**, **Technician Performance**, and **Tool Category Volume**.
 3. **Operational Expenses vs Labor Income (Last 30 Days)**: Compare daily technician labor revenue (`#34d399`) against operational expenses (`#f59e0b`) in the Recharts `BarChart` to spot high-cost service trends.
-4. **D3.js Monthly Consumption Trends**: Inspect the D3.js SVG curve chart tracking monthly usage of high-frequency parts (`BRSH-1002`, `GRS-3001`, `SW-4001`) to anticipate seasonal demand.
+4. **D3.js Monthly Consumption Trends**: Inspect the D3.js SVG curve chart computing live monthly usage across the top high-frequency spare part SKUs from active `jobCards` to anticipate seasonal demand.
 5. **Predictive Monthly Revenue Forecast**: Inside the Recharts `LineChart` module, toggle `3M / 6M / 12M Horizon`, `Conservative / Baseline / Growth` scenarios, and `Confidence Band` to project monthly revenue from recorded billings, seasonal tool demand multipliers, and upcoming fleet maintenance.
 6. **Customer Satisfaction (CSAT) & Feedback Breakdown**: View overall 5-star average rating, response rate, star distribution bars, and recent client comments captured from completion surveys.
 7. Click **`Download Jobs CSV`** and **`Download Inventory CSV`** for spreadsheet auditing.
@@ -271,19 +271,20 @@ See [`docs/DATABASE_SETUP_AND_INTEGRATION_GUIDE.md`](DATABASE_SETUP_AND_INTEGRAT
 - [ ] **Step 5**: Dictate completion notes, save your technician sign-off signature, click `Clock Out`, and move the ticket to `Ready for Pickup`.
 
 #### 8.3 Workshop Manager & Inventory Lead Protocols
-- [ ] **Step 1**: Review **`Analytics`** (including Predictive Monthly Revenue Forecast and Client Satisfaction CSAT breakdown) and customize visible widgets in **`Business Setup` -> `Analytics Dashboard Metrics Visibility`**.
-- [ ] **Step 2**: Open **`1,000 SKUs`** -> Use **`Bulk Import Excel / CSV`** for distributor restock sheets, or click `✨ AI Reorder Recommendations` -> Export `AI PO CSV` for low-stock SKUs.
-- [ ] **Step 3**: Audit `Servicing` (`Recurring Maintenance`) schedules, confirm offline Service Worker activation, and verify weekly SQL/Firestore backups.
+- [ ] **Step 1**: Review **`Analytics`** (including **Average Time to Replenish**, 30-day Expense vs Labor chart, live D3 consumption trends, Predictive Monthly Revenue Forecast, and CSAT breakdown) and customize visible widgets in **`Business Setup` -> `Analytics Dashboard Metrics Visibility`**.
+- [ ] **Step 2**: Open **`1,000 SKUs`** -> review automated monthly consumption reorder points, click **`Download Draft PO PDF`** for low-stock SKUs, use **`Bulk Import Excel / CSV`** for distributor restock sheets, or click `✨ AI Reorder Recommendations` -> Export `AI PO CSV`.
+- [ ] **Step 3**: Monitor **`Kanban Board`** cloud sync indicators (**Synced to Cloud** vs. **Pending Offline Sync**), audit `Servicing` (`Recurring Maintenance`) schedules, confirm offline Service Worker activation, and verify weekly SQL/Firestore backups.
 
 ---
 
 ### 9. QUALITY ASSURANCE & TESTING ACCEPTANCE GUIDE
 
-For complete test matrices covering Features 1–20, security rules tests, SQL/CSV validation scripts, and E2E verification checklists, refer to:
+For complete test matrices covering Features 1–20, security rules tests, SQL/CSV validation scripts, live API health reports, and E2E verification checklists, refer to:
 
 - **[`docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md`](TESTING_AND_QA_ACCEPTANCE_GUIDE.md)**
 - **[`docs/DATABASE_SETUP_AND_INTEGRATION_GUIDE.md`](DATABASE_SETUP_AND_INTEGRATION_GUIDE.md)**
 - **[`docs/SETUP_AND_MAINTENANCE_GUIDE.md`](SETUP_AND_MAINTENANCE_GUIDE.md)**
+- **[`testing_docs/README.md`](../testing_docs/README.md)**
 
 ---
-*Manual compiled and maintained for Bosch Authorised Service Hub Operations (v4.2).*
+*Manual compiled and maintained for Bosch Authorised Service Hub Operations (v4.3).*

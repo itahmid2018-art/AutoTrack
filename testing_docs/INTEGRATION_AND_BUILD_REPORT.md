@@ -1,6 +1,6 @@
 # Integration, Security, SQL & Build Verification Report
 
-**Run Timestamp:** 2026-11-19T09:32:00Z — 2026-11-19T09:35:15Z  
+**Run Timestamp:** 2026-11-20T06:25:52Z  
 **Toolchain:** Node `v22.23.2`, TypeScript (`tsc --noEmit`), Vite `v8.3.8`, esbuild, ESLint (`@firebase/rules-unit-testing` / `eslint-plugin-security` / `firestore.rules`)
 
 ---
@@ -10,8 +10,8 @@
 | Check Suite | Command | Result | Key Metrics / Output |
 | :--- | :--- | :---: | :--- |
 | **TypeScript Static Check** | `npm run lint` (`tsc --noEmit`) | **PASS** | 0 errors across `src/`, `server.ts`, and `tests/` |
-| **Production Client Build** | `npm run build:client` (`vite build`) | **PASS** | 2,792 modules transformed in `8.64s` (warning: main bundle `3,131.60 kB` > 500 kB chunk threshold) |
-| **Production Server Build** | `npm run build:server` (`esbuild`) | **PASS** | `dist-server/server.cjs` (`78.7 kB`) built in `31ms` |
+| **Production Client Build** | `npm run build:client` (`vite build`) | **PASS** | 2,792 modules transformed in `5.76s` (`dist/assets/index-SUGm-C4F.js` `3,140.87 kB`, warning > 500 kB chunk threshold) |
+| **Production Server Build** | `npm run build:server` (`esbuild`) | **PASS** | `dist-server/server.cjs` (`85.0 kB`) built in `16ms` |
 | **Production Boot Smoke** | `npm run smoke` (`scripts/smoke_prod.mjs`) | **PASS** | Verified `/`, `/?view=customer&token=test`, `/api/messaging/status` (200), `/api/customer-portal/lookup` (503) |
 | **SQL Schema Validation** | `npm run validate:sql` (`scripts/validate_sql.js`) | **PASS** | `database.sql` (MySQL: 37 statements), `database.postgres.sql` (PostgreSQL: 46 statements) |
 | **Firestore Rules Lint** | `npx eslint firestore.rules` | **PASS** | 0 lint errors or warnings |
@@ -46,5 +46,5 @@
 - **Note:** Because no local MySQL or PostgreSQL daemon is running in the container, schema execution against a live RDBMS engine remains unverified here.
 
 ### 2.5 Build Notes & Observations
-- **Bundle Size Advisory:** Vite reported `dist/assets/index-CFeUVV5m.js` at `3,131.60 kB` (`837.49 kB` gzipped), exceeding the default `500 kB` warning threshold. Applying route/tab dynamic `import()` code-splitting for heavy modules (`AnalyticsDashboard`, `RevenueForecastModule`, `jsPDF` / `html2canvas`, `D3`) would lower initial load size.
+- **Bundle Size Advisory:** Vite reported `dist/assets/index-SUGm-C4F.js` at `3,140.87 kB` (`840.25 kB` gzipped), exceeding the default `500 kB` warning threshold. Applying route/tab dynamic `import()` code-splitting for heavy modules (`AnalyticsDashboard`, `RevenueForecastModule`, `jsPDF` / `html2canvas`, `D3`) would lower initial load size.
 - **Smoke Test `503` on `/api/customer-portal/lookup`:** `smoke_prod.mjs` accepts `503` in environments without Firebase Admin ADC credentials, matching the live finding documented in `API_KEY_AND_SERVICE_HEALTH_REPORT.md`.

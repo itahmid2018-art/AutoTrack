@@ -754,30 +754,32 @@ Top navigation bar (`Header.tsx`), `Service Cards` list (`JobCardList.tsx`), and
 
 ---
 
-## 19. Feature 18: Draft Purchase Order PDF, 30-Day Op Expenses vs. Labor Chart & D3.js Consumption Trends
+## 19. Feature 18: Consumption-Based Reorder Points, Draft PO PDFs, 30-Day Op Expenses vs. Labor Chart & D3.js Consumption Trends
 
 ### Location
-`1,000 SKUs` / `Analytics` -> `AiReorderRecommendations` (`Download Draft PO PDF`) and `AnalyticsDashboard` financial charts.
+`1,000 SKUs` (`InventoryManager` Notification Center, `Reorder Point Sheet`, and `AiReorderRecommendations` -> `Download Draft PO PDF`) and `Analytics` financial/D3 charts (`AnalyticsDashboard`).
 
 ### Test Cases
 
-#### TC-PO-01: Draft Purchase Order PDF Generation
-- **Preconditions**: At least 1 inventory item is at or below `minStockThreshold`.
+#### TC-PO-01: Consumption-Based Automated Reorder Points & Direct Draft Purchase Order PDF Generation
+- **Preconditions**: Historical active `jobCards` include consumed spare parts (`parts[]`), and at least 1 inventory item has `stockQty < suggestedReorderPoint` (derived from `avgMonthlyConsumptionRate * 1.5` floored at `minStockThreshold` via `analyzeInventoryReorderPoints`).
 - **Steps**:
-  1. Open `1,000 SKUs` -> expand **AI Reorder Recommendations** -> click **Spark AI Reorder Analysis**.
-  2. Click **Download Draft PO PDF** (`generatePurchaseOrderPdf`).
+  1. Open `1,000 SKUs` and inspect the **Inventory Notification Center** badge (`N BELOW AUTO REORDER PT`) or click **Reorder Point Sheet**.
+  2. Verify each part displays its `Avg / Mo Burn` rate and `Auto Reorder Pt`.
+  3. Click **Download Draft PO PDF** directly from `InventoryManager` (or optionally run `Spark AI Reorder Analysis` and click `Download Draft PO PDF`).
 - **Expected Outcome**:
+  - Cancelled job cards are excluded from monthly burn calculations.
   - Browser downloads `Draft_PO_Bosch_Parts_YYYY-MM-DD.pdf`.
-  - PDF renders `DRAFT PURCHASE ORDER` header banner, part SKUs, current vs. min stock thresholds, suggested reorder quantities, unit costs, extended totals, and grand PO total.
+  - PDF renders `DRAFT PURCHASE ORDER` header banner, part SKUs, current vs. automated reorder thresholds, suggested reorder quantities, unit costs, extended totals, and grand PO total.
 
-#### TC-D3-01: 30-Day Operational Expenses vs. Labor Income & D3.js Monthly Consumption Chart
+#### TC-D3-01: 30-Day Operational Expenses vs. Labor Income & Live D3.js Monthly Consumption Chart
 - **Preconditions**: `Revenue` metric enabled in `Business Setup`.
 - **Steps**:
   1. Navigate to `Analytics` and scroll below `Monthly Service Revenue`.
   2. Inspect **Operational Expenses vs Labor Income (Last 30 Days)** Recharts `BarChart` and **D3.js Monthly Consumption Trends (High-Frequency Parts)** SVG chart.
 - **Expected Outcome**:
-  - Recharts `BarChart` plots daily `laborIncome` (`#34d399`) alongside `operationalExpenses` (`#f59e0b`) over the last 30 days with interactive tooltips.
-  - D3.js SVG renders smoothed monotone curves, data points, X/Y axes, and color legend for high-frequency SKUs without console errors or duplicate SVG nodes on re-render.
+  - Recharts `BarChart` plots daily `laborIncome` (`#34d399`) alongside `operationalExpenses` (`#f59e0b`, computed via `getEffectiveJobBilling`) over the last 30 days with interactive tooltips.
+  - D3.js SVG dynamically renders smoothed monotone curves, data points with hover `<title>` tooltips, X/Y axes, and color legend for the highest-frequency consumed SKUs computed from `jobCards` via `computeMonthlyPartConsumptionTrends` (or an empty state if no parts are logged yet), without console errors or duplicate SVG nodes on re-render.
 
 ---
 
@@ -818,7 +820,26 @@ Top navigation bar (`Header.tsx`), `Service Cards` list (`JobCardList.tsx`), and
 
 ---
 
-## 21. Database & Dummy Dataset Verification Matrix
+## 21. Feature 20: Average Time to Replenish Summary Card (`AnalyticsDashboard`)
+
+### Location
+`Analytics` tab (`AnalyticsDashboard.tsx`) KPI Grid -> **Average Time to Replenish** card; duration helpers in `src/utils/inventoryReplenishment.ts`.
+
+### Test Cases
+
+#### TC-REPL-01: Average Replenish Duration Calculation & Pending Count
+- **Preconditions**: `lowInventory` metric is enabled in `Business Setup`. At least 1 inventory SKU has `lowStockTimestamp` older than `lastRestocked`, and optionally another SKU still awaiting restock.
+- **Steps**:
+  1. Open `Analytics` and inspect the **Average Time to Replenish** KPI card next to **Low Inventory**.
+  2. Navigate to `1,000 SKUs`, trigger a low-stock alert via `-1` adjustment (`lowStockTimestamp` stamped automatically), then click `+10` / `+ Receive Restock` on a subsequent date (`lastRestocked` updated).
+  3. Return to `Analytics` and verify updated counts.
+- **Expected Outcome**:
+  - Card displays calculated average days (`avgDays`) and hours (`avgHours`) from `lowStockTimestamp` to `lastRestocked`, alongside `N restocked · M awaiting`.
+  - When no replenished items have a valid pair yet, the card shows `Pending (awaiting restock)` cleanly without `NaN`.
+
+---
+
+## 22. Database & Dummy Dataset Verification Matrix
 
 All 3 database engines and sample CSV files are shipped with deterministic demonstration data for immediate QA testing. Refer to [`DATABASE_SETUP_AND_INTEGRATION_GUIDE.md`](DATABASE_SETUP_AND_INTEGRATION_GUIDE.md) for installation commands.
 
@@ -832,10 +853,10 @@ All 3 database engines and sample CSV files are shipped with deterministic demon
 
 ---
 
-## 22. End-to-End Regression Test Script & Dev-Team Automation
+## 23. End-to-End Regression Test Script & Dev-Team Automation
 
-### 22.1 Automated Dev-Team Verification Suite
-Run the full automated suite before every release or PR merge:
+### 23.1 Automated Dev-Team Verification Suite
+Run the full automated suite before every release or PR merge (recorded results are also maintained in [`../testing_docs/README.md`](../testing_docs/README.md)):
 
 ```bash
 # Single-command UAT environment probe + lint + unit tests + rules + SQL + prod build + smoke check
@@ -845,18 +866,19 @@ scripts\uat_local_setup.bat           # Windows
 # Or execute individual checks:
 node scripts/check_local_services.mjs # Probe PostgreSQL, MySQL, SQLite, Redis, Mongo, Firebase, Docker, port 3000
 npm run lint                          # Strict TypeScript check (tsc --noEmit)
-npm test                              # Unit tests (billing, stockDeduction, jobId, portalUrl, warranty, CSV, barcode, cloudSyncStatus)
+npm test                              # All 24 utility + seed unit suites (57+ tests covering all src/utils/* modules)
 npm run validate:sql                  # State-machine lexer over database.sql & database.postgres.sql
 npx eslint firestore.rules            # Firestore rules security static analysis
 npx tsx firestore.rules.test.ts       # Dirty Dozen & schema boundary rules checks
 npx tsx scripts/verify_message_status.ts
 npx tsx scripts/verify_portal_gate.ts
 npx tsx scripts/verify_stock_ledger.ts
+curl -s http://localhost:3000/api/ai/status # Confirm resolved GEMINI_TEXT_MODEL & GEMINI_AUDIO_MODEL
 npm run build                         # Build Vite client + dist-server/server.cjs
 npm run smoke                         # Boot built server on port 3199 & verify /, customer portal, /api/messaging/status
 ```
 
-### 22.2 Manual E2E Flow (15-Minute Regression)
+### 23.2 Manual E2E Flow (15-Minute Regression)
 
 1. **Authentication, Grouped Navigation & Multi-Client Sync**:
    - Sign in with Google on Browser A and Browser B (`localhost:3000`) and verify the 5 grouped menus beneath the search bar (`Jobs & Intake`, `Inventory & Servicing`, `Messaging & Portal`, `Analytics & Team`, `Settings & Tools`).
@@ -877,10 +899,10 @@ npm run smoke                         # Boot built server on port 3199 & verify 
 8. **PDF Receipt, Delivery Portal & Customer Rating**:
    - Generate PDF receipt, open `/?view=customer&token=...&feedback=1` in an incognito window, and submit a 5-star rating.
    - Confirm `★ 5/5` badge appears in List & Kanban views and updates CSAT in `Analytics`.
-9. **Analytics Forecast, 30-Day Op Expense Chart, D3 Trends & Draft PO PDF**:
-   - Open `Analytics`: inspect `Operational Expenses vs Labor Income (Last 30 Days)`, `D3.js Monthly Consumption Trends`, and `Predictive Monthly Revenue Forecast` (`3M`, `6M`, `12M`).
+9. **Analytics Forecast, Replenish KPI, 30-Day Op Expense Chart, D3 Trends & Direct Draft PO PDF**:
+   - Open `Analytics`: inspect **Average Time to Replenish**, `Operational Expenses vs Labor Income (Last 30 Days)`, live `D3.js Monthly Consumption Trends`, and `Predictive Monthly Revenue Forecast` (`3M`, `6M`, `12M`).
    - Open `Business Setup`, test `Analytics Dashboard Metrics Visibility` (`Core 4 Only` -> `Enable All`).
-   - Open `1,000 SKUs -> AI Reorder Recommendations -> Spark AI Reorder Analysis` and download a **Draft PO PDF**.
+   - Open `1,000 SKUs`: verify `Avg / Mo Burn` and `Auto Reorder Pt` in `Reorder Point Sheet`, download a **Draft PO PDF** directly from `InventoryManager`, and test `Spark AI Reorder Analysis`.
 10. **Inventory Bulk Excel/CSV, Fleet Maintenance CSV & Offline Cache**:
     - Test `Bulk Import Excel / CSV` in `1,000 SKUs` and `Bulk Import CSV` (`docs/samples/recurring_maintenance_standard.csv`) in `Servicing`.
     - Toggle DevTools `Network -> Offline`, reload page, and confirm cached Job Cards remain viewable with the `Offline Mode` badge.
@@ -888,7 +910,7 @@ npm run smoke                         # Boot built server on port 3199 & verify 
 ---
 
 ## Document Control
-- **Document Version**: 4.2.0
+- **Document Version**: 4.3.0
 - **Audience**: QA Engineers, Software Developers, Workshop Supervisors, Implementation Leads
 - **Classification**: Internal Technical Specification
 

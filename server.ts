@@ -130,8 +130,8 @@ async function validateConfiguredGeminiModels() {
   }
 
   const configured = [
-    { envKey: 'GEMINI_TEXT_MODEL', modelId: GEMINI_TEXT_MODEL },
-    { envKey: 'GEMINI_AUDIO_MODEL', modelId: GEMINI_AUDIO_MODEL },
+    { envKey: 'GEMINI_TEXT_MODEL', modelId: normalizeGeminiModelAlias('text', GEMINI_TEXT_MODEL) },
+    { envKey: 'GEMINI_AUDIO_MODEL', modelId: normalizeGeminiModelAlias('audio', GEMINI_AUDIO_MODEL) },
   ];
 
   const invalid: Array<{ envKey: string; modelId: string; error: string }> = [];
@@ -185,14 +185,63 @@ function isProhibitedDeprecatedModel(modelId: string): boolean {
   return DEPRECATED_GEMINI_MODEL_PATTERNS.some((pattern) => pattern.test(clean));
 }
 
+function normalizeGeminiModelAlias(kind: 'text' | 'audio', rawModelId: string): string {
+  const clean = rawModelId.replace(/^models\//, '').trim();
+  const lower = clean.toLowerCase();
+  if (lower === 'hydrogen') {
+    return 'gemini-4-hydrogen';
+  }
+  if (lower === 'transcribe') {
+    return 'gemini-3.5-transcribe';
+  }
+  if (!clean) {
+    return kind === 'audio' ? 'gemini-3.5-transcribe' : 'gemini-4-hydrogen';
+  }
+  return clean;
+}
+
 function isNotFoundModelError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   const status = (err as { status?: number })?.status;
-  return status === 404 || /404|NOT_FOUND|is not found for API version/i.test(msg);
+  return status === 404 || /\b404\b|NOT_FOUND|is not found for API version/i.test(msg);
+}
+
+function isRetriableModelError(err: unknown): boolean {
+  if (isNotFoundModelError(err)) return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  const status = (err as { status?: number })?.status;
+  return (
+    status === 429 ||
+    status === 503 ||
+    status === 504 ||
+    /\b429\b|\b503\b|\b504\b|UNAVAILABLE|RESOURCE_EXHAUSTED|high demand|overloaded|timed out/i.test(msg)
+  );
+}
+
+async function generateContentWithTimeout(
+  model: string,
+  params: Omit<Parameters<typeof ai.models.generateContent>[0], 'model'>,
+  timeoutMs: number
+) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      ai.models.generateContent({ ...params, model }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(`Gemini request timed out after ${timeoutMs}ms on model ${model}`));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 let cachedResolvedTextModel: string | null = null;
 let cachedResolvedAudioModel: string | null = null;
+let lastSuccessfulTextModel: string | null = null;
+let lastSuccessfulAudioModel: string | null = null;
 
 async function listSupportedGenerateContentModels(): Promise<string[]> {
   try {
@@ -213,17 +262,18 @@ async function listSupportedGenerateContentModels(): Promise<string[]> {
 }
 
 function pickCandidateModels(kind: 'text' | 'audio', preferred: string, available: string[]): string[] {
+  const normalizedPreferred = normalizeGeminiModelAlias(kind, preferred);
   const textPreferredOrder = [
-    preferred,
+    normalizedPreferred,
     'gemini-4-hydrogen',
     'gemini-3.1-flash-lite',
-    'gemini-3.1-pro-preview',
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite',
     'gemini-2.5-pro',
+    'gemini-3.1-pro-preview',
   ];
   const audioPreferredOrder = [
-    preferred,
+    normalizedPreferred,
     'gemini-3.5-transcribe',
     'gemini-3.1-flash-lite',
     'gemini-2.5-flash',
@@ -232,11 +282,13 @@ function pickCandidateModels(kind: 'text' | 'audio', preferred: string, availabl
   const isNonTextUtility = (id: string) =>
     /embedding|imagen|veo|lyria|-tts\b|transcribe-live|live-translate|gemma|robotics|computer-use|image/i.test(id);
 
+  const availableSet = new Set(available);
   const ordered = new Set<string>();
   const priorityList = kind === 'audio' ? audioPreferredOrder : textPreferredOrder;
   for (const candidate of priorityList) {
     const clean = candidate.replace(/^models\//, '').trim();
-    if (clean && !isProhibitedDeprecatedModel(clean)) {
+    if (!clean || isProhibitedDeprecatedModel(clean)) continue;
+    if (availableSet.size === 0 || availableSet.has(clean)) {
       ordered.add(clean);
     }
   }
@@ -253,36 +305,46 @@ async function generateContentWithModelFallback(
   params: Omit<Parameters<typeof ai.models.generateContent>[0], 'model'>
 ) {
   const configured = kind === 'audio' ? GEMINI_AUDIO_MODEL : GEMINI_TEXT_MODEL;
+  const normalizedConfigured = normalizeGeminiModelAlias(kind, configured);
   const cached = kind === 'audio' ? cachedResolvedAudioModel : cachedResolvedTextModel;
-  const primaryModel = cached || configured;
+  const primaryModel = cached || normalizedConfigured;
+  const timeoutMs = kind === 'audio' ? 25000 : 15000;
 
   try {
-    return await ai.models.generateContent({ ...params, model: primaryModel });
+    const result = await generateContentWithTimeout(primaryModel, params, timeoutMs);
+    if (kind === 'audio') {
+      lastSuccessfulAudioModel = primaryModel;
+    } else {
+      lastSuccessfulTextModel = primaryModel;
+    }
+    return result;
   } catch (err) {
-    if (!isNotFoundModelError(err)) {
+    if (!isRetriableModelError(err)) {
       throw err;
     }
 
     const available = await listSupportedGenerateContentModels();
-    const candidates = pickCandidateModels(kind, configured, available).filter(
+    const candidates = pickCandidateModels(kind, normalizedConfigured, available).filter(
       (m) => m !== primaryModel
     );
 
     let lastErr: unknown = err;
     for (const candidate of candidates) {
       try {
-        const result = await ai.models.generateContent({ ...params, model: candidate });
+        const result = await generateContentWithTimeout(candidate, params, timeoutMs);
         if (kind === 'audio') {
-          cachedResolvedAudioModel = candidate;
+          lastSuccessfulAudioModel = candidate;
+          if (isNotFoundModelError(err)) cachedResolvedAudioModel = candidate;
         } else {
-          cachedResolvedTextModel = candidate;
+          lastSuccessfulTextModel = candidate;
+          if (isNotFoundModelError(err)) cachedResolvedTextModel = candidate;
         }
         console.warn(
-          `[gemini] Configured ${kind} model "${configured}" returned 404; resolved to "${candidate}".`
+          `[gemini] ${kind} model "${primaryModel}" failed (${err instanceof Error ? err.message : String(err)}); fell back to "${candidate}".`
         );
         return result;
       } catch (retryErr) {
-        if (!isNotFoundModelError(retryErr)) {
+        if (!isRetriableModelError(retryErr)) {
           throw retryErr;
         }
         lastErr = retryErr;
@@ -297,14 +359,18 @@ app.get('/api/ai/status', async (_req, res) => {
   const apiKey = (process.env.GEMINI_API_KEY || '').trim();
   const keyConfigured = Boolean(apiKey && apiKey !== 'MY_GEMINI_API_KEY');
   const availableModels = keyConfigured ? await listSupportedGenerateContentModels() : [];
+  const normalizedTextModel = normalizeGeminiModelAlias('text', GEMINI_TEXT_MODEL);
+  const normalizedAudioModel = normalizeGeminiModelAlias('audio', GEMINI_AUDIO_MODEL);
   return res.json({
     keyConfigured,
     configuredTextModel: GEMINI_TEXT_MODEL,
-    resolvedTextModel: cachedResolvedTextModel || GEMINI_TEXT_MODEL,
+    normalizedTextModel,
+    resolvedTextModel: cachedResolvedTextModel || lastSuccessfulTextModel || normalizedTextModel,
     configuredAudioModel: GEMINI_AUDIO_MODEL,
-    resolvedAudioModel: cachedResolvedAudioModel || GEMINI_AUDIO_MODEL,
+    normalizedAudioModel,
+    resolvedAudioModel: cachedResolvedAudioModel || lastSuccessfulAudioModel || normalizedAudioModel,
     availableModelCount: availableModels.length,
-    availableModels: availableModels.slice(0, 20),
+    availableModels: availableModels.slice(0, 30),
   });
 });
 
