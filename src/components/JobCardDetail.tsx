@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { BusinessSettings, CustomField, JobCard, JobStatus, InventoryItem, JobPart, TimeLog, OperationalExpense, OperationalExpenseCategory, MessageLog } from '../types';
 import { SHOP_TECHNICIANS } from '../data/mockTechnicians';
 import { adjudicateWarranty, autoAdjudicateJobCard } from '../utils/warrantyAdjudicator';
@@ -14,6 +14,7 @@ import {
   findMatchingInventoryItem,
   parseProductQrPayload,
 } from '../utils/barcodeSerialParser';
+import { getSuggestedPartsForTool } from '../utils/suggestedParts';
 import { 
   ArrowLeft, Sparkles, Printer, MessageSquare, Plus, Trash2, 
   CheckCircle2, FileText, User, Phone, Wrench, Search, AlertCircle, PenTool, Check, UserCheck,
@@ -191,11 +192,12 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
     }
   };
 
-  // Parts search state
+  // Parts search & suggested parts filter state
   const [partSearch, setPartSearch] = useState('');
   const [showPartDropdown, setShowPartDropdown] = useState(false);
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null);
   const [partQty, setPartQty] = useState(1);
+  const [suggestedCategoryFilter, setSuggestedCategoryFilter] = useState<string>('All');
 
   // Operational Expenses (non-part costs) form state
   const [expenseCategory, setExpenseCategory] = useState<OperationalExpenseCategory>('Outsourced Labor');
@@ -309,6 +311,7 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
     setSignOffTechName(job.technicianSignOffBy || job.technician || SHOP_TECHNICIANS[0].name);
     setSignOffNotes(job.technicianSignOffNotes || '');
     setSignOffError(null);
+    setSuggestedCategoryFilter('All');
     signOffStrokesRef.current = [];
     setHasSignOffStroke(false);
   }, [job]);
@@ -679,6 +682,25 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
     item.barcode.toLowerCase().includes(partSearch.toLowerCase()) ||
     item.category.toLowerCase().includes(partSearch.toLowerCase())
   ).slice(0, 10);
+
+  const allSuggestedParts = useMemo(
+    () => getSuggestedPartsForTool(currentJob.tool, inventory, { limit: 24 }),
+    [currentJob.tool, inventory]
+  );
+
+  const suggestedCategories = useMemo(
+    () => Array.from(new Set(allSuggestedParts.map((m) => m.item.category))),
+    [allSuggestedParts]
+  );
+
+  const suggestedParts = useMemo(
+    () =>
+      getSuggestedPartsForTool(currentJob.tool, inventory, {
+        limit: 6,
+        categoryFilter: suggestedCategoryFilter,
+      }),
+    [currentJob.tool, inventory, suggestedCategoryFilter]
+  );
 
   const recalculateTotal = (
     parts: JobPart[],
@@ -1650,6 +1672,66 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
         userRole: 'Technician',
         action: 'AI_RECOMMENDED_PARTS_BATCH_ADDED',
         newState: `Added ${addedLabels.join(', ')}`,
+      },
+    ];
+
+    const updatedJob: JobCard = {
+      ...currentJob,
+      parts: updatedParts,
+      totalAmount: newTotal,
+      auditLogs: nextAudit,
+      updatedAt: nowIso,
+    };
+
+    setCurrentJob(updatedJob);
+    onUpdateJob(updatedJob);
+  };
+
+  const handleAddSuggestedPart = (item: InventoryItem, addQty: number = 1) => {
+    const qty = Math.max(1, addQty);
+    const existingIndex = currentJob.parts.findIndex(
+      (p) => p.partId === item.id || p.sku.toLowerCase() === item.sku.toLowerCase()
+    );
+    let updatedParts: JobPart[];
+
+    if (existingIndex >= 0) {
+      updatedParts = [...currentJob.parts];
+      const existing = updatedParts[existingIndex];
+      const newQty = existing.quantity + qty;
+      updatedParts[existingIndex] = {
+        ...existing,
+        quantity: newQty,
+        total: Math.round(newQty * existing.unitPrice * 100) / 100,
+      };
+    } else {
+      const newPart: JobPart = {
+        partId: item.id,
+        sku: item.sku,
+        name: item.name,
+        unitPrice: item.unitPrice,
+        quantity: qty,
+        total: Math.round(qty * item.unitPrice * 100) / 100,
+      };
+      updatedParts = [...currentJob.parts, newPart];
+    }
+
+    const nowIso = new Date().toISOString();
+    const newTotal = recalculateTotal(
+      updatedParts,
+      currentJob.laborHours,
+      currentJob.laborRate,
+      currentJob.discount,
+      currentJob.taxRate
+    );
+    const nextAudit = [
+      ...(currentJob.auditLogs || []),
+      {
+        id: `aud-sug-${Date.now()}`,
+        timestamp: nowIso.slice(0, 16).replace('T', ' '),
+        userName: currentJob.technician || 'Bench Technician',
+        userRole: 'Technician',
+        action: 'SUGGESTED_PART_ADDED',
+        newState: `Added ${item.sku} (${item.name}) x${qty}`,
       },
     ];
 
@@ -2949,8 +3031,152 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
               </div>
             )}
 
-            {/* Inventory Spare Parts Search, AI Recommended Parts & Table */}
+            {/* Inventory Spare Parts Search, Suggested Parts, AI Recommended Parts & Table */}
             <div className="space-y-4 pt-3 border-t border-zinc-300 dark:border-zinc-800">
+              {/* Suggested Parts (Filtered by Tool Brand & Model Number) */}
+              <section
+                aria-label="Suggested Parts"
+                data-testid="suggested-parts-section"
+                className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 space-y-3"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-zinc-300/80 dark:border-zinc-800/80 pb-3">
+                  <div className="flex items-start gap-2.5">
+                    <Wrench className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-xs font-bold text-zinc-950 dark:text-white tracking-tight">
+                          Suggested Parts
+                        </h3>
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 tabular-nums">
+                          {suggestedParts.length} match{suggestedParts.length === 1 ? '' : 'es'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-700 dark:text-zinc-400 mt-0.5">
+                        Catalog spares matching <strong className="text-zinc-950 dark:text-white">{currentJob.tool.brand}</strong> · <strong className="text-zinc-950 dark:text-white">{currentJob.tool.modelNumber}</strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  {suggestedCategories.length > 1 && (
+                    <select
+                      value={suggestedCategoryFilter}
+                      onChange={(e) => setSuggestedCategoryFilter(e.target.value)}
+                      aria-label="Filter suggested parts by category"
+                      data-testid="suggested-parts-category-filter"
+                      className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-200 text-xs rounded-lg px-2.5 py-1.5 font-mono focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-400 shrink-0"
+                    >
+                      <option value="All">All Categories ({allSuggestedParts.length})</option>
+                      {suggestedCategories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {suggestedParts.length === 0 ? (
+                  <p className="py-2 text-xs text-zinc-700 dark:text-zinc-400">
+                    No direct catalog match for {currentJob.tool.brand} {currentJob.tool.modelNumber}. Search the 1,000-SKU catalog below or scan a barcode.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                    {suggestedParts.map(({ item, matchReason }) => {
+                      const linkedPart = currentJob.parts.find(
+                        (p) => p.partId === item.id || p.sku.toLowerCase() === item.sku.toLowerCase()
+                      );
+                      const isOutOfStock = item.stockQty <= 0;
+                      const isLowStock = item.stockQty > 0 && item.stockQty <= item.minStockThreshold;
+
+                      return (
+                        <div
+                          key={item.id}
+                          data-testid={`suggested-part-${item.sku}`}
+                          className="p-3 rounded-lg bg-white dark:bg-zinc-900/70 border border-zinc-300 dark:border-zinc-800 flex items-center justify-between gap-3"
+                        >
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-xs font-bold text-zinc-950 dark:text-white truncate">
+                                {item.name}
+                              </span>
+                              <span
+                                className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border shrink-0 ${
+                                  matchReason === 'Exact Model & Brand'
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700/70'
+                                    : matchReason === 'Model Match' || matchReason === 'Series & Brand Match'
+                                    ? 'bg-amber-50 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-700/70'
+                                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700'
+                                }`}
+                              >
+                                {matchReason}
+                              </span>
+                            </div>
+
+                            <div className="text-[11px] font-mono text-zinc-700 dark:text-zinc-400 flex flex-wrap items-center gap-2 tabular-nums">
+                              <span>{item.sku}</span>
+                              <span aria-hidden="true">·</span>
+                              <span>{item.binLocation}</span>
+                              <span aria-hidden="true">·</span>
+                              <span
+                                className={
+                                  isOutOfStock
+                                    ? 'text-rose-700 dark:text-rose-400 font-semibold'
+                                    : isLowStock
+                                    ? 'text-amber-700 dark:text-amber-400 font-semibold'
+                                    : 'text-emerald-700 dark:text-emerald-400 font-semibold'
+                                }
+                              >
+                                {isOutOfStock
+                                  ? 'Out of Stock (0)'
+                                  : isLowStock
+                                  ? `Low Stock (${item.stockQty})`
+                                  : `In Stock (${item.stockQty})`}
+                              </span>
+                            </div>
+
+                            <div className="text-[10px] text-zinc-600 dark:text-zinc-400 truncate">
+                              Fits: {item.compatibleModels}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 font-mono tabular-nums">
+                            <span className="text-xs font-bold text-zinc-950 dark:text-white">
+                              ${item.unitPrice.toFixed(2)}
+                            </span>
+                            {linkedPart ? (
+                              <div className="flex items-center gap-1">
+                                <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 inline-flex items-center gap-0.5 whitespace-nowrap">
+                                  <Check className="w-3 h-3" />
+                                  x{linkedPart.quantity}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddSuggestedPart(item, 1)}
+                                  aria-label={`Add 1 more ${item.name}`}
+                                  className="px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-400 dark:border-zinc-600 text-xs font-bold text-zinc-950 dark:text-white"
+                                >
+                                  +1
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleAddSuggestedPart(item, 1)}
+                                aria-label={`Add ${item.name} to job card`}
+                                className="px-2.5 py-1.5 rounded-lg bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 font-bold text-xs inline-flex items-center gap-1 whitespace-nowrap"
+                              >
+                                <Plus className="w-3 h-3" />
+                                <span>Add</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+
               {/* Recommended Parts (AI Model & Complaint Analysis) */}
               <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-zinc-300/80 dark:border-zinc-800/80 pb-3">

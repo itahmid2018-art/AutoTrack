@@ -20,6 +20,18 @@ import {
   savePendingCloudSyncIds,
 } from './utils/cloudSyncStatus';
 import {
+  EscalateTaskOptions,
+  SyncFailureRecord,
+  applyTaskEscalation,
+  buildTaskNotificationItems,
+  computeNotificationCounts,
+  getPendingOfflineSyncJobs,
+  loadDismissedTaskNotifications,
+  loadSyncFailureMap,
+  saveDismissedTaskNotifications,
+  saveSyncFailureMap,
+} from './utils/notificationsCenter';
+import {
   readOfflineCachedAllRecords,
   syncRecordsToServiceWorker,
 } from './utils/offlineCache';
@@ -59,13 +71,14 @@ import {
   reconcileItemLowStockTimestamp,
 } from './utils/inventoryReplenishment';
 
-import { Header } from './components/Header';
+import { Header, AppTab } from './components/Header';
 import { BoschIntakeForm } from './components/BoschIntakeForm';
 import { JobCardList } from './components/JobCardList';
 import { KanbanBoard } from './components/KanbanBoard';
 import { JobCardDetail } from './components/JobCardDetail';
 import { InventoryManager } from './components/InventoryManager';
 import { MessagingCenter } from './components/MessagingCenter';
+import { NotificationsView } from './components/NotificationsView';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { TechnicianTimeTracker } from './components/TechnicianTimeTracker';
 import { TransitionView } from './components/TransitionView';
@@ -119,7 +132,7 @@ export default function App() {
   const [isCustomerViewActive, setIsCustomerViewActive] = useState<boolean>(isLockedCustomerUrl);
   const [customerPortalTarget, setCustomerPortalTarget] = useState<{ query: string; showFeedback: boolean } | null>(null);
   const [feedbackSmsNotices, setFeedbackSmsNotices] = useState<FeedbackSmsDispatchNotice[]>([]);
-  const [activeTab, setActiveTab] = useState<'intake' | 'jobs' | 'kanban' | 'maintenance' | 'inventory' | 'messaging' | 'analytics' | 'timetracking' | 'transition'>('intake');
+  const [activeTab, setActiveTab] = useState<AppTab>('intake');
   const [transitionSubTab, setTransitionSubTab] = useState<'fields' | 'backups' | 'rules' | 'manual'>('backups');
   const [theme, setTheme] = useState<AppTheme>(() => loadStoredTheme());
 
@@ -202,6 +215,12 @@ export default function App() {
   const isOnline = useOnlineStatus();
   const [pendingCloudSyncIds, setPendingCloudSyncIds] = useState<string[]>(() =>
     loadPendingCloudSyncIds()
+  );
+  const [syncFailureMap, setSyncFailureMap] = useState<Record<string, SyncFailureRecord>>(() =>
+    loadSyncFailureMap()
+  );
+  const [dismissedTaskNotifs, setDismissedTaskNotifs] = useState<string[]>(() =>
+    loadDismissedTaskNotifications()
   );
   const [inFlightCloudSyncIds, setInFlightCloudSyncIds] = useState<string[]>([]);
   const [firestorePendingWritesById, setFirestorePendingWritesById] = useState<Record<string, boolean>>({});
@@ -322,6 +341,14 @@ export default function App() {
   useEffect(() => {
     savePendingCloudSyncIds(pendingCloudSyncIds);
   }, [pendingCloudSyncIds]);
+
+  useEffect(() => {
+    saveSyncFailureMap(syncFailureMap);
+  }, [syncFailureMap]);
+
+  useEffect(() => {
+    saveDismissedTaskNotifications(dismissedTaskNotifs);
+  }, [dismissedTaskNotifs]);
 
   // Multi-client real-time sync subscription for verified operators
   useEffect(() => {
@@ -444,8 +471,29 @@ export default function App() {
     setPendingCloudSyncIds((prev) => (prev.includes(jobId) ? prev : [...prev, jobId]));
   };
 
+  const recordJobSyncFailure = (jobId: string, reason: string, wasOffline: boolean) => {
+    setSyncFailureMap((prev) => ({
+      ...prev,
+      [jobId]: {
+        reason,
+        failedAt: new Date().toISOString(),
+        wasOffline,
+      },
+    }));
+  };
+
+  const clearJobSyncFailure = (jobId: string) => {
+    setSyncFailureMap((prev) => {
+      if (!(jobId in prev)) return prev;
+      const next = { ...prev };
+      delete next[jobId];
+      return next;
+    });
+  };
+
   const markJobSyncedToCloud = (jobId: string) => {
     setPendingCloudSyncIds((prev) => prev.filter((id) => id !== jobId));
+    clearJobSyncFailure(jobId);
     setCloudConfirmedJobIds((prev) => {
       const next = new Set(prev);
       next.add(jobId);
@@ -457,7 +505,15 @@ export default function App() {
     markJobPendingCloudSync(job.id);
 
     const activeUser = authUserRef.current;
-    if (!activeUser?.emailVerified || !isOnlineRef.current) {
+    if (!isOnlineRef.current) {
+      recordJobSyncFailure(
+        job.id,
+        'Saved while offline — waiting for internet connectivity to sync to cloud.',
+        true
+      );
+      return;
+    }
+    if (!activeUser?.emailVerified) {
       return;
     }
 
@@ -469,6 +525,13 @@ export default function App() {
       .catch((err) => {
         console.warn('Job card sync failed (queued for retry):', err);
         markJobPendingCloudSync(job.id);
+        recordJobSyncFailure(
+          job.id,
+          err instanceof Error && err.message
+            ? `Cloud sync failed: ${err.message}`
+            : 'Cloud sync failed — check connectivity and retry.',
+          !isOnlineRef.current
+        );
       })
       .finally(() => {
         setInFlightCloudSyncIds((prev) => prev.filter((id) => id !== job.id));
@@ -822,6 +885,28 @@ export default function App() {
     syncJobToCloud(normalizedChanged);
   };
 
+  const handleEscalateJob = (jobId: string, options?: EscalateTaskOptions) => {
+    const actorName =
+      authUser?.displayName || authUser?.email || 'Workshop Supervisor';
+    const { updatedJobs, changedJob } = applyTaskEscalation(jobCards, jobId, {
+      ...options,
+      actorName,
+    });
+    if (!changedJob) return;
+
+    const normalizedUpdated = updatedJobs.map((j) =>
+      j.id === jobId ? normalizeJobCard(j) : j
+    );
+    const normalizedChanged =
+      normalizedUpdated.find((j) => j.id === jobId) || normalizeJobCard(changedJob);
+
+    setJobCards(normalizedUpdated);
+    if (selectedJob && selectedJob.id === jobId) {
+      setSelectedJob(normalizedChanged);
+    }
+    syncJobToCloud(normalizedChanged);
+  };
+
   const handleBulkStatusChange = (jobIds: string[], newStatus: JobStatus) => {
     const idSet = new Set(jobIds);
     if (idSet.size === 0) return;
@@ -1093,6 +1178,28 @@ export default function App() {
   const unreadInventoryCount = inventoryNotifications.filter((n) => !n.read).length;
   const dueMaintenanceCount = schedules.filter(s => s.status === 'Due Soon' || s.status === 'Overdue').length;
 
+  const pendingSyncJobs = getPendingOfflineSyncJobs({
+    jobCards,
+    pendingCloudSyncIds,
+    inFlightCloudSyncIds,
+    firestorePendingWritesById,
+    syncFailureMap,
+    isOnline,
+    isAuthenticated: Boolean(authUser?.emailVerified),
+  });
+  const taskNotifications = buildTaskNotificationItems(
+    jobCards,
+    Date.now(),
+    dismissedTaskNotifs
+  );
+  const notificationCounts = computeNotificationCounts({
+    pendingSyncJobs,
+    taskNotifications,
+    inventoryNotifications,
+    schedules,
+    inventory,
+  });
+
   const handleLookupCustomerJob = (query: string, phoneLast4?: string): CustomerLookupResult => {
     const q = query.trim().toLowerCase();
     if (!q) return { status: 'not-found' };
@@ -1176,6 +1283,8 @@ export default function App() {
         onQuickReorderItem={handleQuickReorderItem}
         onOpenInventoryAlerts={handleOpenInventoryAlerts}
         onOpenGlobalScanner={() => setIsGlobalScannerOpen(true)}
+        pendingSyncCount={notificationCounts.pendingSyncCount}
+        totalNotificationCount={notificationCounts.totalAttentionCount}
         authUser={authUser}
         authLoading={authLoading}
         onSignIn={handleOperatorSignIn}
@@ -1341,6 +1450,42 @@ export default function App() {
                 onSelectJob={(job) => setSelectedJob(job)}
                 settings={settings}
                 onLogMessageSent={handleLogMessageSent}
+              />
+            )}
+
+            {activeTab === 'notifications' && (
+              <NotificationsView
+                jobCards={jobCards}
+                pendingSyncJobs={pendingSyncJobs}
+                taskNotifications={taskNotifications}
+                inventoryNotifications={inventoryNotifications}
+                schedules={schedules}
+                settings={settings}
+                isOnline={isOnline}
+                isAuthenticated={Boolean(authUser?.emailVerified)}
+                onSignIn={handleOperatorSignIn}
+                onRetryCloudSync={(jobId) => handleRetryCloudSync(jobId)}
+                onSelectJob={(job) => {
+                  setSelectedJob(job);
+                  setActiveTab('jobs');
+                }}
+                onEscalateJob={handleEscalateJob}
+                onLogMessageSent={handleLogMessageSent}
+                onOpenWhatsApp={handleOpenWhatsAppForJob}
+                onMarkInventoryRead={handleMarkNotificationRead}
+                onMarkAllInventoryRead={handleMarkAllNotificationsRead}
+                onQuickReorderItem={handleQuickReorderItem}
+                onOpenInventoryAlerts={handleOpenInventoryAlerts}
+                onOpenMaintenance={() => setActiveTab('maintenance')}
+                onCreateJobCardFromSchedule={handleCreateJobCardFromSchedule}
+                onDismissTaskNotification={(notifId) =>
+                  setDismissedTaskNotifs((prev) =>
+                    prev.includes(notifId) ? prev : [...prev, notifId]
+                  )
+                }
+                onRestoreTaskNotification={(notifId) =>
+                  setDismissedTaskNotifs((prev) => prev.filter((id) => id !== notifId))
+                }
               />
             )}
 

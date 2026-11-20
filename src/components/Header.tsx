@@ -31,6 +31,7 @@ import {
   Sun,
   Moon,
   History,
+  CloudOff,
 } from 'lucide-react';
 import { AppTheme } from '../utils/theme';
 import {
@@ -51,6 +52,7 @@ export type AppTab =
   | 'maintenance'
   | 'inventory'
   | 'messaging'
+  | 'notifications'
   | 'analytics'
   | 'timetracking'
   | 'transition';
@@ -96,6 +98,8 @@ interface HeaderProps {
   onQuickReorderItem?: (itemId: string, qty: number) => void;
   onOpenInventoryAlerts?: () => void;
   onOpenGlobalScanner?: () => void;
+  pendingSyncCount?: number;
+  totalNotificationCount?: number;
   authUser?: { uid: string; displayName: string | null; email: string | null } | null;
   authLoading?: boolean;
   onSignIn?: () => void;
@@ -111,6 +115,7 @@ const ACTIVE_TAB_LABELS: Record<AppTab, string> = {
   maintenance: 'Recurring Servicing',
   inventory: 'Spare Parts Catalog',
   messaging: 'WhatsApp & SMS Center',
+  notifications: 'Notifications Center',
   analytics: 'Analytics & Forecast',
   timetracking: 'Time Tracking & Shifts',
   transition: 'Settings & Setup',
@@ -134,6 +139,8 @@ export const Header: React.FC<HeaderProps> = ({
   onQuickReorderItem,
   onOpenInventoryAlerts,
   onOpenGlobalScanner,
+  pendingSyncCount = 0,
+  totalNotificationCount = 0,
   authUser,
   authLoading,
   onSignIn,
@@ -294,8 +301,13 @@ export const Header: React.FC<HeaderProps> = ({
           description: 'Filter cards, bulk-update statuses, print tags & send PDFs',
           icon: <Wrench className="w-4 h-4" />,
           active: activeTab === 'jobs',
-          badgeText: activeJobCount > 0 ? `${activeJobCount} active` : undefined,
-          badgeTone: 'neutral',
+          badgeText:
+            pendingSyncCount > 0
+              ? `${pendingSyncCount} unsynced`
+              : activeJobCount > 0
+              ? `${activeJobCount} active`
+              : undefined,
+          badgeTone: pendingSyncCount > 0 ? 'warning' : 'neutral',
           onSelect: () => handleNavClick('jobs'),
         },
         {
@@ -306,6 +318,19 @@ export const Header: React.FC<HeaderProps> = ({
           active: activeTab === 'kanban',
           onSelect: () => handleNavClick('kanban'),
         },
+        ...(pendingSyncCount > 0
+          ? [
+              {
+                id: 'jobs-sync-alerts',
+                label: 'Offline Sync Queue',
+                description: 'Review pending jobs & retry cloud upload in Notifications',
+                icon: <CloudOff className="w-4 h-4 text-rose-600 dark:text-rose-400" />,
+                badgeText: `${pendingSyncCount} pending`,
+                badgeTone: 'warning' as const,
+                onSelect: () => handleNavClick('notifications'),
+              },
+            ]
+          : []),
       ],
     },
     {
@@ -656,7 +681,18 @@ export const Header: React.FC<HeaderProps> = ({
                     )}
                   </div>
 
-                  <div className="p-2.5 bg-zinc-100 dark:bg-zinc-900 border-t border-zinc-300 dark:border-zinc-800 flex items-center justify-between">
+                  <div className="p-2.5 bg-zinc-100 dark:bg-zinc-900 border-t border-zinc-300 dark:border-zinc-800 flex flex-col gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsNotifOpen(false);
+                        handleNavClick('notifications');
+                      }}
+                      className="w-full py-1.5 px-3 bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <Bell className="w-3.5 h-3.5" />
+                      <span>Open Notifications Page</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
@@ -667,10 +703,10 @@ export const Header: React.FC<HeaderProps> = ({
                           handleNavClick('inventory');
                         }
                       }}
-                      className="w-full py-1.5 px-3 bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
+                      className="w-full py-1.5 px-3 bg-white hover:bg-zinc-200 dark:bg-zinc-950 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-200 border border-zinc-400 dark:border-zinc-700 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
                     >
                       {lowStockCount > 0 ? <AlertTriangle className="w-3.5 h-3.5" /> : <PackageX className="w-3.5 h-3.5" />}
-                      <span>Open Inventory Notification Center</span>
+                      <span>Filter Low-Stock Catalog</span>
                     </button>
                   </div>
                 </div>
@@ -781,6 +817,17 @@ export const Header: React.FC<HeaderProps> = ({
                         {group.badgeCount}
                       </span>
                     )}
+                    {group.id === 'jobs' && pendingSyncCount > 0 && (
+                      <span
+                        data-testid="jobs-sync-badge"
+                        title={`${pendingSyncCount} job card(s) failed or pending cloud sync while offline — check connectivity`}
+                        aria-label={`${pendingSyncCount} pending offline sync jobs`}
+                        className="px-1.5 py-0.5 rounded text-[10px] font-mono font-extrabold tabular-nums bg-rose-600 dark:bg-rose-500 text-white inline-flex items-center gap-1"
+                      >
+                        <CloudOff className="w-3 h-3 shrink-0" />
+                        <span>{pendingSyncCount}</span>
+                      </span>
+                    )}
                     <ChevronDown
                       className={`w-3.5 h-3.5 transition-transform duration-150 ${
                         group.active || isOpen
@@ -847,6 +894,33 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               );
             })}
+
+            <button
+              type="button"
+              onClick={() => handleNavClick('notifications')}
+              data-testid="nav-notifications-tab"
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 ${
+                activeTab === 'notifications'
+                  ? 'bg-zinc-950 text-white border border-zinc-950 dark:bg-zinc-800 dark:text-white dark:border-zinc-700'
+                  : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-900 border border-transparent'
+              }`}
+            >
+              <Bell className="w-3.5 h-3.5" />
+              <span>Notifications</span>
+              {totalNotificationCount > 0 && (
+                <span
+                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold tabular-nums ${
+                    pendingSyncCount > 0
+                      ? 'bg-rose-600 dark:bg-rose-500 text-white'
+                      : activeTab === 'notifications'
+                      ? 'bg-zinc-800 text-white dark:bg-zinc-950 dark:text-zinc-200 border border-zinc-700'
+                      : 'bg-amber-400 dark:bg-amber-500 text-zinc-950'
+                  }`}
+                >
+                  {totalNotificationCount > 99 ? '99+' : totalNotificationCount}
+                </span>
+              )}
+            </button>
           </nav>
 
           {/* Subtle Current View Indicator */}
@@ -900,6 +974,38 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
           ))}
+
+          <div className="space-y-1.5">
+            <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-400 flex items-center justify-between">
+              <span>Notifications &amp; Sync</span>
+              {totalNotificationCount > 0 && (
+                <span className="text-zinc-900 dark:text-zinc-300 tabular-nums">{totalNotificationCount}</span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => handleNavClick('notifications')}
+              className={`w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between gap-2 ${
+                activeTab === 'notifications'
+                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950'
+                  : 'text-zinc-900 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-900/60 hover:bg-zinc-200 dark:hover:bg-zinc-900'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Bell className="w-4 h-4 shrink-0" />
+                <span className="truncate">Notifications Center</span>
+              </div>
+              {pendingSyncCount > 0 ? (
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold shrink-0 tabular-nums bg-rose-600 text-white">
+                  {pendingSyncCount} offline sync
+                </span>
+              ) : totalNotificationCount > 0 ? (
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold shrink-0 tabular-nums bg-amber-400 text-zinc-950">
+                  {totalNotificationCount}
+                </span>
+              ) : null}
+            </button>
+          </div>
 
           {!authLoading &&
             (authUser
