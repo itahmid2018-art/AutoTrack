@@ -16,6 +16,7 @@ import {
   computeMonthlyPartConsumptionTrends,
 } from '../utils/inventoryNotifications';
 import { calculateAverageReplenishMetrics } from '../utils/inventoryReplenishment';
+import { AppTheme } from '../utils/theme';
 import { AiReorderRecommendations } from './AiReorderRecommendations';
 import { RevenueForecastModule } from './RevenueForecastModule';
 import { 
@@ -90,27 +91,27 @@ const RevenueChartTooltip: React.FC<CustomChartTooltipProps> = ({ active, payloa
   if (!active || !payload || payload.length === 0) return null;
   const point = payload[0]?.payload;
   return (
-    <div className="bg-zinc-950 border border-zinc-700 rounded-xl p-3 shadow-2xl font-mono text-xs space-y-1.5">
-      <div className="text-white font-bold border-b border-zinc-800 pb-1">{label}</div>
+    <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 rounded-xl p-3 shadow-2xl font-mono text-xs space-y-1.5">
+      <div className="text-zinc-950 dark:text-white font-bold border-b border-zinc-300 dark:border-zinc-800 pb-1">{label}</div>
       <div className="flex items-center justify-between gap-4">
-        <span className="text-zinc-400">Service Revenue:</span>
-        <span className="text-white font-bold">${(point?.totalRevenue ?? 0).toFixed(2)}</span>
+        <span className="text-zinc-700 dark:text-zinc-400">Service Revenue:</span>
+        <span className="text-zinc-950 dark:text-white font-bold">${(point?.totalRevenue ?? 0).toFixed(2)}</span>
       </div>
       <div className="flex items-center justify-between gap-4 text-[11px]">
-        <span className="text-zinc-400">Labor:</span>
-        <span className="text-emerald-400 font-semibold">${(point?.laborRevenue ?? 0).toFixed(2)}</span>
+        <span className="text-zinc-700 dark:text-zinc-400">Labor:</span>
+        <span className="text-emerald-700 dark:text-emerald-400 font-semibold">${(point?.laborRevenue ?? 0).toFixed(2)}</span>
       </div>
       <div className="flex items-center justify-between gap-4 text-[11px]">
-        <span className="text-zinc-400">Spare Parts:</span>
-        <span className="text-zinc-300 font-semibold">${(point?.partsRevenue ?? 0).toFixed(2)}</span>
+        <span className="text-zinc-700 dark:text-zinc-400">Spare Parts:</span>
+        <span className="text-zinc-800 dark:text-zinc-300 font-semibold">${(point?.partsRevenue ?? 0).toFixed(2)}</span>
       </div>
       <div className="flex items-center justify-between gap-4 text-[11px]">
-        <span className="text-zinc-400">Op. Expenses:</span>
-        <span className="text-amber-400 font-semibold">${(point?.operationalExpenses ?? 0).toFixed(2)}</span>
+        <span className="text-zinc-700 dark:text-zinc-400">Op. Expenses:</span>
+        <span className="text-amber-700 dark:text-amber-400 font-semibold">${(point?.operationalExpenses ?? 0).toFixed(2)}</span>
       </div>
-      <div className="flex items-center justify-between gap-4 text-[11px] border-t border-zinc-800/80 pt-1">
-        <span className="text-zinc-500">Tickets:</span>
-        <span className="text-zinc-200">{point?.jobCount ?? 0} logged</span>
+      <div className="flex items-center justify-between gap-4 text-[11px] border-t border-zinc-300/80 dark:border-zinc-800/80 pt-1">
+        <span className="text-zinc-600 dark:text-zinc-500">Tickets:</span>
+        <span className="text-zinc-900 dark:text-zinc-200">{point?.jobCount ?? 0} logged</span>
       </div>
     </div>
   );
@@ -120,22 +121,23 @@ const VolumeTrendTooltip: React.FC<CustomChartTooltipProps> = ({ active, payload
   if (!active || !payload || payload.length === 0) return null;
   const point = payload[0]?.payload;
   return (
-    <div className="bg-zinc-950 border border-zinc-700 rounded-xl p-3 shadow-2xl font-mono text-xs space-y-1.5">
-      <div className="text-white font-bold border-b border-zinc-800 pb-1">{label}</div>
+    <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 rounded-xl p-3 shadow-2xl font-mono text-xs space-y-1.5">
+      <div className="text-zinc-950 dark:text-white font-bold border-b border-zinc-300 dark:border-zinc-800 pb-1">{label}</div>
       <div className="flex items-center justify-between gap-4">
-        <span className="text-emerald-400">Completed Jobs:</span>
-        <span className="text-white font-bold">{point?.completedCount ?? 0}</span>
+        <span className="text-emerald-700 dark:text-emerald-400">Completed Jobs:</span>
+        <span className="text-zinc-950 dark:text-white font-bold">{point?.completedCount ?? 0}</span>
       </div>
       <div className="flex items-center justify-between gap-4 text-[11px]">
-        <span className="text-zinc-400">Total Intakes:</span>
-        <span className="text-zinc-300 font-semibold">{point?.jobCount ?? 0}</span>
+        <span className="text-zinc-700 dark:text-zinc-400">Total Intakes:</span>
+        <span className="text-zinc-800 dark:text-zinc-300 font-semibold">{point?.jobCount ?? 0}</span>
       </div>
     </div>
   );
 };
 
-const D3ConsumptionTrendChart: React.FC<{ jobCards: JobCard[]; inventory: InventoryItem[] }> = ({ jobCards, inventory }) => {
+const D3ConsumptionTrendChart: React.FC<{ jobCards: JobCard[]; inventory: InventoryItem[]; theme?: AppTheme }> = ({ jobCards, inventory, theme = 'dark' }) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const isDark = theme === 'dark';
   const trendData = React.useMemo(
     () => computeMonthlyPartConsumptionTrends(inventory, jobCards, 6),
     [inventory, jobCards]
@@ -168,20 +170,26 @@ const D3ConsumptionTrendChart: React.FC<{ jobCards: JobCard[]; inventory: Invent
     const xScale = d3.scalePoint().domain(monthLabels).range([0, innerWidth]).padding(0.5);
     const yScale = d3.scaleLinear().domain([0, maxVal]).nice().range([innerHeight, 0]);
 
-    g.append('g')
-      .attr('transform', `translate(0,${innerHeight})`)
-      .call(d3.axisBottom(xScale))
-      .selectAll('text')
-      .attr('fill', '#a1a1aa')
-      .style('font-family', 'monospace')
-      .style('font-size', '10px');
+    const axisTextColor = isDark ? '#a1a1aa' : '#27272a';
+    const gridColor = isDark ? '#27272a' : '#d4d4d8';
+    const dotStrokeColor = isDark ? '#09090b' : '#ffffff';
 
-    g.append('g')
-      .call(d3.axisLeft(yScale).ticks(5))
-      .selectAll('text')
-      .attr('fill', '#a1a1aa')
+    const xAxisG = g.append('g')
+      .attr('transform', `translate(0,${innerHeight})`)
+      .call(d3.axisBottom(xScale));
+    xAxisG.selectAll('text')
+      .attr('fill', axisTextColor)
       .style('font-family', 'monospace')
       .style('font-size', '10px');
+    xAxisG.selectAll('path, line').attr('stroke', gridColor);
+
+    const yAxisG = g.append('g')
+      .call(d3.axisLeft(yScale).ticks(5));
+    yAxisG.selectAll('text')
+      .attr('fill', axisTextColor)
+      .style('font-family', 'monospace')
+      .style('font-size', '10px');
+    yAxisG.selectAll('path, line').attr('stroke', gridColor);
 
     g.append('g')
       .selectAll('line')
@@ -192,7 +200,7 @@ const D3ConsumptionTrendChart: React.FC<{ jobCards: JobCard[]; inventory: Invent
       .attr('x2', innerWidth)
       .attr('y1', (d) => yScale(d))
       .attr('y2', (d) => yScale(d))
-      .attr('stroke', '#27272a')
+      .attr('stroke', gridColor)
       .attr('stroke-dasharray', '3 3');
 
     const lineGen = d3.line<{ month: string; val: number }>()
@@ -221,31 +229,31 @@ const D3ConsumptionTrendChart: React.FC<{ jobCards: JobCard[]; inventory: Invent
         .attr('cy', (d) => yScale(d.val))
         .attr('r', 4)
         .attr('fill', s.color)
-        .attr('stroke', '#09090b')
+        .attr('stroke', dotStrokeColor)
         .attr('stroke-width', 1.5);
 
       dots.append('title').text((d) => `${s.sku} (${s.name}) — ${d.month}: ${d.val} units`);
     });
-  }, [trendData]);
+  }, [trendData, isDark]);
 
   return (
-    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3 font-mono">
+    <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 space-y-3 font-mono">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-            <Activity className="w-4 h-4 text-emerald-400" />
+          <h4 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+            <Activity className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
             <span>D3.js Monthly Consumption Trends (High-Frequency Parts)</span>
           </h4>
-          <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
+          <p className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans mt-0.5">
             Live monthly spare parts consumption from historical job cards for seasonal demand forecasting
           </p>
         </div>
-        <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-emerald-400 font-bold shrink-0">
+        <span className="text-[10px] px-2 py-0.5 rounded bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold shrink-0">
           {trendData.series.length} SKUs Tracked
         </span>
       </div>
       {trendData.series.length === 0 ? (
-        <div className="w-full h-64 flex items-center justify-center border border-dashed border-zinc-800 rounded-lg text-xs text-zinc-500 font-sans">
+        <div className="w-full h-64 flex items-center justify-center border border-dashed border-zinc-300 dark:border-zinc-800 rounded-lg text-xs text-zinc-600 dark:text-zinc-500 font-sans">
           No spare part consumption recorded on active Job Cards yet.
         </div>
       ) : (
@@ -254,7 +262,7 @@ const D3ConsumptionTrendChart: React.FC<{ jobCards: JobCard[]; inventory: Invent
         </div>
       )}
       {trendData.series.length > 0 && (
-        <div className="flex flex-wrap items-center gap-4 text-[11px] text-zinc-300 pt-1">
+        <div className="flex flex-wrap items-center gap-4 text-[11px] text-zinc-800 dark:text-zinc-300 pt-1">
           {trendData.series.map((s) => (
             <span key={s.itemId} className="flex items-center gap-1.5" title={s.name}>
               <span
@@ -279,6 +287,7 @@ interface AnalyticsDashboardProps {
   notifications?: InventoryNotification[];
   settings?: BusinessSettings;
   schedules?: RecurringMaintenance[];
+  theme?: AppTheme;
   onOpenAnalyticsSettings?: () => void;
 }
 
@@ -289,8 +298,18 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   notifications = [],
   settings,
   schedules = [],
+  theme = 'dark',
   onOpenAnalyticsSettings,
 }) => {
+  const isDark = theme === 'dark';
+  const chartGridColor = isDark ? '#27272a' : '#d4d4d8';
+  const chartAxisStroke = isDark ? '#a1a1aa' : '#3f3f46';
+  const chartAxisLineStroke = isDark ? '#3f3f46' : '#a1a1aa';
+  const chartPrimaryBarColor = isDark ? '#f4f4f5' : '#09090b';
+  const chartLaborColor = isDark ? '#34d399' : '#059669';
+  const chartExpenseColor = isDark ? '#f59e0b' : '#d97706';
+  const chartDotBorder = isDark ? '#09090b' : '#ffffff';
+  const chartCursorFill = isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(9, 9, 11, 0.05)';
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
   const [techSortBy, setTechSortBy] = useState<'completed' | 'turnaround' | 'audit'>('completed');
 
@@ -731,17 +750,17 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     <div className="space-y-6">
       
       {/* Header Banner with Download CSV Export Actions */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 shadow-xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-white">
+            <span className="p-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-950 dark:text-white">
               <BarChart3 className="w-5 h-5" />
             </span>
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-tight uppercase font-mono">
+            <h2 className="text-base sm:text-lg font-bold text-zinc-950 dark:text-white tracking-tight uppercase font-mono">
               Service Center Performance &amp; Key Analytics KPIs
             </h2>
           </div>
-          <p className="text-xs text-zinc-400 mt-1 font-sans">
+          <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-1 font-sans">
             Real-time repair efficiency, turnaround speed, grievance distribution, monthly revenue, and technician labor metrics.
           </p>
         </div>
@@ -752,7 +771,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             <button
               type="button"
               onClick={onOpenAnalyticsSettings}
-              className="px-3.5 py-2 text-xs font-bold text-emerald-300 bg-zinc-950 hover:bg-zinc-800 rounded-xl transition-all border border-emerald-500/40 flex items-center gap-1.5 font-mono active:scale-95"
+              className="px-3.5 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl transition-all border border-emerald-500 dark:border-emerald-500/40 flex items-center gap-1.5 font-mono active:scale-95"
               title="Toggle visible KPIs and sections in Business Settings"
             >
               <Sliders className="w-4 h-4" />
@@ -762,7 +781,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
           <button
             onClick={handleDownloadJobHistoryCsv}
-            className="px-3.5 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl transition-all shadow flex items-center gap-1.5 font-mono active:scale-95"
+            className="px-3.5 py-2 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl transition-all shadow flex items-center gap-1.5 font-mono active:scale-95"
             title="Download Job Cards transactional history CSV for accounting & audit"
           >
             <FileSpreadsheet className="w-4 h-4" />
@@ -771,10 +790,10 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
           <button
             onClick={handleDownloadInventoryCsv}
-            className="px-3.5 py-2 text-xs font-bold text-zinc-100 bg-zinc-950 hover:bg-zinc-800 rounded-xl transition-all border border-zinc-700 flex items-center gap-1.5 font-mono active:scale-95"
+            className="px-3.5 py-2 text-xs font-bold text-zinc-950 dark:text-zinc-100 bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl transition-all border border-zinc-400 dark:border-zinc-700 flex items-center gap-1.5 font-mono active:scale-95"
             title="Download 1,000 spare parts inventory valuation CSV for audit"
           >
-            <Download className="w-4 h-4 text-white" />
+            <Download className="w-4 h-4 text-zinc-950 dark:text-white" />
             <span>Download Inventory CSV</span>
           </button>
         </div>
@@ -782,24 +801,24 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
       {/* Success Notification Toast */}
       {downloadSuccess && (
-        <div className="bg-zinc-900 border border-white/20 p-3.5 rounded-xl text-xs font-mono text-white flex items-center justify-between shadow-lg animate-in fade-in">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-950/20 dark:border-white/20 p-3.5 rounded-xl text-xs font-mono text-zinc-950 dark:text-white flex items-center justify-between shadow-lg animate-in fade-in">
           <div className="flex items-center gap-2">
-            <FileCheck className="w-4 h-4 text-white" />
+            <FileCheck className="w-4 h-4 text-zinc-950 dark:text-white" />
             <span>{downloadSuccess}</span>
           </div>
-          <span className="text-[10px] text-zinc-400">Ready in Downloads</span>
+          <span className="text-[10px] text-zinc-700 dark:text-zinc-400">Ready in Downloads</span>
         </div>
       )}
 
       {/* EMPTY STATE WHEN ALL METRICS ARE HIDDEN */}
       {enabledMetricsCount === 0 && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center space-y-4 font-mono">
-          <div className="w-12 h-12 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center justify-center mx-auto text-zinc-400">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-8 text-center space-y-4 font-mono">
+          <div className="w-12 h-12 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 flex items-center justify-center mx-auto text-zinc-700 dark:text-zinc-400">
             <Sliders className="w-6 h-6" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-sm font-bold text-white uppercase">All Analytics Metrics Are Hidden</h3>
-            <p className="text-xs text-zinc-400 font-sans max-w-md mx-auto">
+            <h3 className="text-sm font-bold text-zinc-950 dark:text-white uppercase">All Analytics Metrics Are Hidden</h3>
+            <p className="text-xs text-zinc-700 dark:text-zinc-400 font-sans max-w-md mx-auto">
               Every KPI card and reporting panel is disabled in Business Settings. Re-enable at least 1 metric to view workshop performance.
             </p>
           </div>
@@ -807,7 +826,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             <button
               type="button"
               onClick={onOpenAnalyticsSettings}
-              className="px-4 py-2 text-xs font-bold bg-white hover:bg-zinc-200 text-zinc-950 rounded-xl inline-flex items-center gap-2 transition-colors"
+              className="px-4 py-2 text-xs font-bold bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 rounded-xl inline-flex items-center gap-2 transition-colors"
             >
               <Settings className="w-4 h-4" />
               <span>Open Business Settings</span>
@@ -843,46 +862,46 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           <div className={`grid ${kpiGridCols} gap-4 font-mono`}>
             {/* KPI: Active Jobs */}
             {metrics.activeJobs && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-lg space-y-2">
-                <div className="flex items-center justify-between text-zinc-400">
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 shadow-lg space-y-2">
+                <div className="flex items-center justify-between text-zinc-700 dark:text-zinc-400">
                   <span className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                    <Wrench className="w-4 h-4 text-white" />
+                    <Wrench className="w-4 h-4 text-zinc-950 dark:text-white" />
                     <span>Active Jobs</span>
                   </span>
-                  <div className="p-2 rounded-lg bg-zinc-950 text-white border border-zinc-800">
+                  <div className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-white border border-zinc-300 dark:border-zinc-800">
                     <Zap className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-2xl font-extrabold text-white flex items-baseline gap-2">
+                <div className="text-2xl font-extrabold text-zinc-950 dark:text-white flex items-baseline gap-2">
                   <span>{activeJobs.length} active</span>
-                  <span className="text-xs text-zinc-400 font-sans">({totalWorkshopLaborHours.toFixed(1)}h labor)</span>
+                  <span className="text-xs text-zinc-700 dark:text-zinc-400 font-sans">({totalWorkshopLaborHours.toFixed(1)}h labor)</span>
                 </div>
-                <div className="text-[11px] text-zinc-400 font-sans flex items-center justify-between border-t border-zinc-800/80 pt-2">
+                <div className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans flex items-center justify-between border-t border-zinc-300/80 dark:border-zinc-800/80 pt-2">
                   <span>Ready for pickup</span>
-                  <span className="text-white font-mono font-bold">{readyForPickup.length} tickets</span>
+                  <span className="text-zinc-950 dark:text-white font-mono font-bold">{readyForPickup.length} tickets</span>
                 </div>
               </div>
             )}
 
             {/* KPI: Low Inventory */}
             {metrics.lowInventory && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-lg space-y-2">
-                <div className="flex items-center justify-between text-zinc-400">
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 shadow-lg space-y-2">
+                <div className="flex items-center justify-between text-zinc-700 dark:text-zinc-400">
                   <span className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                    <Package className="w-4 h-4 text-amber-400" />
+                    <Package className="w-4 h-4 text-amber-700 dark:text-amber-400" />
                     <span>Low Inventory</span>
                   </span>
-                  <div className="p-2 rounded-lg bg-zinc-950 text-amber-400 border border-zinc-800">
+                  <div className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 text-amber-700 dark:text-amber-400 border border-zinc-300 dark:border-zinc-800">
                     <AlertTriangle className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-2xl font-extrabold text-white flex items-baseline gap-2">
+                <div className="text-2xl font-extrabold text-zinc-950 dark:text-white flex items-baseline gap-2">
                   <span>{lowStockCount} SKUs</span>
-                  <span className="text-xs text-zinc-400 font-sans">({inventory.length} catalog)</span>
+                  <span className="text-xs text-zinc-700 dark:text-zinc-400 font-sans">({inventory.length} catalog)</span>
                 </div>
-                <div className="text-[11px] text-zinc-400 font-sans flex items-center justify-between border-t border-zinc-800/80 pt-2">
+                <div className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans flex items-center justify-between border-t border-zinc-300/80 dark:border-zinc-800/80 pt-2">
                   <span>At or below min threshold</span>
-                  <span className={`font-mono font-bold ${outOfStockCount > 0 ? 'text-rose-400' : 'text-amber-400'}`}>
+                  <span className={`font-mono font-bold ${outOfStockCount > 0 ? 'text-rose-700 dark:text-rose-400' : 'text-amber-700 dark:text-amber-400'}`}>
                     {outOfStockCount} out of stock
                   </span>
                 </div>
@@ -891,27 +910,27 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
             {/* KPI: Average Time to Replenish */}
             {metrics.lowInventory && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-lg space-y-2">
-                <div className="flex items-center justify-between text-zinc-400">
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 shadow-lg space-y-2">
+                <div className="flex items-center justify-between text-zinc-700 dark:text-zinc-400">
                   <span className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                    <RefreshCw className="w-4 h-4 text-cyan-400" />
+                    <RefreshCw className="w-4 h-4 text-cyan-700 dark:text-cyan-400" />
                     <span>Average Time to Replenish</span>
                   </span>
-                  <div className="p-2 rounded-lg bg-zinc-950 text-cyan-400 border border-zinc-800">
+                  <div className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 text-cyan-700 dark:text-cyan-400 border border-zinc-300 dark:border-zinc-800">
                     <Clock className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-2xl font-extrabold text-white flex items-baseline gap-2">
+                <div className="text-2xl font-extrabold text-zinc-950 dark:text-white flex items-baseline gap-2">
                   <span>
                     {replenishMetrics.avgDays !== null ? `${replenishMetrics.avgDays} days` : 'Pending'}
                   </span>
-                  <span className="text-xs text-zinc-400 font-sans">
+                  <span className="text-xs text-zinc-700 dark:text-zinc-400 font-sans">
                     {replenishMetrics.avgHours !== null ? `(${replenishMetrics.avgHours} hrs)` : '(awaiting restock)'}
                   </span>
                 </div>
-                <div className="text-[11px] text-zinc-400 font-sans flex items-center justify-between border-t border-zinc-800/80 pt-2">
+                <div className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans flex items-center justify-between border-t border-zinc-300/80 dark:border-zinc-800/80 pt-2">
                   <span>Low stock to last restocked</span>
-                  <span className="text-cyan-400 font-mono font-bold">
+                  <span className="text-cyan-700 dark:text-cyan-400 font-mono font-bold">
                     {replenishMetrics.replenishedCount} restocked · {replenishMetrics.pendingReplenishCount} awaiting
                   </span>
                 </div>
@@ -920,22 +939,22 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
             {/* KPI: Monthly Revenue */}
             {metrics.revenue && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-lg space-y-2">
-                <div className="flex items-center justify-between text-zinc-400">
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 shadow-lg space-y-2">
+                <div className="flex items-center justify-between text-zinc-700 dark:text-zinc-400">
                   <span className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                    <DollarSign className="w-4 h-4 text-white" />
+                    <DollarSign className="w-4 h-4 text-zinc-950 dark:text-white" />
                     <span>Revenue</span>
                   </span>
-                  <div className="p-2 rounded-lg bg-zinc-950 text-white border border-zinc-800">
+                  <div className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-white border border-zinc-300 dark:border-zinc-800">
                     <TrendingUp className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-2xl font-extrabold text-white">
+                <div className="text-2xl font-extrabold text-zinc-950 dark:text-white">
                   ${currentMonthStat.totalRevenue.toFixed(2)}
                 </div>
-                <div className="text-[11px] text-zinc-400 font-sans flex items-center justify-between border-t border-zinc-800/80 pt-2">
+                <div className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans flex items-center justify-between border-t border-zinc-300/80 dark:border-zinc-800/80 pt-2">
                   <span>{currentMonthStat.label} ({currentMonthStat.jobCount} tickets)</span>
-                  <span className={`font-mono font-bold flex items-center gap-0.5 ${revenueGrowthPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  <span className={`font-mono font-bold flex items-center gap-0.5 ${revenueGrowthPct >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
                     {revenueGrowthPct >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                     {revenueGrowthPct >= 0 ? `+${revenueGrowthPct}%` : `${revenueGrowthPct}%`}
                   </span>
@@ -945,23 +964,23 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
             {/* KPI: Today's Appointments */}
             {metrics.todaysAppointments && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-lg space-y-2">
-                <div className="flex items-center justify-between text-zinc-400">
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 shadow-lg space-y-2">
+                <div className="flex items-center justify-between text-zinc-700 dark:text-zinc-400">
                   <span className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                    <Calendar className="w-4 h-4 text-emerald-400" />
+                    <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                     <span>Today&apos;s Appointments</span>
                   </span>
-                  <div className="p-2 rounded-lg bg-zinc-950 text-emerald-400 border border-zinc-800">
+                  <div className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 text-emerald-700 dark:text-emerald-400 border border-zinc-300 dark:border-zinc-800">
                     <Calendar className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-2xl font-extrabold text-white flex items-baseline gap-2">
+                <div className="text-2xl font-extrabold text-zinc-950 dark:text-white flex items-baseline gap-2">
                   <span>{totalTodaysAppointments} booked</span>
-                  <span className="text-xs text-zinc-400 font-sans">({todaysAppointmentHours}h bench)</span>
+                  <span className="text-xs text-zinc-700 dark:text-zinc-400 font-sans">({todaysAppointmentHours}h bench)</span>
                 </div>
-                <div className="text-[11px] text-zinc-400 font-sans flex items-center justify-between border-t border-zinc-800/80 pt-2">
+                <div className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans flex items-center justify-between border-t border-zinc-300/80 dark:border-zinc-800/80 pt-2">
                   <span>{todaysBenchAppointments.length} bench slots · {promisedTodayCount} promised</span>
-                  <span className="text-emerald-400 font-mono font-bold">
+                  <span className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">
                     {dueMaintenanceTodayCount} client due
                   </span>
                 </div>
@@ -970,23 +989,23 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
             {/* KPI: Average Repair Time */}
             {metrics.avgRepairTime && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-lg space-y-2">
-                <div className="flex items-center justify-between text-zinc-400">
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 shadow-lg space-y-2">
+                <div className="flex items-center justify-between text-zinc-700 dark:text-zinc-400">
                   <span className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-white" />
+                    <Clock className="w-4 h-4 text-zinc-950 dark:text-white" />
                     <span>Average Repair Time</span>
                   </span>
-                  <div className="p-2 rounded-lg bg-zinc-950 text-white border border-zinc-800">
+                  <div className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-white border border-zinc-300 dark:border-zinc-800">
                     <Clock className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-2xl font-extrabold text-white flex items-baseline gap-2">
+                <div className="text-2xl font-extrabold text-zinc-950 dark:text-white flex items-baseline gap-2">
                   <span>{avgRepairHours} hrs</span>
-                  <span className="text-xs text-zinc-400 font-sans">({avgRepairDays} days)</span>
+                  <span className="text-xs text-zinc-700 dark:text-zinc-400 font-sans">({avgRepairDays} days)</span>
                 </div>
-                <div className="text-[11px] text-zinc-400 font-sans flex items-center justify-between border-t border-zinc-800/80 pt-2">
+                <div className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans flex items-center justify-between border-t border-zinc-300/80 dark:border-zinc-800/80 pt-2">
                   <span>Intake to pickup status</span>
-                  <span className="text-emerald-400 font-mono font-bold flex items-center gap-0.5">
+                  <span className="text-emerald-700 dark:text-emerald-400 font-mono font-bold flex items-center gap-0.5">
                     <ArrowUpRight className="w-3 h-3" /> 12% faster
                   </span>
                 </div>
@@ -995,22 +1014,22 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
             {/* KPI: Most Frequent Service Grievance */}
             {metrics.topGrievance && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-lg space-y-2">
-                <div className="flex items-center justify-between text-zinc-400">
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 shadow-lg space-y-2">
+                <div className="flex items-center justify-between text-zinc-700 dark:text-zinc-400">
                   <span className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                    <Flame className="w-4 h-4 text-white" />
+                    <Flame className="w-4 h-4 text-zinc-950 dark:text-white" />
                     <span>Top Grievance Issue</span>
                   </span>
-                  <div className="p-2 rounded-lg bg-zinc-950 text-white border border-zinc-800">
+                  <div className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-white border border-zinc-300 dark:border-zinc-800">
                     <AlertTriangle className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-sm font-extrabold text-white truncate" title={topGrievance.grievance}>
+                <div className="text-sm font-extrabold text-zinc-950 dark:text-white truncate" title={topGrievance.grievance}>
                   {topGrievance.grievance.split('/')[0]}
                 </div>
-                <div className="text-[11px] text-zinc-400 font-sans flex items-center justify-between border-t border-zinc-800/80 pt-2">
+                <div className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans flex items-center justify-between border-t border-zinc-300/80 dark:border-zinc-800/80 pt-2">
                   <span>{topGrievance.count} service tickets</span>
-                  <span className="text-white font-mono font-bold">{topGrievance.percentage}% of total</span>
+                  <span className="text-zinc-950 dark:text-white font-mono font-bold">{topGrievance.percentage}% of total</span>
                 </div>
               </div>
             )}
@@ -1020,21 +1039,21 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
       {/* DEDICATED SECTION 1: MONTHLY REVENUE & BILLING BREAKDOWN */}
       {metrics.revenue && (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xl">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800 font-mono">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-zinc-300 dark:border-zinc-800 font-mono">
           <div>
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-white" />
+            <h3 className="text-sm font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-zinc-950 dark:text-white" />
               <span>Monthly Revenue &amp; Financial Billing Breakdown</span>
             </h3>
-            <p className="text-xs text-zinc-400 mt-0.5 font-sans">
+            <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-0.5 font-sans">
               Aggregated monthly service revenue history categorized by labor billings, spare parts sales, and ticket volumes.
             </p>
           </div>
 
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-zinc-400">All-Time Revenue:</span>
-            <strong className="text-white font-bold text-sm bg-zinc-950 px-3 py-1 rounded-lg border border-zinc-800">
+            <span className="text-zinc-700 dark:text-zinc-400">All-Time Revenue:</span>
+            <strong className="text-zinc-950 dark:text-white font-bold text-sm bg-zinc-50 dark:bg-zinc-950 px-3 py-1 rounded-lg border border-zinc-300 dark:border-zinc-800">
               ${totalRevenue.toFixed(2)}
             </strong>
           </div>
@@ -1043,18 +1062,18 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         {/* Visual Analytics Charts Grid: Monthly Service Revenue BarChart & Completed Job Volume Trend Line */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {/* Bar Chart: Monthly Service Revenue */}
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+          <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between gap-2 font-mono">
               <div>
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <BarChart3 className="w-4 h-4 text-white" />
+                <h4 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <BarChart3 className="w-4 h-4 text-zinc-950 dark:text-white" />
                   <span>Monthly Service Revenue</span>
                 </h4>
-                <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
+                <p className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans mt-0.5">
                   Total billed workshop revenue across labor and spare parts
                 </p>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300">
+              <span className="text-[10px] px-2 py-0.5 rounded bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-800 dark:text-zinc-300">
                 USD ($)
               </span>
             </div>
@@ -1062,44 +1081,44 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={monthlyChartData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} vertical={false} />
                   <XAxis
                     dataKey="label"
-                    stroke="#a1a1aa"
-                    tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'monospace' }}
-                    axisLine={{ stroke: '#3f3f46' }}
+                    stroke={chartAxisStroke}
+                    tick={{ fill: chartAxisStroke, fontSize: 11, fontFamily: 'monospace' }}
+                    axisLine={{ stroke: chartAxisLineStroke }}
                     tickLine={false}
                   />
                   <YAxis
-                    stroke="#a1a1aa"
-                    tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'monospace' }}
+                    stroke={chartAxisStroke}
+                    tick={{ fill: chartAxisStroke, fontSize: 11, fontFamily: 'monospace' }}
                     axisLine={false}
                     tickLine={false}
                     tickFormatter={(val: number) => `$${val}`}
                     width={60}
                   />
-                  <Tooltip content={<RevenueChartTooltip />} cursor={{ fill: 'rgba(255, 255, 255, 0.04)' }} />
+                  <Tooltip content={<RevenueChartTooltip />} cursor={{ fill: chartCursorFill }} />
                   <Legend
                     wrapperStyle={{ fontSize: '11px', fontFamily: 'monospace', paddingTop: '8px' }}
                   />
                   <Bar
                     dataKey="totalRevenue"
                     name="Total Service Revenue"
-                    fill="#f4f4f5"
+                    fill={chartPrimaryBarColor}
                     radius={[6, 6, 0, 0]}
                     maxBarSize={40}
                   />
                   <Bar
                     dataKey="laborRevenue"
                     name="Labor Revenue"
-                    fill="#34d399"
+                    fill={chartLaborColor}
                     radius={[6, 6, 0, 0]}
                     maxBarSize={30}
                   />
                   <Bar
                     dataKey="operationalExpenses"
                     name="Op. Expenses"
-                    fill="#f59e0b"
+                    fill={chartExpenseColor}
                     radius={[6, 6, 0, 0]}
                     maxBarSize={28}
                   />
@@ -1109,18 +1128,18 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           </div>
 
           {/* Trend Line Chart: Completed Job Cards Volume */}
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+          <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between gap-2 font-mono">
               <div>
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <TrendingUp className="w-4 h-4 text-emerald-400" />
+                <h4 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <TrendingUp className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                   <span>Completed Job Cards Volume</span>
                 </h4>
-                <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
+                <p className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans mt-0.5">
                   Monthly trend of completed service tickets vs. total workshop intakes
                 </p>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-emerald-400 font-bold">
+              <span className="text-[10px] px-2 py-0.5 rounded bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold">
                 {completedJobs.length} Completed
               </span>
             </div>
@@ -1128,18 +1147,18 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={monthlyChartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} vertical={false} />
                   <XAxis
                     dataKey="label"
-                    stroke="#a1a1aa"
-                    tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'monospace' }}
-                    axisLine={{ stroke: '#3f3f46' }}
+                    stroke={chartAxisStroke}
+                    tick={{ fill: chartAxisStroke, fontSize: 11, fontFamily: 'monospace' }}
+                    axisLine={{ stroke: chartAxisLineStroke }}
                     tickLine={false}
                   />
                   <YAxis
-                    stroke="#a1a1aa"
+                    stroke={chartAxisStroke}
                     allowDecimals={false}
-                    tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'monospace' }}
+                    tick={{ fill: chartAxisStroke, fontSize: 11, fontFamily: 'monospace' }}
                     axisLine={false}
                     tickLine={false}
                     width={40}
@@ -1152,20 +1171,20 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     type="monotone"
                     dataKey="completedCount"
                     name="Completed Job Cards"
-                    stroke="#34d399"
+                    stroke={chartLaborColor}
                     strokeWidth={3}
-                    dot={{ r: 4, fill: '#34d399', stroke: '#09090b', strokeWidth: 2 }}
-                    activeDot={{ r: 6, fill: '#ffffff', stroke: '#34d399', strokeWidth: 2 }}
+                    dot={{ r: 4, fill: chartLaborColor, stroke: chartDotBorder, strokeWidth: 2 }}
+                    activeDot={{ r: 6, fill: chartDotBorder, stroke: chartLaborColor, strokeWidth: 2 }}
                   />
                   <Line
                     type="monotone"
                     dataKey="jobCount"
                     name="Total Intake Volume"
-                    stroke="#a1a1aa"
+                    stroke={chartAxisStroke}
                     strokeWidth={2}
                     strokeDasharray="4 4"
-                    dot={{ r: 3, fill: '#a1a1aa', stroke: '#09090b', strokeWidth: 1.5 }}
-                    activeDot={{ r: 5, fill: '#ffffff', stroke: '#a1a1aa', strokeWidth: 2 }}
+                    dot={{ r: 3, fill: chartAxisStroke, stroke: chartDotBorder, strokeWidth: 1.5 }}
+                    activeDot={{ r: 5, fill: chartDotBorder, stroke: chartAxisStroke, strokeWidth: 2 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -1176,18 +1195,18 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         {/* Additional Management Charts: Op Expenses vs Labor Income (30 Days) & D3 Consumption Trends */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-6 mb-6">
           {/* Bar Chart: Operational Expenses vs Labor Income (30 Days) */}
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3 font-mono">
+          <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 space-y-3 font-mono">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <DollarSign className="w-4 h-4 text-amber-400" />
+                <h4 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <DollarSign className="w-4 h-4 text-amber-700 dark:text-amber-400" />
                   <span>Operational Expenses vs Labor Income (Last 30 Days)</span>
                 </h4>
-                <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
+                <p className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans mt-0.5">
                   Daily comparison to identify high-cost service trends and technician net margin
                 </p>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-amber-400 font-bold">
+              <span className="text-[10px] px-2 py-0.5 rounded bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-amber-700 dark:text-amber-400 font-bold">
                 30D Trend
               </span>
             </div>
@@ -1195,35 +1214,36 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={last30DaysData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} vertical={false} />
                   <XAxis
                     dataKey="dateStr"
-                    stroke="#a1a1aa"
-                    tick={{ fill: '#a1a1aa', fontSize: 10, fontFamily: 'monospace' }}
-                    axisLine={{ stroke: '#3f3f46' }}
+                    stroke={chartAxisStroke}
+                    tick={{ fill: chartAxisStroke, fontSize: 10, fontFamily: 'monospace' }}
+                    axisLine={{ stroke: chartAxisLineStroke }}
                     tickLine={false}
                     interval={4}
                   />
                   <YAxis
-                    stroke="#a1a1aa"
-                    tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'monospace' }}
+                    stroke={chartAxisStroke}
+                    tick={{ fill: chartAxisStroke, fontSize: 11, fontFamily: 'monospace' }}
                     axisLine={false}
                     tickLine={false}
                     tickFormatter={(val: number) => `$${val}`}
                     width={55}
                   />
                   <Tooltip
+                    cursor={{ fill: chartCursorFill }}
                     content={({ active, payload, label }) => {
                       if (!active || !payload || payload.length === 0) return null;
                       const pt = payload[0]?.payload;
                       return (
-                        <div className="bg-zinc-950 border border-zinc-700 rounded-xl p-3 shadow-2xl font-mono text-xs space-y-1">
-                          <div className="text-white font-bold border-b border-zinc-800 pb-1">Date: {label}</div>
-                          <div className="flex items-center justify-between gap-4 text-emerald-400">
+                        <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 rounded-xl p-3 shadow-2xl font-mono text-xs space-y-1">
+                          <div className="text-zinc-950 dark:text-white font-bold border-b border-zinc-300 dark:border-zinc-800 pb-1">Date: {label}</div>
+                          <div className="flex items-center justify-between gap-4 text-emerald-700 dark:text-emerald-400">
                             <span>Labor Income:</span>
                             <span className="font-bold">${pt?.laborIncome.toFixed(2)}</span>
                           </div>
-                          <div className="flex items-center justify-between gap-4 text-amber-400">
+                          <div className="flex items-center justify-between gap-4 text-amber-700 dark:text-amber-400">
                             <span>Operational Expenses:</span>
                             <span className="font-bold">${pt?.operationalExpenses.toFixed(2)}</span>
                           </div>
@@ -1232,15 +1252,15 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     }}
                   />
                   <Legend wrapperStyle={{ fontSize: '11px', fontFamily: 'monospace', paddingTop: '8px' }} />
-                  <Bar dataKey="laborIncome" name="Labor Income" fill="#34d399" radius={[4, 4, 0, 0]} maxBarSize={20} />
-                  <Bar dataKey="operationalExpenses" name="Operational Expenses" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={20} />
+                  <Bar dataKey="laborIncome" name="Labor Income" fill={chartLaborColor} radius={[4, 4, 0, 0]} maxBarSize={20} />
+                  <Bar dataKey="operationalExpenses" name="Operational Expenses" fill={chartExpenseColor} radius={[4, 4, 0, 0]} maxBarSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
           {/* D3.js Monthly Consumption Trends Chart */}
-          <D3ConsumptionTrendChart jobCards={jobCards} inventory={inventory} />
+          <D3ConsumptionTrendChart jobCards={jobCards} inventory={inventory} theme={theme} />
         </div>
 
         {/* Monthly Revenue Chart / Table View */}
@@ -1250,7 +1270,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           <div className="lg:col-span-2 overflow-x-auto">
             <table className="w-full text-left text-xs font-mono border-collapse">
               <thead>
-                <tr className="border-b border-zinc-800 text-zinc-400 uppercase text-[10px]">
+                <tr className="border-b border-zinc-300 dark:border-zinc-800 text-zinc-700 dark:text-zinc-400 uppercase text-[10px]">
                   <th className="py-2.5 px-3">Billing Month</th>
                   <th className="py-2.5 px-3 text-center">Jobs Serviced</th>
                   <th className="py-2.5 px-3 text-right">Labor Revenue</th>
@@ -1259,26 +1279,26 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   <th className="py-2.5 px-3 text-right">Total Revenue</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/60">
+              <tbody className="divide-y divide-zinc-200/80 dark:divide-zinc-800/60">
                 {monthlyStats.map((stat) => (
-                  <tr key={stat.yearMonth} className="hover:bg-zinc-950/60 transition-colors">
-                    <td className="py-3 px-3 font-bold text-white flex items-center gap-2">
-                      <Calendar className="w-3.5 h-3.5 text-zinc-400" />
+                  <tr key={stat.yearMonth} className="hover:bg-zinc-100 dark:hover:bg-zinc-950/60 transition-colors">
+                    <td className="py-3 px-3 font-bold text-zinc-950 dark:text-white flex items-center gap-2">
+                      <Calendar className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-400" />
                       <span>{stat.label}</span>
                     </td>
-                    <td className="py-3 px-3 text-center text-zinc-300">
-                      <span className="px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800">{stat.jobCount}</span>
+                    <td className="py-3 px-3 text-center text-zinc-800 dark:text-zinc-300">
+                      <span className="px-2 py-0.5 rounded bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800">{stat.jobCount}</span>
                     </td>
-                    <td className="py-3 px-3 text-right text-zinc-300">
+                    <td className="py-3 px-3 text-right text-zinc-800 dark:text-zinc-300">
                       ${stat.laborRevenue.toFixed(2)}
                     </td>
-                    <td className="py-3 px-3 text-right text-zinc-300">
+                    <td className="py-3 px-3 text-right text-zinc-800 dark:text-zinc-300">
                       ${stat.partsRevenue.toFixed(2)}
                     </td>
-                    <td className="py-3 px-3 text-right text-amber-400 font-semibold">
+                    <td className="py-3 px-3 text-right text-amber-700 dark:text-amber-400 font-semibold">
                       ${stat.operationalExpenses.toFixed(2)}
                     </td>
-                    <td className="py-3 px-3 text-right font-bold text-white">
+                    <td className="py-3 px-3 text-right font-bold text-zinc-950 dark:text-white">
                       ${stat.totalRevenue.toFixed(2)}
                     </td>
                   </tr>
@@ -1288,13 +1308,13 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           </div>
 
           {/* Revenue Split Card */}
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-4 font-mono flex flex-col justify-between">
+          <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 space-y-4 font-mono flex flex-col justify-between">
             <div>
-              <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                <PieChart className="w-4 h-4 text-white" />
+              <h4 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                <PieChart className="w-4 h-4 text-zinc-950 dark:text-white" />
                 <span>Revenue Composition</span>
               </h4>
-              <p className="text-[11px] text-zinc-400 font-sans">
+              <p className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans">
                 Billing breakdown across technician workshop labor, spare parts sales, and non-part operational expenses.
               </p>
             </div>
@@ -1302,14 +1322,14 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             <div className="space-y-3">
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-400">Technician Labor Charges</span>
-                  <span className="text-white font-bold">
+                  <span className="text-zinc-700 dark:text-zinc-400">Technician Labor Charges</span>
+                  <span className="text-zinc-950 dark:text-white font-bold">
                     ${(currentMonthStat.laborRevenue || 0).toFixed(2)}
                   </span>
                 </div>
-                <div className="w-full bg-zinc-900 rounded-full h-2 overflow-hidden border border-zinc-800">
+                <div className="w-full bg-white dark:bg-zinc-900 rounded-full h-2 overflow-hidden border border-zinc-300 dark:border-zinc-800">
                   <div 
-                    className="bg-white h-full rounded-full" 
+                    className="bg-zinc-950 dark:bg-white h-full rounded-full" 
                     style={{ width: `${Math.min(100, Math.round(((currentMonthStat.laborRevenue || 0) / Math.max(1, currentMonthStat.totalRevenue)) * 100))}%` }} 
                   />
                 </div>
@@ -1317,12 +1337,12 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-400">Spare Parts Inventory</span>
-                  <span className="text-white font-bold">
+                  <span className="text-zinc-700 dark:text-zinc-400">Spare Parts Inventory</span>
+                  <span className="text-zinc-950 dark:text-white font-bold">
                     ${(currentMonthStat.partsRevenue || 0).toFixed(2)}
                   </span>
                 </div>
-                <div className="w-full bg-zinc-900 rounded-full h-2 overflow-hidden border border-zinc-800">
+                <div className="w-full bg-white dark:bg-zinc-900 rounded-full h-2 overflow-hidden border border-zinc-300 dark:border-zinc-800">
                   <div 
                     className="bg-zinc-400 h-full rounded-full" 
                     style={{ width: `${Math.min(100, Math.round(((currentMonthStat.partsRevenue || 0) / Math.max(1, currentMonthStat.totalRevenue)) * 100))}%` }} 
@@ -1332,12 +1352,12 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-400">Operational Expenses (Non-Part)</span>
-                  <span className="text-amber-400 font-bold">
+                  <span className="text-zinc-700 dark:text-zinc-400">Operational Expenses (Non-Part)</span>
+                  <span className="text-amber-700 dark:text-amber-400 font-bold">
                     ${(currentMonthStat.operationalExpenses || 0).toFixed(2)}
                   </span>
                 </div>
-                <div className="w-full bg-zinc-900 rounded-full h-2 overflow-hidden border border-zinc-800">
+                <div className="w-full bg-white dark:bg-zinc-900 rounded-full h-2 overflow-hidden border border-zinc-300 dark:border-zinc-800">
                   <div 
                     className="bg-amber-400 h-full rounded-full" 
                     style={{ width: `${Math.min(100, Math.round(((currentMonthStat.operationalExpenses || 0) / Math.max(1, currentMonthStat.totalRevenue)) * 100))}%` }} 
@@ -1346,9 +1366,9 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               </div>
             </div>
 
-            <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 text-[11px] text-zinc-400 font-sans flex items-center justify-between">
+            <div className="p-3 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-300 dark:border-zinc-800 text-[11px] text-zinc-700 dark:text-zinc-400 font-sans flex items-center justify-between">
               <span>Average Ticket Value:</span>
-              <strong className="text-white font-mono font-bold">
+              <strong className="text-zinc-950 dark:text-white font-mono font-bold">
                 ${(totalRevenue / Math.max(1, jobCards.length)).toFixed(2)}
               </strong>
             </div>
@@ -1364,24 +1384,25 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           jobCards={jobCards}
           schedules={schedules}
           currencySymbol={settings?.currencySymbol || '$'}
+          theme={theme}
         />
       )}
 
       {/* DEDICATED SECTION 2: MOST FREQUENT SERVICE GRIEVANCES RANKING */}
       {metrics.topGrievance && (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xl">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800 font-mono">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-zinc-300 dark:border-zinc-800 font-mono">
           <div>
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-white" />
+            <h3 className="text-sm font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-zinc-950 dark:text-white" />
               <span>Most Frequent Service Grievances &amp; Failure Analysis</span>
             </h3>
-            <p className="text-xs text-zinc-400 mt-0.5 font-sans">
+            <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-0.5 font-sans">
               Frequency ranking of client-reported tool grievances, affected models, and average repair cost per category.
             </p>
           </div>
 
-          <span className="px-3 py-1 rounded-full text-xs font-mono bg-zinc-950 border border-zinc-800 text-zinc-300 font-bold">
+          <span className="px-3 py-1 rounded-full text-xs font-mono bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-800 dark:text-zinc-300 font-bold">
             {sortedGrievances.length} Grievance Types Logged
           </span>
         </div>
@@ -1391,38 +1412,38 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           {sortedGrievances.map((item, idx) => (
             <div
               key={item.grievance}
-              className="bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-xl p-4 space-y-2 transition-all font-mono"
+              className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-700 rounded-xl p-4 space-y-2 transition-all font-mono"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
-                  <span className="w-6 h-6 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                  <span className="w-6 h-6 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-400 dark:border-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-950 dark:text-white shrink-0">
                     #{idx + 1}
                   </span>
                   <div>
-                    <h4 className="text-xs font-bold text-white">{item.grievance}</h4>
-                    <p className="text-[11px] text-zinc-400 font-sans">
-                      Commonly affected models: <strong className="text-zinc-200">{item.sampleTools || 'Bosch / Vendor Tools'}</strong>
+                    <h4 className="text-xs font-bold text-zinc-950 dark:text-white">{item.grievance}</h4>
+                    <p className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans">
+                      Commonly affected models: <strong className="text-zinc-900 dark:text-zinc-200">{item.sampleTools || 'Bosch / Vendor Tools'}</strong>
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-4 text-xs shrink-0 font-mono">
                   <div className="text-right">
-                    <span className="text-zinc-400 text-[10px] block">Service Tickets</span>
-                    <strong className="text-white font-bold">{item.count} ({item.percentage}%)</strong>
+                    <span className="text-zinc-700 dark:text-zinc-400 text-[10px] block">Service Tickets</span>
+                    <strong className="text-zinc-950 dark:text-white font-bold">{item.count} ({item.percentage}%)</strong>
                   </div>
 
                   <div className="text-right">
-                    <span className="text-zinc-400 text-[10px] block">Avg Ticket Cost</span>
-                    <strong className="text-white font-bold">${item.avgCost.toFixed(2)}</strong>
+                    <span className="text-zinc-700 dark:text-zinc-400 text-[10px] block">Avg Ticket Cost</span>
+                    <strong className="text-zinc-950 dark:text-white font-bold">${item.avgCost.toFixed(2)}</strong>
                   </div>
                 </div>
               </div>
 
               {/* Progress bar representing proportion */}
-              <div className="w-full bg-zinc-900 rounded-full h-1.5 overflow-hidden border border-zinc-800">
+              <div className="w-full bg-white dark:bg-zinc-900 rounded-full h-1.5 overflow-hidden border border-zinc-300 dark:border-zinc-800">
                 <div
-                  className="bg-white h-full rounded-full transition-all"
+                  className="bg-zinc-950 dark:bg-white h-full rounded-full transition-all"
                   style={{ width: `${item.percentage}%` }}
                 />
               </div>
@@ -1434,29 +1455,29 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
       {/* Technician Performance Section (Calculated from Audit Logs) */}
       {metrics.technicianPerformance && (
-      <section aria-labelledby="tech-performance-heading" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-6">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
+      <section aria-labelledby="tech-performance-heading" className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-6 space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-zinc-300 dark:border-zinc-800">
           <div>
             <div className="flex items-center gap-2">
-              <UserCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <h3 id="tech-performance-heading" className="text-base font-bold text-white tracking-tight">
+              <UserCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
+              <h3 id="tech-performance-heading" className="text-base font-bold text-zinc-950 dark:text-white tracking-tight">
                 Technician Performance
               </h3>
             </div>
-            <p className="text-xs text-zinc-400 mt-1">
+            <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-1">
               Calculated from job card audit logs: intake-to-completion turnaround time and total jobs completed per technician.
             </p>
           </div>
 
           {/* Interactive Sort Controls */}
-          <div className="flex items-center gap-1 p-1 bg-zinc-950 border border-zinc-800 rounded-lg self-start lg:self-auto font-mono">
+          <div className="flex items-center gap-1 p-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg self-start lg:self-auto font-mono">
             <button
               type="button"
               onClick={() => setTechSortBy('completed')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
                 techSortBy === 'completed'
-                  ? 'bg-white text-zinc-950'
-                  : 'text-zinc-400 hover:text-white'
+                  ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950'
+                  : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
               }`}
             >
               Most Completed
@@ -1466,8 +1487,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               onClick={() => setTechSortBy('turnaround')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
                 techSortBy === 'turnaround'
-                  ? 'bg-white text-zinc-950'
-                  : 'text-zinc-400 hover:text-white'
+                  ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950'
+                  : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
               }`}
             >
               Fastest Turnaround
@@ -1477,8 +1498,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               onClick={() => setTechSortBy('audit')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
                 techSortBy === 'audit'
-                  ? 'bg-white text-zinc-950'
-                  : 'text-zinc-400 hover:text-white'
+                  ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950'
+                  : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
               }`}
             >
               Audit Activity
@@ -1487,31 +1508,31 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         </div>
 
         {/* Audit-Derived Summary Strip */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-b border-zinc-800 pb-5 font-mono tabular-nums">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-b border-zinc-300 dark:border-zinc-800 pb-5 font-mono tabular-nums">
           <div className="space-y-1">
-            <span className="text-xs text-zinc-400 block">Total Jobs Completed</span>
-            <div className="text-2xl font-bold text-white">{totalTechCompleted}</div>
-            <div className="text-xs text-zinc-500 font-sans">
+            <span className="text-xs text-zinc-700 dark:text-zinc-400 block">Total Jobs Completed</span>
+            <div className="text-2xl font-bold text-zinc-950 dark:text-white">{totalTechCompleted}</div>
+            <div className="text-xs text-zinc-600 dark:text-zinc-500 font-sans">
               Completed or ready for pickup across {SHOP_TECHNICIANS.length} technicians
             </div>
           </div>
 
-          <div className="space-y-1 sm:border-l sm:border-zinc-800 sm:pl-5">
-            <span className="text-xs text-zinc-400 block">Avg Turnaround Time</span>
-            <div className="text-2xl font-bold text-emerald-400">
+          <div className="space-y-1 sm:border-l sm:border-zinc-300 dark:sm:border-zinc-800 sm:pl-5">
+            <span className="text-xs text-zinc-700 dark:text-zinc-400 block">Avg Turnaround Time</span>
+            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
               {workshopAuditAvgTurnaroundHours !== null ? `${workshopAuditAvgTurnaroundHours} hrs` : 'Pending'}
             </div>
-            <div className="text-xs text-zinc-500 font-sans">
+            <div className="text-xs text-zinc-600 dark:text-zinc-500 font-sans">
               {workshopAuditAvgTurnaroundHours !== null
                 ? `${(Math.round((workshopAuditAvgTurnaroundHours / 24) * 10) / 10)} days average intake-to-completion`
                 : 'Awaiting completed job audit trails'}
             </div>
           </div>
 
-          <div className="space-y-1 sm:border-l sm:border-zinc-800 sm:pl-5">
-            <span className="text-xs text-zinc-400 block">Audit Log Entries Analyzed</span>
-            <div className="text-2xl font-bold text-white">{totalTechAuditEvents}</div>
-            <div className="text-xs text-zinc-500 font-sans">
+          <div className="space-y-1 sm:border-l sm:border-zinc-300 dark:sm:border-zinc-800 sm:pl-5">
+            <span className="text-xs text-zinc-700 dark:text-zinc-400 block">Audit Log Entries Analyzed</span>
+            <div className="text-2xl font-bold text-zinc-950 dark:text-white">{totalTechAuditEvents}</div>
+            <div className="text-xs text-zinc-600 dark:text-zinc-500 font-sans">
               Technician stage updates, diagnostics &amp; handovers
             </div>
           </div>
@@ -1520,67 +1541,68 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         {/* Technician Performance Visual Chart + Table */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
           {/* Bar Chart Comparison */}
-          <div className="xl:col-span-5 bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+          <div className="xl:col-span-5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <h4 className="text-xs font-bold text-white">Completed Jobs &amp; Avg Turnaround</h4>
-                <p className="text-xs text-zinc-400 mt-0.5">
+                <h4 className="text-xs font-bold text-zinc-950 dark:text-white">Completed Jobs &amp; Avg Turnaround</h4>
+                <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-0.5">
                   Per-technician completion volume vs. hours to complete
                 </p>
               </div>
-              <span className="text-xs font-mono text-zinc-400 whitespace-nowrap shrink-0">Audit Trail</span>
+              <span className="text-xs font-mono text-zinc-700 dark:text-zinc-400 whitespace-nowrap shrink-0">Audit Trail</span>
             </div>
 
             {sortedTechStats.every((t) => t.totalJobsCompleted === 0 && t.auditEventsLogged === 0) ? (
-              <div className="h-60 flex items-center justify-center text-xs text-zinc-500 font-mono">
+              <div className="h-60 flex items-center justify-center text-xs text-zinc-600 dark:text-zinc-500 font-mono">
                 No technician audit log records found yet.
               </div>
             ) : (
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={techPerformanceChartData} margin={{ top: 10, right: 12, left: -8, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} vertical={false} />
                     <XAxis
                       dataKey="name"
-                      stroke="#a1a1aa"
-                      tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'monospace' }}
-                      axisLine={{ stroke: '#3f3f46' }}
+                      stroke={chartAxisStroke}
+                      tick={{ fill: chartAxisStroke, fontSize: 11, fontFamily: 'monospace' }}
+                      axisLine={{ stroke: chartAxisLineStroke }}
                       tickLine={false}
                     />
                     <YAxis
                       yAxisId="left"
                       allowDecimals={false}
-                      stroke="#34d399"
-                      tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'monospace' }}
+                      stroke={chartLaborColor}
+                      tick={{ fill: chartAxisStroke, fontSize: 11, fontFamily: 'monospace' }}
                       axisLine={false}
                       tickLine={false}
                     />
                     <YAxis
                       yAxisId="right"
                       orientation="right"
-                      stroke="#f59e0b"
-                      tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'monospace' }}
+                      stroke={chartExpenseColor}
+                      tick={{ fill: chartAxisStroke, fontSize: 11, fontFamily: 'monospace' }}
                       axisLine={false}
                       tickLine={false}
                       tickFormatter={(v: number) => `${v}h`}
                     />
                     <Tooltip
-                      cursor={{ fill: 'rgba(255, 255, 255, 0.04)' }}
+                      cursor={{ fill: chartCursorFill }}
                       contentStyle={{
-                        backgroundColor: '#09090b',
-                        borderColor: '#3f3f46',
+                        backgroundColor: isDark ? '#09090b' : '#ffffff',
+                        borderColor: isDark ? '#3f3f46' : '#d4d4d8',
+                        color: isDark ? '#f4f4f5' : '#09090b',
                         borderRadius: '0.75rem',
                         fontSize: '12px',
                         fontFamily: 'monospace',
                       }}
-                      labelStyle={{ color: '#ffffff', fontWeight: 700, marginBottom: '4px' }}
+                      labelStyle={{ color: isDark ? '#ffffff' : '#09090b', fontWeight: 700, marginBottom: '4px' }}
                     />
                     <Legend wrapperStyle={{ fontSize: '11px', fontFamily: 'monospace', paddingTop: '8px' }} />
                     <Bar
                       yAxisId="left"
                       dataKey="jobsCompleted"
                       name="Jobs Completed"
-                      fill="#34d399"
+                      fill={chartLaborColor}
                       radius={[4, 4, 0, 0]}
                       maxBarSize={32}
                     />
@@ -1588,7 +1610,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                       yAxisId="right"
                       dataKey="avgTurnaroundHours"
                       name="Avg Turnaround (hrs)"
-                      fill="#f59e0b"
+                      fill={chartExpenseColor}
                       radius={[4, 4, 0, 0]}
                       maxBarSize={32}
                     />
@@ -1599,10 +1621,10 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           </div>
 
           {/* High-Density Tabular Breakdown */}
-          <div className="xl:col-span-7 overflow-x-auto bg-zinc-950 border border-zinc-800 rounded-xl">
+          <div className="xl:col-span-7 overflow-x-auto bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl">
             <table className="w-full text-left text-xs font-mono tabular-nums border-collapse">
               <thead>
-                <tr className="border-b border-zinc-800 text-zinc-400 text-[11px]">
+                <tr className="border-b border-zinc-300 dark:border-zinc-800 text-zinc-700 dark:text-zinc-400 text-[11px]">
                   <th className="py-3 px-4 font-semibold">Technician</th>
                   <th className="py-3 px-3 text-right font-semibold">Jobs Completed</th>
                   <th className="py-3 px-3 text-right font-semibold">Avg Turnaround</th>
@@ -1611,45 +1633,45 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   <th className="py-3 px-4 text-right font-semibold">Billed Revenue</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/70">
+              <tbody className="divide-y divide-zinc-200/80 dark:divide-zinc-800/70">
                 {sortedTechStats.map((row) => {
                   const shortName = row.tech.name.split('(')[0].trim();
                   return (
-                    <tr key={row.tech.id} className="hover:bg-zinc-900/70 transition-colors">
+                    <tr key={row.tech.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-900/70 transition-colors">
                       <td className="py-3.5 px-4">
-                        <div className="font-sans font-semibold text-white text-xs">{shortName}</div>
-                        <div className="text-[11px] font-sans text-zinc-400">
+                        <div className="font-sans font-semibold text-zinc-950 dark:text-white text-xs">{shortName}</div>
+                        <div className="text-[11px] font-sans text-zinc-700 dark:text-zinc-400">
                           {row.tech.role} · {row.tech.activeStatus}
                         </div>
                       </td>
                       <td className="py-3.5 px-3 text-right">
-                        <div className="font-bold text-white text-sm">{row.totalJobsCompleted}</div>
-                        <div className="text-[10px] text-zinc-500">
+                        <div className="font-bold text-zinc-950 dark:text-white text-sm">{row.totalJobsCompleted}</div>
+                        <div className="text-[10px] text-zinc-600 dark:text-zinc-500">
                           {row.auditVerifiedCompletions} audit-verified
                         </div>
                       </td>
                       <td className="py-3.5 px-3 text-right">
                         {row.avgTurnaroundHours !== null ? (
                           <div>
-                            <div className="font-bold text-emerald-400">{row.avgTurnaroundHours} hrs</div>
-                            <div className="text-[10px] text-zinc-500">
+                            <div className="font-bold text-emerald-700 dark:text-emerald-400">{row.avgTurnaroundHours} hrs</div>
+                            <div className="text-[10px] text-zinc-600 dark:text-zinc-500">
                               {row.avgTurnaroundDays}d avg · best {row.fastestTurnaroundHours}h
                             </div>
                           </div>
                         ) : (
-                          <span className="text-zinc-500">No completions</span>
+                          <span className="text-zinc-600 dark:text-zinc-500">No completions</span>
                         )}
                       </td>
-                      <td className="py-3.5 px-3 text-right text-zinc-200 font-semibold">
+                      <td className="py-3.5 px-3 text-right text-zinc-900 dark:text-zinc-200 font-semibold">
                         {row.assignedActive}
                       </td>
                       <td className="py-3.5 px-3 text-right">
-                        <div className="text-zinc-200 font-semibold">{row.auditEventsLogged}</div>
-                        <div className="text-[10px] text-zinc-500">
+                        <div className="text-zinc-900 dark:text-zinc-200 font-semibold">{row.auditEventsLogged}</div>
+                        <div className="text-[10px] text-zinc-600 dark:text-zinc-500">
                           {row.lastAuditTimestamp ? row.lastAuditTimestamp.slice(0, 10) : '—'}
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 text-right font-bold text-white">
+                      <td className="py-3.5 px-4 text-right font-bold text-zinc-950 dark:text-white">
                         ${row.totalRevenueGenerated.toFixed(2)}
                       </td>
                     </tr>
@@ -1690,33 +1712,33 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         return (
           <section
             aria-labelledby="csat-feedback-heading"
-            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-5 shadow-xl"
+            className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-6 space-y-5 shadow-xl"
           >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-300 dark:border-zinc-800 pb-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
-                  <h3 id="csat-feedback-heading" className="text-base font-bold text-white tracking-tight">
+                  <Star className="w-4 h-4 text-amber-500 dark:text-amber-400 fill-amber-400 shrink-0" />
+                  <h3 id="csat-feedback-heading" className="text-base font-bold text-zinc-950 dark:text-white tracking-tight">
                     Customer Satisfaction &amp; Post-Service Feedback
                   </h3>
                 </div>
-                <p className="text-xs text-zinc-400 mt-1">
+                <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-1">
                   Aggregated star ratings and comments collected via automated completion SMS surveys.
                 </p>
               </div>
 
               <div className="flex items-center gap-4 font-mono tabular-nums text-xs">
-                <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2">
-                  <span className="text-[10px] text-zinc-400 block uppercase">Average CSAT</span>
-                  <span className="text-lg font-extrabold text-amber-400">
+                <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3.5 py-2">
+                  <span className="text-[10px] text-zinc-700 dark:text-zinc-400 block uppercase">Average CSAT</span>
+                  <span className="text-lg font-extrabold text-amber-700 dark:text-amber-400">
                     {avgRating !== null ? `${avgRating.toFixed(1)} / 5.0` : 'No Ratings'}
                   </span>
                 </div>
-                <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2">
-                  <span className="text-[10px] text-zinc-400 block uppercase">Responses</span>
-                  <span className="text-lg font-extrabold text-white">
+                <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3.5 py-2">
+                  <span className="text-[10px] text-zinc-700 dark:text-zinc-400 block uppercase">Responses</span>
+                  <span className="text-lg font-extrabold text-zinc-950 dark:text-white">
                     {ratedJobs.length}{' '}
-                    <span className="text-xs font-normal text-zinc-400">({responseRate}% rate)</span>
+                    <span className="text-xs font-normal text-zinc-700 dark:text-zinc-400">({responseRate}% rate)</span>
                   </span>
                 </div>
               </div>
@@ -1724,8 +1746,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
               {/* Rating Distribution */}
-              <div className="lg:col-span-4 bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-2.5 font-mono">
-                <div className="text-xs font-bold text-white uppercase tracking-wider mb-1">
+              <div className="lg:col-span-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 space-y-2.5 font-mono">
+                <div className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider mb-1">
                   Star Breakdown
                 </div>
                 {[5, 4, 3, 2, 1].map((stars) => {
@@ -1733,17 +1755,17 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   const pct = ratedJobs.length > 0 ? Math.round((count / ratedJobs.length) * 100) : 0;
                   return (
                     <div key={stars} className="flex items-center gap-2.5 text-xs tabular-nums">
-                      <span className="w-12 text-zinc-300 flex items-center gap-1 shrink-0">
+                      <span className="w-12 text-zinc-800 dark:text-zinc-300 flex items-center gap-1 shrink-0">
                         <span>{stars}</span>
-                        <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                        <Star className="w-3 h-3 text-amber-500 dark:text-amber-400 fill-amber-400" />
                       </span>
-                      <div className="flex-1 h-2 bg-zinc-900 border border-zinc-800 rounded-full overflow-hidden">
+                      <div className="flex-1 h-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-amber-400 rounded-full transition-all"
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      <span className="w-14 text-right text-zinc-400">
+                      <span className="w-14 text-right text-zinc-700 dark:text-zinc-400">
                         {count} ({pct}%)
                       </span>
                     </div>
@@ -1752,17 +1774,17 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               </div>
 
               {/* Recent Feedback Comments */}
-              <div className="lg:col-span-8 bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+              <div className="lg:col-span-8 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 space-y-3">
                 <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                    <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                     <span>Recent Client Comments</span>
                   </span>
-                  <span className="text-zinc-500">{ratedJobs.length} recorded</span>
+                  <span className="text-zinc-600 dark:text-zinc-500">{ratedJobs.length} recorded</span>
                 </div>
 
                 {recentFeedbackJobs.length === 0 ? (
-                  <div className="py-6 text-center text-xs text-zinc-500 font-mono">
+                  <div className="py-6 text-center text-xs text-zinc-600 dark:text-zinc-500 font-mono">
                     No customer feedback submitted yet. Mark a Job Card as Completed to trigger the SMS survey.
                   </div>
                 ) : (
@@ -1770,22 +1792,22 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     {recentFeedbackJobs.map((job) => (
                       <div
                         key={job.id}
-                        className="p-3 rounded-xl bg-zinc-900/70 border border-zinc-800 space-y-1.5"
+                        className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900/70 border border-zinc-300 dark:border-zinc-800 space-y-1.5"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-white">{job.id}</span>
-                            <span className="text-zinc-400 font-sans">
+                            <span className="font-bold text-zinc-950 dark:text-white">{job.id}</span>
+                            <span className="text-zinc-700 dark:text-zinc-400 font-sans">
                               {job.customerName} · {job.tool.brand} {job.tool.modelNumber}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1 text-amber-400 font-bold tabular-nums">
+                          <div className="flex items-center gap-1 text-amber-700 dark:text-amber-400 font-bold tabular-nums">
                             {[1, 2, 3, 4, 5].map((s) => (
                               <Star
                                 key={s}
                                 className={`w-3 h-3 ${
                                   s <= (job.customerFeedback?.rating || 0)
-                                    ? 'text-amber-400 fill-amber-400'
+                                    ? 'text-amber-500 dark:text-amber-400 fill-amber-400'
                                     : 'text-zinc-700'
                                 }`}
                               />
@@ -1793,7 +1815,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                             <span className="ml-1">{job.customerFeedback?.rating}/5</span>
                           </div>
                         </div>
-                        <p className="text-xs text-zinc-300 leading-relaxed">
+                        <p className="text-xs text-zinc-800 dark:text-zinc-300 leading-relaxed">
                           {job.customerFeedback?.comment || 'Star rating submitted without written comment.'}
                         </p>
                       </div>
@@ -1821,9 +1843,9 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         
         {/* Tool Category Volume */}
         {metrics.categoryVolume && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4 shadow-lg">
-          <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2 font-mono">
-            <TrendingUp className="w-4 h-4 text-white" />
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-4 shadow-lg">
+          <h3 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-2 font-mono">
+            <TrendingUp className="w-4 h-4 text-zinc-950 dark:text-white" />
             <span>Tool Category Service Volume</span>
           </h3>
 
@@ -1833,11 +1855,11 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               return (
                 <div key={cat} className="space-y-1">
                   <div className="flex justify-between text-xs font-mono">
-                    <span className="font-semibold text-zinc-200">{cat}</span>
-                    <span className="text-white font-bold">{count} tickets ({pct}%)</span>
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-200">{cat}</span>
+                    <span className="text-zinc-950 dark:text-white font-bold">{count} tickets ({pct}%)</span>
                   </div>
-                  <div className="w-full bg-zinc-950 rounded-full h-2 overflow-hidden border border-zinc-800">
-                    <div className="bg-white h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
+                  <div className="w-full bg-zinc-50 dark:bg-zinc-950 rounded-full h-2 overflow-hidden border border-zinc-300 dark:border-zinc-800">
+                    <div className="bg-zinc-950 dark:bg-white h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               );
@@ -1848,16 +1870,16 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
         {/* Spare Parts Inventory & Health Summary */}
         {metrics.lowInventory && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4 shadow-lg">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-4 shadow-lg">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2 font-mono">
-              <Package className="w-4 h-4 text-white" />
+            <h3 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-2 font-mono">
+              <Package className="w-4 h-4 text-zinc-950 dark:text-white" />
               <span>Inventory &amp; Reorder Health</span>
             </h3>
 
             <button
               onClick={handleDownloadInventoryCsv}
-              className="text-[11px] font-mono font-bold text-zinc-300 hover:text-white flex items-center gap-1 bg-zinc-950 px-2.5 py-1 rounded-lg border border-zinc-800"
+              className="text-[11px] font-mono font-bold text-zinc-800 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white flex items-center gap-1 bg-zinc-50 dark:bg-zinc-950 px-2.5 py-1 rounded-lg border border-zinc-300 dark:border-zinc-800"
             >
               <Download className="w-3 h-3" />
               <span>Export CSV</span>
@@ -1865,25 +1887,25 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-xs font-mono">
-            <div className="bg-zinc-950 p-3.5 rounded-xl border border-zinc-800">
-              <span className="text-[10px] text-zinc-500 block uppercase">Parts Catalog SKUs</span>
-              <span className="text-xl font-extrabold text-white">{inventory.length}</span>
-              <span className="text-[10px] text-zinc-400 block mt-1">Bosch &amp; Vendor Spare Parts</span>
+            <div className="bg-zinc-50 dark:bg-zinc-950 p-3.5 rounded-xl border border-zinc-300 dark:border-zinc-800">
+              <span className="text-[10px] text-zinc-600 dark:text-zinc-500 block uppercase">Parts Catalog SKUs</span>
+              <span className="text-xl font-extrabold text-zinc-950 dark:text-white">{inventory.length}</span>
+              <span className="text-[10px] text-zinc-700 dark:text-zinc-400 block mt-1">Bosch &amp; Vendor Spare Parts</span>
             </div>
 
-            <div className="bg-zinc-950 p-3.5 rounded-xl border border-zinc-800">
-              <span className="text-[10px] text-zinc-500 block uppercase">Inventory Valuation</span>
-              <span className="text-xl font-extrabold text-white">${totalInventoryValuation.toFixed(0)}</span>
-              <span className="text-[10px] text-zinc-400 block mt-1">Cost value of active stock</span>
+            <div className="bg-zinc-50 dark:bg-zinc-950 p-3.5 rounded-xl border border-zinc-300 dark:border-zinc-800">
+              <span className="text-[10px] text-zinc-600 dark:text-zinc-500 block uppercase">Inventory Valuation</span>
+              <span className="text-xl font-extrabold text-zinc-950 dark:text-white">${totalInventoryValuation.toFixed(0)}</span>
+              <span className="text-[10px] text-zinc-700 dark:text-zinc-400 block mt-1">Cost value of active stock</span>
             </div>
           </div>
 
-          <div className="bg-zinc-950 p-3.5 rounded-xl border border-zinc-800 flex items-center justify-between">
+          <div className="bg-zinc-50 dark:bg-zinc-950 p-3.5 rounded-xl border border-zinc-300 dark:border-zinc-800 flex items-center justify-between">
             <div>
-              <div className="text-xs font-bold text-white font-mono">Low Stock Reorder Threshold</div>
-              <div className="text-[11px] text-zinc-400 mt-0.5">{lowStockCount} parts currently require purchase order generation</div>
+              <div className="text-xs font-bold text-zinc-950 dark:text-white font-mono">Low Stock Reorder Threshold</div>
+              <div className="text-[11px] text-zinc-700 dark:text-zinc-400 mt-0.5">{lowStockCount} parts currently require purchase order generation</div>
             </div>
-            <span className="px-3 py-1 bg-zinc-900 border border-zinc-700 text-white font-mono text-xs font-bold rounded-lg">
+            <span className="px-3 py-1 bg-white dark:bg-zinc-900 border border-zinc-400 dark:border-zinc-700 text-zinc-950 dark:text-white font-mono text-xs font-bold rounded-lg">
               {lowStockCount} SKUs Alert
             </span>
           </div>

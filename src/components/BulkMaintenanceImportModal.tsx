@@ -138,19 +138,19 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
   const totalCount = importResult ? importResult.totalRows : 0;
 
   return (
-    <div className="fixed inset-0 z-50 bg-zinc-950/85 backdrop-blur flex items-center justify-center p-3 sm:p-5 overflow-y-auto font-mono">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-4xl w-full p-5 sm:p-6 shadow-2xl flex flex-col space-y-4 max-h-[92vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-zinc-950/60 dark:bg-zinc-950/85 backdrop-blur flex items-center justify-center p-3 sm:p-5 overflow-y-auto font-mono">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl max-w-4xl w-full p-5 sm:p-6 shadow-2xl flex flex-col space-y-4 max-h-[92vh] overflow-hidden">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800 pb-3 shrink-0">
+        <div className="flex items-center justify-between border-b border-zinc-300 dark:border-zinc-800 pb-3 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-zinc-950 border border-zinc-800 rounded-xl text-white">
+            <div className="p-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl text-zinc-950 dark:text-white">
               <FileSpreadsheet className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white uppercase tracking-tight">
+              <h2 className="text-base font-bold text-zinc-950 dark:text-white uppercase tracking-tight">
                 Bulk CSV Import · Client Maintenance Schedules
               </h2>
-              <p className="text-xs text-zinc-400 font-sans">
+              <p className="text-xs text-zinc-700 dark:text-zinc-400 font-sans">
                 Import client fleet maintenance schedules in bulk to accelerate digital transition.
               </p>
             </div>
@@ -158,7 +158,7 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
 
           <button
             onClick={onClose}
-            className="p-1.5 text-zinc-400 hover:text-white rounded-lg transition-colors"
+            className="p-1.5 text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white rounded-lg transition-colors"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
@@ -166,13 +166,13 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
         </div>
 
         {/* Action Shortcuts Strip */}
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs shrink-0 bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 font-sans">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs shrink-0 bg-zinc-50 dark:bg-zinc-950 p-2.5 rounded-xl border border-zinc-300 dark:border-zinc-800 font-sans">
           <div className="flex items-center gap-2">
-            <span className="text-zinc-400 text-xs font-semibold">Shortcuts:</span>
+            <span className="text-zinc-700 dark:text-zinc-400 text-xs font-semibold">Shortcuts:</span>
             <button
               type="button"
               onClick={handleLoadSample}
-              className="px-2.5 py-1 text-xs font-bold font-mono text-zinc-950 bg-white hover:bg-zinc-200 rounded-lg transition-all flex items-center gap-1 shadow"
+              className="px-2.5 py-1 text-xs font-bold font-mono text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-lg transition-all flex items-center gap-1 shadow"
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Load 5 Sample Client Schedules</span>
@@ -181,9 +181,9 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
             <button
               type="button"
               onClick={downloadMaintenanceCsvTemplate}
-              className="px-2.5 py-1 text-xs font-bold font-mono text-zinc-200 bg-zinc-900 hover:bg-zinc-800 rounded-lg border border-zinc-700 transition-colors flex items-center gap-1"
+              className="px-2.5 py-1 text-xs font-bold font-mono text-zinc-900 dark:text-zinc-200 bg-white dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-lg border border-zinc-400 dark:border-zinc-700 transition-colors flex items-center gap-1"
             >
-              <Download className="w-3.5 h-3.5 text-zinc-400" />
+              <Download className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-400" />
               <span>Download CSV Template</span>
             </button>
           </div>
@@ -192,7 +192,7 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
             <button
               type="button"
               onClick={handleClear}
-              className="text-xs text-zinc-400 hover:text-rose-300 font-mono underline"
+              className="text-xs text-zinc-700 dark:text-zinc-400 hover:text-rose-900 dark:hover:text-rose-300 font-mono underline"
             >
               Reset Input
             </button>
@@ -200,14 +200,14 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
         </div>
 
         {/* Tab Toggle: File Upload vs Paste CSV Text */}
-        <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800 text-xs shrink-0">
+        <div className="flex items-center gap-1 bg-zinc-50 dark:bg-zinc-950 p-1 rounded-xl border border-zinc-300 dark:border-zinc-800 text-xs shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab('upload')}
             className={`flex-1 py-1.5 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
               activeTab === 'upload'
-                ? 'bg-white text-zinc-950 shadow'
-                : 'text-zinc-400 hover:text-white'
+                ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 shadow'
+                : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
             }`}
           >
             <Upload className="w-4 h-4" />
@@ -219,8 +219,8 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
             onClick={() => setActiveTab('paste')}
             className={`flex-1 py-1.5 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
               activeTab === 'paste'
-                ? 'bg-white text-zinc-950 shadow'
-                : 'text-zinc-400 hover:text-white'
+                ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 shadow'
+                : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
             }`}
           >
             <FileText className="w-4 h-4" />
@@ -238,10 +238,10 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
               onClick={() => fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
                 isDragging
-                  ? 'border-white bg-zinc-800/60'
+                  ? 'border-zinc-950 dark:border-white bg-zinc-200/80 dark:bg-zinc-800/60'
                   : selectedFileName
-                  ? 'border-emerald-500/60 bg-emerald-950/15'
-                  : 'border-zinc-700 hover:border-zinc-500 bg-zinc-950/70'
+                  ? 'border-emerald-500 dark:border-emerald-500/60 bg-emerald-50 dark:bg-emerald-950/15'
+                  : 'border-zinc-400 dark:border-zinc-700 hover:border-zinc-600 dark:hover:border-zinc-500 bg-zinc-100/80 dark:bg-zinc-950/70'
               }`}
             >
               <input
@@ -253,20 +253,20 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
               />
 
               <div className="space-y-1.5">
-                <Upload className="w-8 h-8 mx-auto text-zinc-400" />
-                <div className="text-xs font-bold text-white">
+                <Upload className="w-8 h-8 mx-auto text-zinc-700 dark:text-zinc-400" />
+                <div className="text-xs font-bold text-zinc-950 dark:text-white">
                   {selectedFileName
                     ? `Loaded: ${selectedFileName}`
                     : 'Click to select CSV file, or drag and drop here'}
                 </div>
-                <p className="text-[11px] text-zinc-400 font-sans">
+                <p className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans">
                   Supports Excel and Google Sheets CSV exports (.csv, comma-separated)
                 </p>
               </div>
             </div>
           ) : (
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] text-zinc-400 font-sans">
+              <div className="flex items-center justify-between text-[11px] text-zinc-700 dark:text-zinc-400 font-sans">
                 <span>Paste header row and data rows below:</span>
                 <span className="font-mono">
                   {rawCsvText ? `${rawCsvText.split('\n').filter(Boolean).length} lines` : 'Empty'}
@@ -277,7 +277,7 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
                 onChange={(e) => setRawCsvText(e.target.value)}
                 placeholder={`Client Name,Company,Phone,Email,Tool Brand,Tool Category,Model Number,Serial Number,Interval Months,Last Service Date,Next Due Date,Recommended Scope\n"Apex Industrial","Apex","+1 (555) 234-5678","service@apex.com","Bosch Professional","Demolition Breaker","GSH 11 E","SN-99120",6,"2026-05-15","2026-11-15","Gearbox repack"`}
                 rows={5}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-3 text-xs text-zinc-950 dark:text-white font-mono placeholder-zinc-500 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500"
               />
             </div>
           )}
@@ -289,13 +289,13 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
             {/* KPI Summary & Filter Bar */}
             <div className="flex flex-wrap items-center justify-between gap-2 shrink-0 pt-1">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-white">Parsed Preview:</span>
-                <div className="flex items-center gap-1 bg-zinc-950 p-0.5 rounded-lg border border-zinc-800 text-[11px]">
+                <span className="text-xs font-bold text-zinc-950 dark:text-white">Parsed Preview:</span>
+                <div className="flex items-center gap-1 bg-zinc-50 dark:bg-zinc-950 p-0.5 rounded-lg border border-zinc-300 dark:border-zinc-800 text-[11px]">
                   <button
                     type="button"
                     onClick={() => setFilterView('all')}
                     className={`px-2.5 py-0.5 rounded font-bold transition-colors ${
-                      filterView === 'all' ? 'bg-white text-zinc-950' : 'text-zinc-400 hover:text-white'
+                      filterView === 'all' ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950' : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
                     }`}
                   >
                     All ({totalCount})
@@ -306,7 +306,7 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
                     className={`px-2.5 py-0.5 rounded font-bold transition-colors ${
                       filterView === 'valid'
                         ? 'bg-emerald-400 text-zinc-950'
-                        : 'text-emerald-400 hover:text-emerald-300'
+                        : 'text-emerald-700 dark:text-emerald-400 hover:text-emerald-950 dark:hover:text-emerald-300'
                     }`}
                   >
                     Valid ({validCount})
@@ -318,7 +318,7 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
                       className={`px-2.5 py-0.5 rounded font-bold transition-colors ${
                         filterView === 'invalid'
                           ? 'bg-rose-500 text-white'
-                          : 'text-rose-400 hover:text-rose-300'
+                          : 'text-rose-700 dark:text-rose-400 hover:text-rose-900 dark:hover:text-rose-300'
                       }`}
                     >
                       Issues ({invalidCount})
@@ -327,13 +327,13 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 text-xs font-sans text-zinc-300">
+              <div className="flex items-center gap-3 text-xs font-sans text-zinc-800 dark:text-zinc-300">
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={skipInvalid}
                     onChange={(e) => setSkipInvalid(e.target.checked)}
-                    className="rounded border-zinc-700 bg-zinc-950 text-white"
+                    className="rounded border-zinc-400 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-white"
                   />
                   <span>Skip invalid rows on import</span>
                 </label>
@@ -341,9 +341,9 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
             </div>
 
             {/* Preview Grid Table */}
-            <div className="flex-1 overflow-auto border border-zinc-800 rounded-xl bg-zinc-950 min-h-[160px]">
+            <div className="flex-1 overflow-auto border border-zinc-300 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-950 min-h-[160px]">
               <table className="w-full text-left text-xs font-mono">
-                <thead className="bg-zinc-900 text-zinc-400 text-[11px] uppercase border-b border-zinc-800 sticky top-0 z-10">
+                <thead className="bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-400 text-[11px] uppercase border-b border-zinc-300 dark:border-zinc-800 sticky top-0 z-10">
                   <tr>
                     <th className="p-2.5">Row</th>
                     <th className="p-2.5">Status</th>
@@ -355,10 +355,10 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
                     <th className="p-2.5">Recommended Scope</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/80 text-zinc-300 text-[11px]">
+                <tbody className="divide-y divide-zinc-200/80 dark:divide-zinc-800/80 text-zinc-800 dark:text-zinc-300 text-[11px]">
                   {visibleRows.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-zinc-500 font-sans">
+                      <td colSpan={8} className="p-8 text-center text-zinc-600 dark:text-zinc-500 font-sans">
                         No rows found matching filter.
                       </td>
                     </tr>
@@ -368,52 +368,52 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
                       return (
                         <tr
                           key={row.rowNumber}
-                          className={`hover:bg-zinc-900/60 transition-colors ${
-                            !row.isValid ? 'bg-rose-950/20' : ''
+                          className={`hover:bg-zinc-100 dark:hover:bg-zinc-900/60 transition-colors ${
+                            !row.isValid ? 'bg-rose-50 dark:bg-rose-950/20' : ''
                           }`}
                         >
-                          <td className="p-2.5 font-bold text-zinc-500">{row.rowNumber}</td>
+                          <td className="p-2.5 font-bold text-zinc-600 dark:text-zinc-500">{row.rowNumber}</td>
                           <td className="p-2.5">
                             {row.isValid ? (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-700 flex items-center gap-1 w-fit">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1 w-fit">
                                 <Check className="w-3 h-3" />
                                 <span>Valid</span>
                               </span>
                             ) : (
                               <div className="space-y-0.5">
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-700 flex items-center gap-1 w-fit">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700 flex items-center gap-1 w-fit">
                                   <AlertCircle className="w-3 h-3" />
                                   <span>Issue</span>
                                 </span>
-                                <div className="text-[10px] text-rose-400 font-sans">
+                                <div className="text-[10px] text-rose-700 dark:text-rose-400 font-sans">
                                   {row.errors.join(', ')}
                                 </div>
                               </div>
                             )}
                           </td>
                           <td className="p-2.5">
-                            <div className="font-bold text-white">{item.customerName}</div>
+                            <div className="font-bold text-zinc-950 dark:text-white">{item.customerName}</div>
                             {item.customerCompany && (
-                              <div className="text-[10px] text-zinc-400">{item.customerCompany}</div>
+                              <div className="text-[10px] text-zinc-700 dark:text-zinc-400">{item.customerCompany}</div>
                             )}
                           </td>
-                          <td className="p-2.5 text-zinc-300 tabular-nums">{item.customerPhone}</td>
+                          <td className="p-2.5 text-zinc-800 dark:text-zinc-300 tabular-nums">{item.customerPhone}</td>
                           <td className="p-2.5">
-                            <div className="font-bold text-white">{item.modelNumber}</div>
-                            <div className="text-[10px] text-zinc-400">
+                            <div className="font-bold text-zinc-950 dark:text-white">{item.modelNumber}</div>
+                            <div className="text-[10px] text-zinc-700 dark:text-zinc-400">
                               {item.toolBrand} · {item.toolCategory}
                             </div>
                           </td>
-                          <td className="p-2.5 font-mono text-zinc-300">{item.serialNumber}</td>
+                          <td className="p-2.5 font-mono text-zinc-800 dark:text-zinc-300">{item.serialNumber}</td>
                           <td className="p-2.5">
-                            <div className="font-bold text-white tabular-nums">
+                            <div className="font-bold text-zinc-950 dark:text-white tabular-nums">
                               {item.intervalMonths} Months
                             </div>
-                            <div className="text-[10px] text-zinc-400 tabular-nums">
+                            <div className="text-[10px] text-zinc-700 dark:text-zinc-400 tabular-nums">
                               Due: {item.nextDueDate}
                             </div>
                           </td>
-                          <td className="p-2.5 max-w-xs truncate font-sans text-zinc-300">
+                          <td className="p-2.5 max-w-xs truncate font-sans text-zinc-800 dark:text-zinc-300">
                             {item.recommendedServiceScope}
                           </td>
                         </tr>
@@ -427,12 +427,12 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
         )}
 
         {/* Modal Footer */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-zinc-800 shrink-0">
-          <div className="text-xs text-zinc-400 font-sans">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-zinc-300 dark:border-zinc-800 shrink-0">
+          <div className="text-xs text-zinc-700 dark:text-zinc-400 font-sans">
             {importResult && (
               <span>
                 Ready to import{' '}
-                <strong className="text-white font-mono">
+                <strong className="text-zinc-950 dark:text-white font-mono">
                   {skipInvalid ? validCount : totalCount}
                 </strong>{' '}
                 schedules into tracker.
@@ -445,7 +445,7 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
               type="button"
               onClick={onClose}
               disabled={isProcessing}
-              className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white"
+              className="px-4 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
             >
               Cancel
             </button>
@@ -454,7 +454,7 @@ export const BulkMaintenanceImportModal: React.FC<BulkMaintenanceImportModalProp
               type="button"
               onClick={handleConfirmImport}
               disabled={!importResult || validCount === 0 || isProcessing}
-              className="px-5 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 disabled:opacity-40 rounded-xl shadow transition-all flex items-center gap-2 active:scale-95"
+              className="px-5 py-2 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-40 rounded-xl shadow transition-all flex items-center gap-2 active:scale-95"
             >
               <FileSpreadsheet className="w-4 h-4" />
               <span>

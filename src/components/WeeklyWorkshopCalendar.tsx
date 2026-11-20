@@ -559,97 +559,97 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
     switch (tone) {
       case 'overbooked':
         return {
-          text: 'text-red-400',
-          border: 'border-red-500/40',
+          text: 'text-red-700 dark:text-red-400',
+          border: 'border-red-500 dark:border-red-500/40',
           bar: 'bg-red-500',
-          bg: 'bg-red-950/20',
+          bg: 'bg-red-50 dark:bg-red-950/20',
         };
       case 'near-cap':
         return {
-          text: 'text-amber-400',
-          border: 'border-amber-500/40',
+          text: 'text-amber-700 dark:text-amber-400',
+          border: 'border-amber-500 dark:border-amber-500/40',
           bar: 'bg-amber-400',
-          bg: 'bg-amber-950/15',
+          bg: 'bg-amber-50 dark:bg-amber-950/15',
         };
       case 'nominal':
         return {
-          text: 'text-emerald-400',
-          border: 'border-emerald-500/30',
+          text: 'text-emerald-700 dark:text-emerald-400',
+          border: 'border-emerald-500 dark:border-emerald-500/30',
           bar: 'bg-emerald-500',
-          bg: 'bg-emerald-950/10',
+          bg: 'bg-emerald-50 dark:bg-emerald-950/10',
         };
       default:
         return {
-          text: 'text-zinc-500',
-          border: 'border-zinc-800',
-          bar: 'bg-zinc-700',
-          bg: 'bg-zinc-950',
+          text: 'text-zinc-600 dark:text-zinc-500',
+          border: 'border-zinc-300 dark:border-zinc-800',
+          bar: 'bg-zinc-300 dark:bg-zinc-700',
+          bg: 'bg-zinc-50 dark:bg-zinc-950',
         };
     }
   };
 
   const priorityTagStyle = (priority: JobCard['priority']) => {
-    if (priority === 'Emergency') return 'text-red-400';
-    if (priority === 'Urgent') return 'text-amber-400';
-    return 'text-zinc-400';
+    if (priority === 'Emergency') return 'text-red-700 dark:text-red-400';
+    if (priority === 'Urgent') return 'text-amber-700 dark:text-amber-400';
+    return 'text-zinc-700 dark:text-zinc-400';
   };
 
   return (
-    <section className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-5 shadow-xl">
+    <section className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-5 shadow-xl">
       {/* Header & Controls */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-zinc-300 dark:border-zinc-800 pb-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2.5">
-            <Calendar className="w-5 h-5 text-white shrink-0" />
-            <h2 className="text-base font-bold text-white tracking-tight">
+            <Calendar className="w-5 h-5 text-zinc-950 dark:text-white shrink-0" />
+            <h2 className="text-base font-bold text-zinc-950 dark:text-white tracking-tight">
               Weekly Workshop Calendar &amp; Capacity Scheduler
             </h2>
           </div>
-          <p className="text-xs text-zinc-400 font-sans">
+          <p className="text-xs text-zinc-700 dark:text-zinc-400 font-sans">
             Schedule technician bench shifts, assign Job Cards to time slots, and monitor daily workshop capacity across all bays.
           </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Week Navigation */}
-          <div className="flex items-center bg-zinc-950 border border-zinc-800 rounded-xl p-1">
+          <div className="flex items-center bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-1">
             <button
               type="button"
               onClick={handlePrevWeek}
               title="Previous Week"
-              className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-lg transition-colors"
+              className="p-1.5 text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-lg transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               type="button"
               onClick={handleThisWeek}
-              className="px-2.5 py-1 text-xs font-semibold text-zinc-200 hover:text-white hover:bg-zinc-900 rounded-lg transition-colors whitespace-nowrap shrink-0"
+              className="px-2.5 py-1 text-xs font-semibold text-zinc-900 dark:text-zinc-200 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-lg transition-colors whitespace-nowrap shrink-0"
             >
               This Week
             </button>
-            <span className="px-2.5 text-xs font-mono tabular-nums text-white whitespace-nowrap shrink-0">
+            <span className="px-2.5 text-xs font-mono tabular-nums text-zinc-950 dark:text-white whitespace-nowrap shrink-0">
               {weekRangeLabel}
             </span>
             <button
               type="button"
               onClick={handleNextWeek}
               title="Next Week"
-              className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-lg transition-colors"
+              className="p-1.5 text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-lg transition-colors"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
           {/* Display Mode Toggle */}
-          <div className="flex items-center bg-zinc-950 border border-zinc-800 rounded-xl p-1">
+          <div className="flex items-center bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-1">
             <button
               type="button"
               onClick={() => setDisplayMode('week')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                 displayMode === 'week'
-                  ? 'bg-white text-zinc-950'
-                  : 'text-zinc-400 hover:text-white'
+                  ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950'
+                  : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
               }`}
             >
               Week Matrix
@@ -659,8 +659,8 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
               onClick={() => setDisplayMode('day')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                 displayMode === 'day'
-                  ? 'bg-white text-zinc-950'
-                  : 'text-zinc-400 hover:text-white'
+                  ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950'
+                  : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
               }`}
             >
               Day Timeline
@@ -671,7 +671,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
             <button
               type="button"
               onClick={handlePopulateStandardWeek}
-              className="px-3 py-2 text-xs font-semibold text-zinc-200 bg-zinc-950 hover:bg-zinc-800 border border-zinc-700 rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
+              className="px-3 py-2 text-xs font-semibold text-zinc-900 dark:text-zinc-200 bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-400 dark:border-zinc-700 rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
             >
               <Layers className="w-3.5 h-3.5" />
               <span>Apply Standard Roster</span>
@@ -681,7 +681,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
           <button
             type="button"
             onClick={() => openShiftModal(SHOP_TECHNICIANS[0].id, effectiveSelectedDayKey)}
-            className="px-3 py-2 text-xs font-semibold text-zinc-200 bg-zinc-950 hover:bg-zinc-800 border border-zinc-700 rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
+            className="px-3 py-2 text-xs font-semibold text-zinc-900 dark:text-zinc-200 bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-400 dark:border-zinc-700 rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
           >
             <Users className="w-3.5 h-3.5" />
             <span>Configure Shift</span>
@@ -690,7 +690,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
           <button
             type="button"
             onClick={() => openNewSlotModal()}
-            className="px-3.5 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
+            className="px-3.5 py-2 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Assign Job Slot</span>
@@ -699,26 +699,26 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
       </div>
 
       {/* Workshop Capacity Overview Strip (Unified 4-Cell Grid, Tabular Numerals) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-zinc-800 border border-zinc-800 rounded-xl bg-zinc-950">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-zinc-200 dark:divide-zinc-800 border border-zinc-300 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-950">
         <div className="p-3.5 space-y-1">
-          <div className="text-[11px] text-zinc-400 font-sans">Weekly Shift Capacity</div>
+          <div className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans">Weekly Shift Capacity</div>
           <div className="flex items-baseline justify-between gap-2">
-            <span className="text-xl font-bold text-white font-mono tabular-nums">
+            <span className="text-xl font-bold text-zinc-950 dark:text-white font-mono tabular-nums">
               {capacitySummary.totalShiftHours.toFixed(1)}h
             </span>
-            <span className="text-xs text-zinc-400 font-mono tabular-nums">
+            <span className="text-xs text-zinc-700 dark:text-zinc-400 font-mono tabular-nums">
               {capacitySummary.activeShiftCount} active shifts
             </span>
           </div>
         </div>
 
         <div className="p-3.5 space-y-1">
-          <div className="text-[11px] text-zinc-400 font-sans">Scheduled Job Hours</div>
+          <div className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans">Scheduled Job Hours</div>
           <div className="flex items-baseline justify-between gap-2">
-            <span className="text-xl font-bold text-white font-mono tabular-nums">
+            <span className="text-xl font-bold text-zinc-950 dark:text-white font-mono tabular-nums">
               {capacitySummary.totalBookedHours.toFixed(1)}h
             </span>
-            <span className="text-xs text-zinc-400 font-mono tabular-nums">
+            <span className="text-xs text-zinc-700 dark:text-zinc-400 font-mono tabular-nums">
               {capacitySummary.bookedSlotCount} time slots
             </span>
           </div>
@@ -726,16 +726,16 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
 
         <div className="p-3.5 space-y-1.5">
           <div className="flex items-center justify-between text-[11px] font-sans">
-            <span className="text-zinc-400">Workshop Utilization</span>
+            <span className="text-zinc-700 dark:text-zinc-400">Workshop Utilization</span>
             <span className={`font-semibold ${capacityToneStyles(capacitySummary.overallStatus.tone).text}`}>
               {capacitySummary.overallStatus.label}
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xl font-bold text-white font-mono tabular-nums">
+            <span className="text-xl font-bold text-zinc-950 dark:text-white font-mono tabular-nums">
               {capacitySummary.utilizationPct}%
             </span>
-            <div className="flex-1 h-1.5 bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
+            <div className="flex-1 h-1.5 bg-white dark:bg-zinc-900 rounded-full overflow-hidden border border-zinc-300 dark:border-zinc-800">
               <div
                 className={`h-full transition-all duration-200 ${
                   capacityToneStyles(capacitySummary.overallStatus.tone).bar
@@ -747,15 +747,15 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
         </div>
 
         <div className="p-3.5 space-y-1">
-          <div className="text-[11px] text-zinc-400 font-sans">Unscheduled Active Jobs</div>
+          <div className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans">Unscheduled Active Jobs</div>
           <div className="flex items-baseline justify-between gap-2">
-            <span className="text-xl font-bold text-white font-mono tabular-nums">
+            <span className="text-xl font-bold text-zinc-950 dark:text-white font-mono tabular-nums">
               {capacitySummary.unscheduledActiveCount}
             </span>
             <button
               type="button"
               onClick={() => openNewSlotModal()}
-              className="text-xs font-semibold text-zinc-300 hover:text-white underline whitespace-nowrap shrink-0"
+              className="text-xs font-semibold text-zinc-800 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white underline whitespace-nowrap shrink-0"
             >
               Schedule Next
             </button>
@@ -766,15 +766,15 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
       {/* Per-Technician Weekly Capacity Bar & Interactive Filter */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs">
-          <span className="font-semibold text-zinc-300 flex items-center gap-2">
-            <UserCheck className="w-4 h-4 text-zinc-400" />
+          <span className="font-semibold text-zinc-800 dark:text-zinc-300 flex items-center gap-2">
+            <UserCheck className="w-4 h-4 text-zinc-700 dark:text-zinc-400" />
             <span>Technician Weekly Load &amp; Availability</span>
           </span>
           {focusedTechId !== 'All' && (
             <button
               type="button"
               onClick={() => setFocusedTechId('All')}
-              className="text-xs text-zinc-300 hover:text-white underline whitespace-nowrap shrink-0"
+              className="text-xs text-zinc-800 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white underline whitespace-nowrap shrink-0"
             >
               Show All Technicians
             </button>
@@ -792,8 +792,8 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                 onClick={() => setFocusedTechId(isSelected ? 'All' : tech.id)}
                 className={`text-left p-3 rounded-xl border transition-colors ${
                   isSelected
-                    ? 'bg-zinc-900 border-white'
-                    : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'
+                    ? 'bg-white dark:bg-zinc-900 border-zinc-950 dark:border-white'
+                    : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-300 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-700'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2 mb-2">
@@ -803,7 +803,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                     >
                       {tech.name.charAt(0)}
                     </span>
-                    <span className="text-xs font-semibold text-white truncate">
+                    <span className="text-xs font-semibold text-zinc-950 dark:text-white truncate">
                       {tech.name.split(' (')[0]}
                     </span>
                   </div>
@@ -812,16 +812,16 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                   </span>
                 </div>
 
-                <div className="h-1.5 bg-zinc-900 rounded-full overflow-hidden mb-2 border border-zinc-800">
+                <div className="h-1.5 bg-white dark:bg-zinc-900 rounded-full overflow-hidden mb-2 border border-zinc-300 dark:border-zinc-800">
                   <div
                     className={`h-full transition-all duration-200 ${styles.bar}`}
                     style={{ width: `${Math.min(100, status.utilizationPct)}%` }}
                   />
                 </div>
 
-                <div className="flex items-center justify-between text-[11px] font-mono tabular-nums text-zinc-400">
+                <div className="flex items-center justify-between text-[11px] font-mono tabular-nums text-zinc-700 dark:text-zinc-400">
                   <span>
-                    <strong className="text-white">{bookedHours.toFixed(1)}h</strong> / {shiftHours.toFixed(1)}h
+                    <strong className="text-zinc-950 dark:text-white">{bookedHours.toFixed(1)}h</strong> / {shiftHours.toFixed(1)}h
                   </span>
                   <span>
                     {status.utilizationPct}% · {activeDays}d · {remainingHours >= 0 ? `${remainingHours.toFixed(1)}h free` : `${Math.abs(remainingHours).toFixed(1)}h over`}
@@ -836,15 +836,15 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
       {/* Main Split: Calendar Workspace + Unscheduled Active JobCards Queue */}
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_290px] gap-4 items-start">
         {/* Calendar Surface */}
-        <div className="border border-zinc-800 rounded-xl bg-zinc-950 overflow-hidden">
+        <div className="border border-zinc-300 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-950 overflow-hidden">
           {displayMode === 'week' ? (
             <div className="overflow-x-auto">
               <div className="min-w-[920px]">
                 {/* Day Headers */}
-                <div className="grid grid-cols-[190px_repeat(7,minmax(108px,1fr))] border-b border-zinc-800 bg-zinc-900/70">
-                  <div className="p-3 text-xs font-semibold text-zinc-300 border-r border-zinc-800 flex items-center justify-between">
+                <div className="grid grid-cols-[190px_repeat(7,minmax(108px,1fr))] border-b border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/70">
+                  <div className="p-3 text-xs font-semibold text-zinc-800 dark:text-zinc-300 border-r border-zinc-300 dark:border-zinc-800 flex items-center justify-between">
                     <span>Technician</span>
-                    <span className="text-[11px] text-zinc-500 font-normal">Shift / Slots</span>
+                    <span className="text-[11px] text-zinc-600 dark:text-zinc-500 font-normal">Shift / Slots</span>
                   </div>
                   {weekDays.map((day) => {
                     const daySlots = weekSlots.filter((s) => s.date === day.dateKey);
@@ -861,19 +861,19 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                           setDisplayMode('day');
                         }}
                         title={`Open hourly timeline for ${day.fullLabel}`}
-                        className={`p-2.5 text-left border-r last:border-r-0 border-zinc-800 hover:bg-zinc-900 transition-colors ${
-                          day.isToday ? 'bg-zinc-900/90' : ''
+                        className={`p-2.5 text-left border-r last:border-r-0 border-zinc-300 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors ${
+                          day.isToday ? 'bg-white/95 dark:bg-zinc-900/90' : ''
                         }`}
                       >
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-bold text-white font-mono tabular-nums">
+                          <span className="text-xs font-bold text-zinc-950 dark:text-white font-mono tabular-nums">
                             {day.dayShort} {day.dayNumber}
                           </span>
                           {day.isToday && (
-                            <span className="text-[10px] font-semibold text-emerald-400">Today</span>
+                            <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">Today</span>
                           )}
                         </div>
-                        <div className="text-[10px] text-zinc-400 font-mono tabular-nums mt-0.5">
+                        <div className="text-[10px] text-zinc-700 dark:text-zinc-400 font-mono tabular-nums mt-0.5">
                           {dayBooked.toFixed(1)}h / {dayCap.toFixed(0)}h cap
                         </div>
                       </button>
@@ -882,7 +882,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                 </div>
 
                 {/* Technician Matrix Rows */}
-                <div className="divide-y divide-zinc-800">
+                <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
                   {visibleTechnicians.map((tech) => {
                     const techCap = technicianCapacities.find((t) => t.tech.id === tech.id);
                     return (
@@ -891,7 +891,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                         className="grid grid-cols-[190px_repeat(7,minmax(108px,1fr))]"
                       >
                         {/* Row Label */}
-                        <div className="p-3 border-r border-zinc-800 bg-zinc-900/30 flex flex-col justify-between gap-2">
+                        <div className="p-3 border-r border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/30 flex flex-col justify-between gap-2">
                           <div>
                             <div className="flex items-center gap-2">
                               <span
@@ -900,27 +900,27 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                                 {tech.name.charAt(0)}
                               </span>
                               <div className="min-w-0">
-                                <div className="text-xs font-bold text-white truncate">
+                                <div className="text-xs font-bold text-zinc-950 dark:text-white truncate">
                                   {tech.name.split(' (')[0]}
                                 </div>
-                                <div className="text-[10px] text-zinc-400 truncate">
+                                <div className="text-[10px] text-zinc-700 dark:text-zinc-400 truncate">
                                   {tech.role}
                                 </div>
                               </div>
                             </div>
                           </div>
 
-                          <div className="space-y-1 pt-2 border-t border-zinc-800/80 text-[11px] font-mono tabular-nums">
-                            <div className="flex items-center justify-between text-zinc-400">
+                          <div className="space-y-1 pt-2 border-t border-zinc-300/80 dark:border-zinc-800/80 text-[11px] font-mono tabular-nums">
+                            <div className="flex items-center justify-between text-zinc-700 dark:text-zinc-400">
                               <span>Week Load</span>
-                              <span className="text-white font-semibold">
+                              <span className="text-zinc-950 dark:text-white font-semibold">
                                 {techCap?.bookedHours.toFixed(1)}h / {techCap?.shiftHours.toFixed(0)}h
                               </span>
                             </div>
                             <button
                               type="button"
                               onClick={() => openShiftModal(tech.id, weekDays[0].dateKey)}
-                              className="w-full py-1 px-2 text-[11px] font-sans font-medium text-zinc-300 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-colors whitespace-nowrap"
+                              className="w-full py-1 px-2 text-[11px] font-sans font-medium text-zinc-800 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white bg-white dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-800 rounded-lg transition-colors whitespace-nowrap"
                             >
                               Edit Shift Roster
                             </button>
@@ -951,12 +951,12 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                                 if (dragOverCellKey === cellKey) setDragOverCellKey(null);
                               }}
                               onDrop={(e) => handleDropOnCell(e, tech.id, day.dateKey)}
-                              className={`p-2 border-r last:border-r-0 border-zinc-800 flex flex-col justify-between gap-2 min-h-[156px] transition-colors ${
+                              className={`p-2 border-r last:border-r-0 border-zinc-300 dark:border-zinc-800 flex flex-col justify-between gap-2 min-h-[156px] transition-colors ${
                                 isDragTarget
-                                  ? 'bg-zinc-800/70'
+                                  ? 'bg-zinc-200/80 dark:bg-zinc-800/70'
                                   : day.isWeekend && shiftHrs === 0
-                                  ? 'bg-zinc-950/60'
-                                  : 'bg-zinc-950'
+                                  ? 'bg-zinc-100/80 dark:bg-zinc-950/60'
+                                  : 'bg-zinc-50 dark:bg-zinc-950'
                               }`}
                             >
                               {/* Shift Header Strip */}
@@ -966,8 +966,8 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                                   onClick={() => openShiftModal(tech.id, day.dateKey)}
                                   className={`w-full px-2 py-1 rounded-md border text-left text-[10px] font-mono tabular-nums flex items-center justify-between gap-1 transition-colors ${
                                     shift && shift.shiftType !== 'Off'
-                                      ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:border-zinc-600'
-                                      : 'bg-zinc-950 border-zinc-800/70 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700'
+                                      ? 'bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 text-zinc-800 dark:text-zinc-300 hover:border-zinc-500 dark:hover:border-zinc-600'
+                                      : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-300/80 dark:border-zinc-800/70 text-zinc-600 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-700'
                                   }`}
                                 >
                                   <span className="truncate">
@@ -977,7 +977,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                                       ? 'Day Off'
                                       : 'No Shift'}
                                   </span>
-                                  <span className="shrink-0 text-zinc-400">
+                                  <span className="shrink-0 text-zinc-700 dark:text-zinc-400">
                                     {shiftHrs > 0 ? `${shiftHrs}h` : 'Set'}
                                   </span>
                                 </button>
@@ -1006,21 +1006,21 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                                         onClick={() => openEditSlotModal(slot)}
                                         className={`w-full text-left p-1.5 rounded-lg border transition-colors cursor-grab active:cursor-grabbing ${
                                           hasWarning
-                                            ? 'bg-amber-950/20 border-amber-500/40 hover:border-amber-400'
-                                            : 'bg-zinc-900 border-zinc-700/80 hover:border-zinc-500'
+                                            ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-500 dark:border-amber-500/40 hover:border-amber-400'
+                                            : 'bg-white dark:bg-zinc-900 border-zinc-400/80 dark:border-zinc-700/80 hover:border-zinc-600 dark:hover:border-zinc-500'
                                         }`}
                                       >
                                         <div className="flex items-center justify-between gap-1 text-[10px] font-mono tabular-nums">
-                                          <span className="text-zinc-300 font-semibold">
+                                          <span className="text-zinc-800 dark:text-zinc-300 font-semibold">
                                             {formatTimeRange(slot.startHour, slot.durationHours)}
                                           </span>
-                                          <span className="text-zinc-400">{slot.durationHours}h</span>
+                                          <span className="text-zinc-700 dark:text-zinc-400">{slot.durationHours}h</span>
                                         </div>
-                                        <div className="text-[11px] font-bold text-white font-mono truncate mt-0.5">
+                                        <div className="text-[11px] font-bold text-zinc-950 dark:text-white font-mono truncate mt-0.5">
                                           {slot.jobCardId}
                                         </div>
                                         {job && (
-                                          <div className="text-[10px] text-zinc-400 font-sans truncate">
+                                          <div className="text-[10px] text-zinc-700 dark:text-zinc-400 font-sans truncate">
                                             {job.tool.modelNumber}
                                           </div>
                                         )}
@@ -1031,9 +1031,9 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                                             </span>
                                           )}
                                           {overlaps.length > 0 ? (
-                                            <span className="text-red-400 font-semibold">Overlap</span>
+                                            <span className="text-red-700 dark:text-red-400 font-semibold">Overlap</span>
                                           ) : outside ? (
-                                            <span className="text-amber-400 font-semibold">Outside Shift</span>
+                                            <span className="text-amber-700 dark:text-amber-400 font-semibold">Outside Shift</span>
                                           ) : null}
                                         </div>
                                       </button>
@@ -1043,7 +1043,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                               </div>
 
                               {/* Cell Capacity Footer & Add Action */}
-                              <div className="pt-1.5 border-t border-zinc-900 space-y-1">
+                              <div className="pt-1.5 border-t border-zinc-200 dark:border-zinc-900 space-y-1">
                                 {(shiftHrs > 0 || bookedHrs > 0) && (
                                   <div className="space-y-1">
                                     <div className="flex items-center justify-between text-[10px] font-mono tabular-nums">
@@ -1053,7 +1053,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                                       <span className={capStyles.text}>{cellCap.label}</span>
                                     </div>
                                     {shiftHrs > 0 && (
-                                      <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
+                                      <div className="h-1 bg-white dark:bg-zinc-900 rounded-full overflow-hidden">
                                         <div
                                           className={`h-full ${capStyles.bar}`}
                                           style={{ width: `${Math.min(100, cellCap.utilizationPct)}%` }}
@@ -1071,7 +1071,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                                       dateKey: day.dateKey,
                                     })
                                   }
-                                  className="w-full py-1 text-[10px] font-medium text-zinc-400 hover:text-white hover:bg-zinc-900 rounded transition-colors flex items-center justify-center gap-1 whitespace-nowrap"
+                                  className="w-full py-1 text-[10px] font-medium text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded transition-colors flex items-center justify-center gap-1 whitespace-nowrap"
                                 >
                                   <Plus className="w-3 h-3" />
                                   <span>Assign Slot</span>
@@ -1088,9 +1088,9 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
             </div>
           ) : (
             /* Day Hourly Timeline View */
-            <div className="divide-y divide-zinc-800">
+            <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {/* Day Selector Strip */}
-              <div className="flex items-center justify-between gap-2 p-3 bg-zinc-900/70 overflow-x-auto">
+              <div className="flex items-center justify-between gap-2 p-3 bg-zinc-50 dark:bg-zinc-900/70 overflow-x-auto">
                 <div className="flex items-center gap-1.5">
                   {weekDays.map((day) => {
                     const isSelected = day.dateKey === effectiveSelectedDayKey;
@@ -1104,8 +1104,8 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                         onClick={() => setSelectedDayKey(day.dateKey)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-mono tabular-nums border transition-colors whitespace-nowrap shrink-0 ${
                           isSelected
-                            ? 'bg-white text-zinc-950 border-white font-bold'
-                            : 'bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-zinc-700 hover:text-white'
+                            ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white font-bold'
+                            : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-300 border-zinc-300 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-700 hover:text-zinc-950 dark:hover:text-white'
                         }`}
                       >
                         {day.dayShort} {day.dayNumber} · {dayHours.toFixed(1)}h
@@ -1114,7 +1114,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                   })}
                 </div>
 
-                <span className="text-xs text-zinc-400 font-sans whitespace-nowrap shrink-0">
+                <span className="text-xs text-zinc-700 dark:text-zinc-400 font-sans whitespace-nowrap shrink-0">
                   Click any empty hour cell to assign a Job Card
                 </span>
               </div>
@@ -1123,8 +1123,8 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
               <div className="overflow-x-auto">
                 <div className="min-w-[900px]">
                   {/* Hour Column Headers */}
-                  <div className="grid grid-cols-[190px_1fr] border-b border-zinc-800 bg-zinc-900/40">
-                    <div className="p-2.5 text-xs font-semibold text-zinc-300 border-r border-zinc-800">
+                  <div className="grid grid-cols-[190px_1fr] border-b border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40">
+                    <div className="p-2.5 text-xs font-semibold text-zinc-800 dark:text-zinc-300 border-r border-zinc-300 dark:border-zinc-800">
                       Technician · {effectiveSelectedDayKey}
                     </div>
                     <div className="grid grid-cols-10">
@@ -1133,7 +1133,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                         return (
                           <div
                             key={hr}
-                            className="p-2 text-[11px] font-mono tabular-nums text-zinc-400 border-r last:border-r-0 border-zinc-800 text-center"
+                            className="p-2 text-[11px] font-mono tabular-nums text-zinc-700 dark:text-zinc-400 border-r last:border-r-0 border-zinc-300 dark:border-zinc-800 text-center"
                           >
                             {formatHourLabel(hr)}
                           </div>
@@ -1143,7 +1143,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                   </div>
 
                   {/* Technician Timeline Rows */}
-                  <div className="divide-y divide-zinc-800">
+                  <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
                     {visibleTechnicians.map((tech) => {
                       const shift = shiftMap.get(`${tech.id}__${effectiveSelectedDayKey}`);
                       const shiftHrs = getShiftDuration(shift);
@@ -1163,9 +1163,9 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                           key={tech.id}
                           className="grid grid-cols-[190px_1fr] min-h-[84px]"
                         >
-                          <div className="p-3 border-r border-zinc-800 bg-zinc-900/20 flex flex-col justify-between gap-1">
+                          <div className="p-3 border-r border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/20 flex flex-col justify-between gap-1">
                             <div className="flex items-center justify-between gap-1">
-                              <span className="text-xs font-bold text-white truncate">
+                              <span className="text-xs font-bold text-zinc-950 dark:text-white truncate">
                                 {tech.name.split(' (')[0]}
                               </span>
                               <span className={`text-[10px] font-semibold ${capStyles.text}`}>
@@ -1175,7 +1175,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                             <button
                               type="button"
                               onClick={() => openShiftModal(tech.id, effectiveSelectedDayKey)}
-                              className="text-[11px] font-mono tabular-nums text-zinc-400 hover:text-white text-left underline"
+                              className="text-[11px] font-mono tabular-nums text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white text-left underline"
                             >
                               {shift && shift.shiftType !== 'Off'
                                 ? `Shift ${formatHourLabel(shift.startHour)}–${formatHourLabel(shift.endHour)} (${bookedHrs.toFixed(1)}h / ${shiftHrs}h)`
@@ -1209,10 +1209,10 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                                     handleDropOnCell(e, tech.id, effectiveSelectedDayKey, hr)
                                   }
                                   title={`Assign Job Card at ${formatHourLabel(hr)}`}
-                                  className={`border-r last:border-r-0 border-zinc-800/80 h-full transition-colors flex items-end justify-end p-1 text-[10px] text-transparent hover:text-zinc-400 ${
+                                  className={`border-r last:border-r-0 border-zinc-300/80 dark:border-zinc-800/80 h-full transition-colors flex items-end justify-end p-1 text-[10px] text-transparent hover:text-zinc-700 dark:hover:text-zinc-400 ${
                                     inShift
-                                      ? 'bg-zinc-950 hover:bg-zinc-900'
-                                      : 'bg-zinc-900/50 hover:bg-zinc-900'
+                                      ? 'bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-100 dark:hover:bg-zinc-900'
+                                      : 'bg-zinc-50 dark:bg-zinc-900/50 hover:bg-zinc-100 dark:hover:bg-zinc-900'
                                   }`}
                                 >
                                   <span>+ {formatHourLabel(hr)}</span>
@@ -1259,11 +1259,11 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                                   }}
                                   className={`absolute ${topOffset} bottom-2 rounded-lg border px-2 py-1 text-left overflow-hidden transition-colors z-10 ${
                                     overlaps.length > 0 || outside
-                                      ? 'bg-amber-950/90 border-amber-500/60 text-white hover:border-amber-400'
-                                      : 'bg-zinc-900/95 border-zinc-600 text-white hover:border-white'
+                                      ? 'bg-amber-50 dark:bg-amber-950/90 border-amber-500 dark:border-amber-500/60 text-zinc-950 dark:text-white hover:border-amber-400'
+                                      : 'bg-white/95 dark:bg-zinc-900/95 border-zinc-400 dark:border-zinc-600 text-zinc-950 dark:text-white hover:border-zinc-950 dark:hover:border-white'
                                   }`}
                                 >
-                                  <div className="flex items-center justify-between gap-1 text-[10px] font-mono tabular-nums text-zinc-300">
+                                  <div className="flex items-center justify-between gap-1 text-[10px] font-mono tabular-nums text-zinc-800 dark:text-zinc-300">
                                     <span className="truncate">
                                       {formatTimeRange(slot.startHour, slot.durationHours)}
                                     </span>
@@ -1273,7 +1273,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                                     {slot.jobCardId}
                                   </div>
                                   {job && (
-                                    <div className="text-[10px] text-zinc-400 truncate font-sans">
+                                    <div className="text-[10px] text-zinc-700 dark:text-zinc-400 truncate font-sans">
                                       {job.tool.modelNumber}
                                     </div>
                                   )}
@@ -1292,25 +1292,25 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
         </div>
 
         {/* Active JobCards Assignment Queue */}
-        <aside className="border border-zinc-800 rounded-xl bg-zinc-950 p-3.5 space-y-3">
+        <aside className="border border-zinc-300 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-950 p-3.5 space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
-              <Wrench className="w-3.5 h-3.5 text-zinc-400" />
+            <h3 className="text-xs font-bold text-zinc-950 dark:text-white flex items-center gap-1.5">
+              <Wrench className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-400" />
               <span>Job Card Queue</span>
             </h3>
-            <span className="text-[11px] font-mono tabular-nums text-zinc-400">
+            <span className="text-[11px] font-mono tabular-nums text-zinc-700 dark:text-zinc-400">
               {queueJobs.length} shown
             </span>
           </div>
 
-          <div className="flex items-center gap-1 p-1 bg-zinc-900 border border-zinc-800 rounded-lg">
+          <div className="flex items-center gap-1 p-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-lg">
             <button
               type="button"
               onClick={() => setQueueFilter('unscheduled')}
               className={`flex-1 py-1 text-[11px] font-semibold rounded transition-colors whitespace-nowrap ${
                 queueFilter === 'unscheduled'
-                  ? 'bg-white text-zinc-950'
-                  : 'text-zinc-400 hover:text-white'
+                  ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950'
+                  : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
               }`}
             >
               Unscheduled
@@ -1320,8 +1320,8 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
               onClick={() => setQueueFilter('all')}
               className={`flex-1 py-1 text-[11px] font-semibold rounded transition-colors whitespace-nowrap ${
                 queueFilter === 'all'
-                  ? 'bg-white text-zinc-950'
-                  : 'text-zinc-400 hover:text-white'
+                  ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950'
+                  : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
               }`}
             >
               All Active
@@ -1329,24 +1329,24 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
           </div>
 
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={queueSearch}
               onChange={(e) => setQueueSearch(e.target.value)}
               placeholder="Filter job ID, customer, tool..."
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600"
+              className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-zinc-950 dark:text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-600"
             />
           </div>
 
-          <div className="text-[11px] text-zinc-500 font-sans">
+          <div className="text-[11px] text-zinc-600 dark:text-zinc-500 font-sans">
             Drag any card onto a calendar day cell, or click Schedule.
           </div>
 
           <div className="space-y-2 max-h-[460px] overflow-y-auto pr-0.5">
             {queueJobs.length === 0 ? (
-              <div className="p-5 text-center border border-dashed border-zinc-800 rounded-lg space-y-2">
-                <div className="text-xs text-zinc-400">
+              <div className="p-5 text-center border border-dashed border-zinc-300 dark:border-zinc-800 rounded-lg space-y-2">
+                <div className="text-xs text-zinc-700 dark:text-zinc-400">
                   {queueFilter === 'unscheduled'
                     ? 'All active job cards have slots assigned this week.'
                     : 'No active job cards match your filter.'}
@@ -1355,7 +1355,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                   <button
                     type="button"
                     onClick={() => setQueueFilter('all')}
-                    className="text-xs font-semibold text-white underline"
+                    className="text-xs font-semibold text-zinc-950 dark:text-white underline"
                   >
                     View All Active Jobs
                   </button>
@@ -1372,13 +1372,13 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                       e.dataTransfer.setData('application/x-job-id', job.id);
                       e.dataTransfer.effectAllowed = 'copy';
                     }}
-                    className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-600 transition-colors space-y-1.5 cursor-grab active:cursor-grabbing"
+                    className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 hover:border-zinc-500 dark:hover:border-zinc-600 transition-colors space-y-1.5 cursor-grab active:cursor-grabbing"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <button
                         type="button"
                         onClick={() => onSelectJobCard?.(job)}
-                        className="text-xs font-bold text-white font-mono hover:underline truncate"
+                        className="text-xs font-bold text-zinc-950 dark:text-white font-mono hover:underline truncate"
                       >
                         {job.id}
                       </button>
@@ -1387,23 +1387,23 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                       </span>
                     </div>
 
-                    <div className="text-xs text-zinc-200 font-medium truncate">
+                    <div className="text-xs text-zinc-900 dark:text-zinc-200 font-medium truncate">
                       {job.tool.brand} {job.tool.modelNumber}
                     </div>
 
-                    <div className="text-[11px] text-zinc-400 truncate">
+                    <div className="text-[11px] text-zinc-700 dark:text-zinc-400 truncate">
                       {job.customerName} · {job.status}
                     </div>
 
-                    <div className="flex items-center justify-between pt-1.5 border-t border-zinc-800/80 text-[11px]">
-                      <span className="font-mono tabular-nums text-zinc-400">
+                    <div className="flex items-center justify-between pt-1.5 border-t border-zinc-300/80 dark:border-zinc-800/80 text-[11px]">
+                      <span className="font-mono tabular-nums text-zinc-700 dark:text-zinc-400">
                         Est. {(job.laborHours || 1).toFixed(1)}h
                         {isScheduledThisWeek ? ' · Scheduled' : ''}
                       </span>
                       <button
                         type="button"
                         onClick={() => openNewSlotModal({ jobId: job.id })}
-                        className="px-2 py-1 text-[11px] font-semibold bg-white text-zinc-950 hover:bg-zinc-200 rounded transition-colors whitespace-nowrap shrink-0"
+                        className="px-2 py-1 text-[11px] font-semibold bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded transition-colors whitespace-nowrap shrink-0"
                       >
                         Schedule
                       </button>
@@ -1418,17 +1418,17 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
 
       {/* Shift Configuration Modal */}
       {shiftModalOpen && (
-        <div className="fixed inset-0 z-50 bg-zinc-950/85 backdrop-blur flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Users className="w-4 h-4 text-zinc-300" />
+        <div className="fixed inset-0 z-50 bg-zinc-950/60 dark:bg-zinc-950/85 backdrop-blur flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-300 dark:border-zinc-800 pb-3">
+              <h3 className="text-sm font-bold text-zinc-950 dark:text-white flex items-center gap-2">
+                <Users className="w-4 h-4 text-zinc-800 dark:text-zinc-300" />
                 <span>Configure Technician Shift</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setShiftModalOpen(false)}
-                className="p-1 text-zinc-400 hover:text-white rounded-lg"
+                className="p-1 text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white rounded-lg"
                 aria-label="Close shift modal"
               >
                 <X className="w-4 h-4" />
@@ -1438,11 +1438,11 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
             <div className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] text-zinc-400 block mb-1">Technician</label>
+                  <label className="text-[11px] text-zinc-700 dark:text-zinc-400 block mb-1">Technician</label>
                   <select
                     value={shiftTechId}
                     onChange={(e) => setShiftTechId(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-zinc-600"
+                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-950 dark:text-white focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-600"
                   >
                     {SHOP_TECHNICIANS.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -1453,18 +1453,18 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[11px] text-zinc-400 block mb-1">Date</label>
+                  <label className="text-[11px] text-zinc-700 dark:text-zinc-400 block mb-1">Date</label>
                   <input
                     type="date"
                     value={shiftDateKey}
                     onChange={(e) => setShiftDateKey(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-white font-mono tabular-nums focus:outline-none focus:border-zinc-600"
+                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-950 dark:text-white font-mono tabular-nums focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-600"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[11px] text-zinc-400 block mb-1">Quick Shift Presets</label>
+                <label className="text-[11px] text-zinc-700 dark:text-zinc-400 block mb-1">Quick Shift Presets</label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {SHIFT_PRESETS.map((preset, idx) => (
                     <button
@@ -1475,8 +1475,8 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                         shiftType === preset.shiftType &&
                         shiftStartHour === preset.startHour &&
                         shiftEndHour === preset.endHour
-                          ? 'bg-white text-zinc-950 border-white font-semibold'
-                          : 'bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-zinc-600'
+                          ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white font-semibold'
+                          : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-300 border-zinc-300 dark:border-zinc-800 hover:border-zinc-500 dark:hover:border-zinc-600'
                       }`}
                     >
                       {preset.label}
@@ -1488,11 +1488,11 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
               {shiftType !== 'Off' && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] text-zinc-400 block mb-1">Start Hour</label>
+                    <label className="text-[11px] text-zinc-700 dark:text-zinc-400 block mb-1">Start Hour</label>
                     <select
                       value={shiftStartHour}
                       onChange={(e) => setShiftStartHour(Number(e.target.value))}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-white font-mono tabular-nums focus:outline-none"
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-950 dark:text-white font-mono tabular-nums focus:outline-none"
                     >
                       {[6, 7, 8, 9, 10, 11, 12, 13, 14].map((hr) => (
                         <option key={hr} value={hr}>
@@ -1503,11 +1503,11 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                   </div>
 
                   <div>
-                    <label className="text-[11px] text-zinc-400 block mb-1">End Hour</label>
+                    <label className="text-[11px] text-zinc-700 dark:text-zinc-400 block mb-1">End Hour</label>
                     <select
                       value={shiftEndHour}
                       onChange={(e) => setShiftEndHour(Number(e.target.value))}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-white font-mono tabular-nums focus:outline-none"
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-950 dark:text-white font-mono tabular-nums focus:outline-none"
                     >
                       {[10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((hr) => (
                         <option key={hr} value={hr} disabled={hr <= shiftStartHour}>
@@ -1520,11 +1520,11 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
               )}
 
               <div>
-                <label className="text-[11px] text-zinc-400 block mb-1">Assigned Bay / Bench</label>
+                <label className="text-[11px] text-zinc-700 dark:text-zinc-400 block mb-1">Assigned Bay / Bench</label>
                 <select
                   value={shiftBay}
                   onChange={(e) => setShiftBay(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-950 dark:text-white focus:outline-none"
                 >
                   {WORKSHOP_BAYS.map((bay) => (
                     <option key={bay} value={bay}>
@@ -1535,33 +1535,33 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
               </div>
 
               <div>
-                <label className="text-[11px] text-zinc-400 block mb-1">Shift Notes</label>
+                <label className="text-[11px] text-zinc-700 dark:text-zinc-400 block mb-1">Shift Notes</label>
                 <input
                   type="text"
                   value={shiftNotes}
                   onChange={(e) => setShiftNotes(e.target.value)}
                   placeholder="Optional coverage or training note..."
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-950 dark:text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-600"
                 />
               </div>
 
-              <label className="flex items-center gap-2 pt-1 text-xs text-zinc-300 cursor-pointer">
+              <label className="flex items-center gap-2 pt-1 text-xs text-zinc-800 dark:text-zinc-300 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={applyMonToFri}
                   onChange={(e) => setApplyMonToFri(e.target.checked)}
-                  className="rounded border-zinc-700 bg-zinc-950 text-white"
+                  className="rounded border-zinc-400 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-white"
                 />
                 <span>Apply this shift to Mon–Fri of the displayed week</span>
               </label>
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-zinc-800">
+            <div className="flex items-center justify-between pt-3 border-t border-zinc-300 dark:border-zinc-800">
               {shiftMap.has(`${shiftTechId}__${shiftDateKey}`) && !applyMonToFri ? (
                 <button
                   type="button"
                   onClick={handleDeleteShift}
-                  className="px-3 py-2 text-xs font-semibold text-red-400 hover:text-red-300 flex items-center gap-1"
+                  className="px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 flex items-center gap-1"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Clear Shift</span>
@@ -1574,14 +1574,14 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                 <button
                   type="button"
                   onClick={() => setShiftModalOpen(false)}
-                  className="px-3.5 py-2 text-xs font-semibold text-zinc-400 hover:text-white"
+                  className="px-3.5 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveShift}
-                  className="px-4 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl transition-colors"
+                  className="px-4 py-2 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl transition-colors"
                 >
                   Save Shift
                 </button>
@@ -1593,17 +1593,17 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
 
       {/* Job Card Time Slot Assignment / Editor Modal */}
       {slotModalOpen && (
-        <div className="fixed inset-0 z-50 bg-zinc-950/85 backdrop-blur flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-lg w-full space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Clock className="w-4 h-4 text-zinc-300" />
+        <div className="fixed inset-0 z-50 bg-zinc-950/60 dark:bg-zinc-950/85 backdrop-blur flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-6 max-w-lg w-full space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-300 dark:border-zinc-800 pb-3">
+              <h3 className="text-sm font-bold text-zinc-950 dark:text-white flex items-center gap-2">
+                <Clock className="w-4 h-4 text-zinc-800 dark:text-zinc-300" />
                 <span>{editingSlotId ? 'Edit Scheduled Job Slot' : 'Assign Job Card to Time Slot'}</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setSlotModalOpen(false)}
-                className="p-1 text-zinc-400 hover:text-white rounded-lg"
+                className="p-1 text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white rounded-lg"
                 aria-label="Close slot modal"
               >
                 <X className="w-4 h-4" />
@@ -1612,7 +1612,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="text-[11px] text-zinc-400 block mb-1">Job Card</label>
+                <label className="text-[11px] text-zinc-700 dark:text-zinc-400 block mb-1">Job Card</label>
                 <select
                   value={slotJobId}
                   onChange={(e) => {
@@ -1624,7 +1624,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                       );
                     }
                   }}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-zinc-600"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-950 dark:text-white font-mono focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-600"
                 >
                   {jobCards.map((j) => (
                     <option key={j.id} value={j.id}>
@@ -1636,11 +1636,11 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] text-zinc-400 block mb-1">Assigned Technician</label>
+                  <label className="text-[11px] text-zinc-700 dark:text-zinc-400 block mb-1">Assigned Technician</label>
                   <select
                     value={slotTechId}
                     onChange={(e) => setSlotTechId(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-600"
+                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-950 dark:text-white focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-600"
                   >
                     {SHOP_TECHNICIANS.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -1651,23 +1651,23 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[11px] text-zinc-400 block mb-1">Scheduled Date</label>
+                  <label className="text-[11px] text-zinc-700 dark:text-zinc-400 block mb-1">Scheduled Date</label>
                   <input
                     type="date"
                     value={slotDateKey}
                     onChange={(e) => setSlotDateKey(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white font-mono tabular-nums focus:outline-none focus:border-zinc-600"
+                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-950 dark:text-white font-mono tabular-nums focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-600"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] text-zinc-400 block mb-1">Start Time</label>
+                  <label className="text-[11px] text-zinc-700 dark:text-zinc-400 block mb-1">Start Time</label>
                   <select
                     value={slotStartHour}
                     onChange={(e) => setSlotStartHour(Number(e.target.value))}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white font-mono tabular-nums focus:outline-none"
+                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-950 dark:text-white font-mono tabular-nums focus:outline-none"
                   >
                     {START_HOUR_OPTIONS.map((hr) => (
                       <option key={hr} value={hr}>
@@ -1678,11 +1678,11 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[11px] text-zinc-400 block mb-1">Bench Duration</label>
+                  <label className="text-[11px] text-zinc-700 dark:text-zinc-400 block mb-1">Bench Duration</label>
                   <select
                     value={slotDurationHours}
                     onChange={(e) => setSlotDurationHours(Number(e.target.value))}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white font-mono tabular-nums focus:outline-none"
+                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-950 dark:text-white font-mono tabular-nums focus:outline-none"
                   >
                     {DURATION_OPTIONS.map((dur) => (
                       <option key={dur} value={dur}>
@@ -1694,8 +1694,8 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
               </div>
 
               {/* Shift & Conflict Status Banner */}
-              <div className="p-2.5 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1.5 text-[11px]">
-                <div className="flex items-center justify-between font-mono tabular-nums text-zinc-300">
+              <div className="p-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 space-y-1.5 text-[11px]">
+                <div className="flex items-center justify-between font-mono tabular-nums text-zinc-800 dark:text-zinc-300">
                   <span>Technician Shift Coverage:</span>
                   <span>
                     {modalShift && modalShift.shiftType !== 'Off'
@@ -1707,14 +1707,14 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                 </div>
 
                 {modalOutsideShift && (
-                  <div className="flex items-center gap-1.5 text-amber-400">
+                  <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                     <span>Selected slot falls outside the technician&apos;s active shift hours.</span>
                   </div>
                 )}
 
                 {modalOverlaps.length > 0 && (
-                  <div className="flex items-center gap-1.5 text-red-400">
+                  <div className="flex items-center gap-1.5 text-red-700 dark:text-red-400">
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                     <span>
                       Overlaps {modalOverlaps.map((o) => `${o.jobCardId} (${formatTimeRange(o.startHour, o.durationHours)})`).join(', ')}.
@@ -1724,34 +1724,34 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
               </div>
 
               <div>
-                <label className="text-[11px] text-zinc-400 block mb-1">Bench Task Notes</label>
+                <label className="text-[11px] text-zinc-700 dark:text-zinc-400 block mb-1">Bench Task Notes</label>
                 <input
                   type="text"
                   value={slotNotes}
                   onChange={(e) => setSlotNotes(e.target.value)}
                   placeholder="e.g., Armature replacement & load benchmark test"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-950 dark:text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-600"
                 />
               </div>
 
-              <label className="flex items-center gap-2 pt-1 text-xs text-zinc-300 cursor-pointer">
+              <label className="flex items-center gap-2 pt-1 text-xs text-zinc-800 dark:text-zinc-300 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={syncJobTech}
                   onChange={(e) => setSyncJobTech(e.target.checked)}
-                  className="rounded border-zinc-700 bg-zinc-950 text-white"
+                  className="rounded border-zinc-400 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-white"
                 />
                 <span>Sync assigned technician onto the Job Card &amp; audit trail</span>
               </label>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-zinc-800">
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-zinc-300 dark:border-zinc-800">
               <div className="flex items-center gap-2">
                 {editingSlotId && (
                   <button
                     type="button"
                     onClick={handleDeleteSlot}
-                    className="px-3 py-2 text-xs font-semibold text-red-400 hover:text-red-300 flex items-center gap-1"
+                    className="px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 flex items-center gap-1"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Remove</span>
@@ -1767,7 +1767,7 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                         onSelectJobCard(target);
                       }
                     }}
-                    className="px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white flex items-center gap-1"
+                    className="px-3 py-2 text-xs font-semibold text-zinc-800 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white flex items-center gap-1"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span>Open Job Card</span>
@@ -1779,14 +1779,14 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
                 <button
                   type="button"
                   onClick={() => setSlotModalOpen(false)}
-                  className="px-3.5 py-2 text-xs font-semibold text-zinc-400 hover:text-white"
+                  className="px-3.5 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveSlot}
-                  className="px-4 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl transition-colors"
+                  className="px-4 py-2 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl transition-colors"
                 >
                   {editingSlotId ? 'Update Slot' : 'Assign Slot'}
                 </button>

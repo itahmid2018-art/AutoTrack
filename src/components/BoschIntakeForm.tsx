@@ -285,7 +285,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     ctx.lineTo((clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY);
-    ctx.strokeStyle = '#ffffff';
+    ctx.strokeStyle = '#09090b';
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -430,18 +430,18 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
     <div className="max-w-5xl mx-auto space-y-6 pb-12">
       
       {/* Monochrome Intake Header */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-6 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <span className="text-xl font-bold tracking-tight text-white font-mono uppercase">
+              <span className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white font-mono uppercase">
                 BOSCH &amp; Vendor Tool Intake Form
               </span>
-              <span className="font-mono text-xs font-bold text-zinc-100 bg-zinc-800 px-2.5 py-0.5 rounded border border-zinc-700">
+              <span className="font-mono text-xs font-bold text-zinc-950 dark:text-zinc-100 bg-zinc-200 dark:bg-zinc-800 px-2.5 py-0.5 rounded border border-zinc-400 dark:border-zinc-700">
                 {generatedId}
               </span>
             </div>
-            <p className="text-xs text-zinc-400 mt-1">
+            <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-1">
               Streamlined counter intake form for power tools, rotary hammers, grinders &amp; cordless batteries.
             </p>
           </div>
@@ -455,7 +455,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
               <ScanBarcode className="w-4 h-4" />
               <span>Barcode / QR Scanner</span>
             </button>
-            <span className="text-[11px] font-mono text-zinc-400 bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800">
+            <span className="text-[11px] font-mono text-zinc-700 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-800">
               Tax: {settings.taxRate}% · Base Labor: ${settings.laborRate}/hr
             </span>
           </div>
@@ -465,16 +465,16 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
       <form onSubmit={handleSubmit} className="space-y-6">
         
         {/* Section 1: Customer Details */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
-          <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2 border-b border-zinc-800 pb-3">
-            <User className="w-4 h-4 text-white" />
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-4">
+          <h2 className="text-xs font-bold text-zinc-800 dark:text-zinc-300 uppercase tracking-wider flex items-center gap-2 border-b border-zinc-300 dark:border-zinc-800 pb-3">
+            <User className="w-4 h-4 text-zinc-950 dark:text-white" />
             <span>1. Customer &amp; Commercial Account Information</span>
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
             {customerNameCfg.enabled && (
               <div>
-                <label className="block text-zinc-400 mb-1 font-medium">
+                <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-medium">
                   {customerNameCfg.label} {customerNameCfg.required && '*'}
                 </label>
                 <input
@@ -483,14 +483,14 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                   placeholder={customerNameCfg.placeholder}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-zinc-950 dark:text-white placeholder-zinc-500 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500"
                 />
               </div>
             )}
 
             {customerCompanyCfg.enabled && (
               <div>
-                <label className="block text-zinc-400 mb-1 font-medium">
+                <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-medium">
                   {customerCompanyCfg.label} {customerCompanyCfg.required && '*'}
                 </label>
                 <input
@@ -499,14 +499,14 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                   value={customerCompany}
                   onChange={(e) => setCustomerCompany(e.target.value)}
                   placeholder={customerCompanyCfg.placeholder}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-zinc-950 dark:text-white placeholder-zinc-500 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500"
                 />
               </div>
             )}
 
             {customerPhoneCfg.enabled && (
               <div>
-                <label className="block text-zinc-400 mb-1 font-medium">
+                <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-medium">
                   {customerPhoneCfg.label} {customerPhoneCfg.required && '*'}
                 </label>
                 <input
@@ -515,25 +515,25 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
                   placeholder={customerPhoneCfg.placeholder}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-zinc-950 dark:text-white font-mono placeholder-zinc-500 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500"
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-zinc-400 mb-1 font-medium">Email Address</label>
+              <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-medium">Email Address</label>
               <input
                 type="email"
                 value={customerEmail}
                 onChange={(e) => setCustomerEmail(e.target.value)}
                 placeholder="service@apex.com"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-zinc-950 dark:text-white placeholder-zinc-500 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500"
               />
             </div>
 
             {gstOrTaxIdCfg.enabled && (
               <div>
-                <label className="block text-zinc-400 mb-1 font-medium">
+                <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-medium">
                   {gstOrTaxIdCfg.label} {gstOrTaxIdCfg.required && '*'}
                 </label>
                 <input
@@ -542,14 +542,14 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                   value={gstOrTaxId}
                   onChange={(e) => setGstOrTaxId(e.target.value)}
                   placeholder={gstOrTaxIdCfg.placeholder}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-zinc-950 dark:text-white font-mono placeholder-zinc-500 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500"
                 />
               </div>
             )}
 
             {preApprovedLimitCfg.enabled && (
               <div>
-                <label className="block text-zinc-400 mb-1 font-medium">
+                <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-medium">
                   {preApprovedLimitCfg.label} {preApprovedLimitCfg.required && '*'}
                 </label>
                 <input
@@ -558,19 +558,19 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                   value={preApprovedLimit}
                   onChange={(e) => setPreApprovedLimit(parseFloat(e.target.value) || 0)}
                   placeholder={preApprovedLimitCfg.placeholder}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-zinc-950 dark:text-white font-mono placeholder-zinc-500 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500"
                 />
-                <span className="text-[10px] text-zinc-500">Auto-approve repair if estimate &lt; limit</span>
+                <span className="text-[10px] text-zinc-600 dark:text-zinc-500">Auto-approve repair if estimate &lt; limit</span>
               </div>
             )}
           </div>
         </div>
 
         {/* Section 2: Tool Specifications */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-3">
-            <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-              <Wrench className="w-4 h-4 text-white" />
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-300 dark:border-zinc-800 pb-3">
+            <h2 className="text-xs font-bold text-zinc-800 dark:text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+              <Wrench className="w-4 h-4 text-zinc-950 dark:text-white" />
               <span>2. Bosch &amp; Tool Specifications</span>
             </h2>
 
@@ -587,13 +587,13 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
             {toolBrandCfg.enabled && (
               <div>
-                <label className="block text-zinc-400 mb-1 font-medium">
+                <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-medium">
                   {toolBrandCfg.label} {toolBrandCfg.required && '*'}
                 </label>
                 <select
                   value={brand}
                   onChange={(e) => setBrand(e.target.value as any)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-zinc-950 dark:text-white font-medium focus:outline-none"
                 >
                   {(toolBrandCfg.options && toolBrandCfg.options.length > 0
                     ? toolBrandCfg.options
@@ -606,11 +606,11 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
             )}
 
             <div>
-              <label className="block text-zinc-400 mb-1 font-medium">Tool Category</label>
+              <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-medium">Tool Category</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as any)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-zinc-950 dark:text-white font-medium focus:outline-none"
               >
                 <option value="Rotary Hammer / SDS">Rotary Hammer / SDS</option>
                 <option value="Angle Grinder">Angle Grinder</option>
@@ -627,7 +627,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
 
             {modelNumberCfg.enabled && (
               <div>
-                <label className="block text-zinc-400 mb-1 font-medium">
+                <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-medium">
                   {modelNumberCfg.label} {modelNumberCfg.required && '*'}
                 </label>
                 <input
@@ -636,14 +636,14 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                   value={modelNumber}
                   onChange={(e) => setModelNumber(e.target.value)}
                   placeholder={modelNumberCfg.placeholder}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono placeholder-zinc-600 focus:outline-none"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-zinc-950 dark:text-white font-mono placeholder-zinc-500 dark:placeholder-zinc-600 focus:outline-none"
                 />
               </div>
             )}
 
             {serialNumberCfg.enabled && (
               <div>
-                <label className="block text-zinc-400 mb-1 font-medium">
+                <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-medium">
                   {serialNumberCfg.label} {serialNumberCfg.required && '*'}
                 </label>
                 <div className="flex items-stretch gap-1.5">
@@ -658,21 +658,21 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                       }
                     }}
                     placeholder={serialNumberCfg.placeholder}
-                    className="w-full min-w-0 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+                    className="w-full min-w-0 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-zinc-950 dark:text-white font-mono placeholder-zinc-500 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500"
                   />
                   <button
                     type="button"
                     onClick={() => setIsSerialScannerOpen(true)}
                     title="Scan tool serial barcode with device camera"
                     aria-label="Scan tool serial barcode with camera"
-                    className="px-3 py-2 bg-zinc-950 hover:bg-zinc-800 text-emerald-400 hover:text-emerald-300 border border-emerald-700/60 rounded-xl font-mono text-[11px] font-bold flex items-center gap-1.5 shrink-0 transition-colors active:scale-95"
+                    className="px-3 py-2 bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-emerald-700 dark:text-emerald-400 hover:text-emerald-950 dark:hover:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 rounded-xl font-mono text-[11px] font-bold flex items-center gap-1.5 shrink-0 transition-colors active:scale-95"
                   >
                     <ScanBarcode className="w-4 h-4" />
                     <span>Scan</span>
                   </button>
                 </div>
                 {scanResultBadge && (
-                  <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1.5 text-[10px] font-mono text-emerald-300 bg-emerald-950/40 border border-emerald-800/60 rounded-lg px-2 py-1">
+                  <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1.5 text-[10px] font-mono text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800/60 rounded-lg px-2 py-1">
                     <span>
                       Scanned ({scanResultBadge.format}) via {scanResultBadge.method}
                     </span>
@@ -680,7 +680,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                       <button
                         type="button"
                         onClick={() => setModelNumber(scanResultBadge.detectedModelNumber!)}
-                        className="underline font-bold text-white hover:text-emerald-200"
+                        className="underline font-bold text-zinc-950 dark:text-white hover:text-emerald-950 dark:hover:text-emerald-200"
                       >
                         Use model {scanResultBadge.detectedModelNumber}
                       </button>
@@ -692,13 +692,13 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
 
             {voltageRatingCfg.enabled && (
               <div>
-                <label className="block text-zinc-400 mb-1 font-medium">
+                <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-medium">
                   {voltageRatingCfg.label} {voltageRatingCfg.required && '*'}
                 </label>
                 <select
                   value={voltageRating}
                   onChange={(e) => setVoltageRating(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-zinc-950 dark:text-white font-medium focus:outline-none"
                 >
                   <option value="230V AC">230V AC Mains</option>
                   <option value="110V Site">110V Transformer Site</option>
@@ -711,13 +711,13 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
 
             {warrantyStatusCfg.enabled && (
               <div>
-                <label className="block text-zinc-400 mb-1 font-medium">
+                <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-medium">
                   {warrantyStatusCfg.label} {warrantyStatusCfg.required && '*'}
                 </label>
                 <select
                   value={warrantyStatus}
                   onChange={(e) => setWarrantyStatus(e.target.value as any)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-zinc-950 dark:text-white font-medium focus:outline-none"
                 >
                   {(warrantyStatusCfg.options && warrantyStatusCfg.options.length > 0
                     ? warrantyStatusCfg.options
@@ -730,13 +730,13 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
             )}
 
             <div className="sm:col-span-2">
-              <label className="block text-zinc-400 mb-1 font-medium">Physical Tool Condition</label>
+              <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-medium">Physical Tool Condition</label>
               <input
                 type="text"
                 value={physicalCondition}
                 onChange={(e) => setPhysicalCondition(e.target.value)}
                 placeholder="e.g. Jobsite Concrete Dust, Cord Scratched, Guard Intact"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white placeholder-zinc-600 focus:outline-none"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-zinc-950 dark:text-white placeholder-zinc-500 dark:placeholder-zinc-600 focus:outline-none"
               />
             </div>
           </div>
@@ -745,25 +745,25 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
           <div
             className={`p-4 rounded-xl border space-y-2.5 text-xs font-mono ${
               warrantyEval.flag === 'In-Warranty'
-                ? 'bg-emerald-950/25 border-emerald-700/60'
-                : 'bg-zinc-950 border-zinc-800'
+                ? 'bg-emerald-50 dark:bg-emerald-950/25 border-emerald-300 dark:border-emerald-700/60'
+                : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-300 dark:border-zinc-800'
             }`}
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 {warrantyEval.flag === 'In-Warranty' ? (
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <ShieldCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
                 ) : (
-                  <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+                  <ShieldAlert className="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0" />
                 )}
-                <span className="font-bold text-white uppercase tracking-wider text-[11px]">
+                <span className="font-bold text-zinc-950 dark:text-white uppercase tracking-wider text-[11px]">
                   Auto Warranty Adjudication
                 </span>
                 <span
                   className={`px-2 py-0.5 rounded text-[10px] font-extrabold border ${
                     warrantyEval.flag === 'In-Warranty'
-                      ? 'bg-emerald-950 text-emerald-300 border-emerald-600/80'
-                      : 'bg-amber-950/80 text-amber-300 border-amber-700/80'
+                      ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-500 dark:border-emerald-600/80'
+                      : 'bg-amber-50 dark:bg-amber-950/80 text-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-700/80'
                   }`}
                 >
                   {warrantyEval.flag}
@@ -771,13 +771,13 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] text-zinc-500">Test Serials:</span>
+                <span className="text-[10px] text-zinc-600 dark:text-zinc-500">Test Serials:</span>
                 {['SN-3611B54300', 'SN-FD-5048812', 'SN-DW-991823', 'SN-3601C96000'].map((sampleSn) => (
                   <button
                     key={sampleSn}
                     type="button"
                     onClick={() => setSerialNumber(sampleSn)}
-                    className="px-2 py-0.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded text-[10px] text-zinc-300"
+                    className="px-2 py-0.5 bg-white dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-400 dark:border-zinc-700 rounded text-[10px] text-zinc-800 dark:text-zinc-300"
                   >
                     {sampleSn}
                   </button>
@@ -786,33 +786,33 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-1">
-              <div className="bg-zinc-900/70 px-2.5 py-1.5 rounded-lg border border-zinc-800">
-                <span className="text-zinc-500 block text-[9px] uppercase">Manufacture Date</span>
-                <span className="text-white font-bold">{warrantyEval.manufactureDate || 'Unknown'}</span>
+              <div className="bg-zinc-50 dark:bg-zinc-900/70 px-2.5 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-800">
+                <span className="text-zinc-600 dark:text-zinc-500 block text-[9px] uppercase">Manufacture Date</span>
+                <span className="text-zinc-950 dark:text-white font-bold">{warrantyEval.manufactureDate || 'Unknown'}</span>
               </div>
-              <div className="bg-zinc-900/70 px-2.5 py-1.5 rounded-lg border border-zinc-800">
-                <span className="text-zinc-500 block text-[9px] uppercase">Warranty Expiry</span>
-                <span className="text-white font-bold">{warrantyEval.expirationDate || 'N/A'}</span>
+              <div className="bg-zinc-50 dark:bg-zinc-900/70 px-2.5 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-800">
+                <span className="text-zinc-600 dark:text-zinc-500 block text-[9px] uppercase">Warranty Expiry</span>
+                <span className="text-zinc-950 dark:text-white font-bold">{warrantyEval.expirationDate || 'N/A'}</span>
               </div>
-              <div className="bg-zinc-900/70 px-2.5 py-1.5 rounded-lg border border-zinc-800">
-                <span className="text-zinc-500 block text-[9px] uppercase">Tool Age / Term</span>
-                <span className="text-white font-bold">
+              <div className="bg-zinc-50 dark:bg-zinc-900/70 px-2.5 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-800">
+                <span className="text-zinc-600 dark:text-zinc-500 block text-[9px] uppercase">Tool Age / Term</span>
+                <span className="text-zinc-950 dark:text-white font-bold">
                   {warrantyEval.ageMonths !== null ? `${warrantyEval.ageMonths}m` : '—'} / {warrantyEval.termMonths}m
                 </span>
               </div>
-              <div className="bg-zinc-900/70 px-2.5 py-1.5 rounded-lg border border-zinc-800">
-                <span className="text-zinc-500 block text-[9px] uppercase">Lookup Method</span>
-                <span className="text-zinc-200 font-semibold truncate block">{warrantyEval.decodedMethod}</span>
+              <div className="bg-zinc-50 dark:bg-zinc-900/70 px-2.5 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-800">
+                <span className="text-zinc-600 dark:text-zinc-500 block text-[9px] uppercase">Lookup Method</span>
+                <span className="text-zinc-900 dark:text-zinc-200 font-semibold truncate block">{warrantyEval.decodedMethod}</span>
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]">
-              <p className="text-zinc-300 font-sans">{warrantyEval.reason}</p>
+              <p className="text-zinc-800 dark:text-zinc-300 font-sans">{warrantyEval.reason}</p>
               {warrantyStatus !== warrantyEval.recommendedWarrantyStatus && (
                 <button
                   type="button"
                   onClick={() => setWarrantyStatus(warrantyEval.recommendedWarrantyStatus)}
-                  className="px-2.5 py-1 bg-white text-zinc-950 hover:bg-zinc-200 rounded-lg text-[10px] font-bold shrink-0"
+                  className="px-2.5 py-1 bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-lg text-[10px] font-bold shrink-0"
                 >
                   Sync Status: {warrantyEval.recommendedWarrantyStatus}
                 </button>
@@ -820,7 +820,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
             </div>
 
               {warrantyEval.exclusionAdvisory && (
-              <div className="px-2.5 py-1.5 bg-amber-950/60 border border-amber-700/70 rounded-lg text-[11px] text-amber-200 font-sans">
+              <div className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700/70 rounded-lg text-[11px] text-amber-900 dark:text-amber-200 font-sans">
                 {warrantyEval.exclusionAdvisory}
               </div>
             )}
@@ -828,37 +828,37 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
 
           {/* Product QR Scan Result: Inventory Item & Tool Service History Lookup */}
           {qrLookupPanel && (
-            <div className="p-4 bg-zinc-950 border border-emerald-700/60 rounded-xl space-y-3 text-xs font-mono">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-2.5">
+            <div className="p-4 bg-zinc-50 dark:bg-zinc-950 border border-emerald-300 dark:border-emerald-700/60 rounded-xl space-y-3 text-xs font-mono">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-300 dark:border-zinc-800 pb-2.5">
                 <div className="flex items-center gap-2">
-                  <QrCode className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span className="font-bold text-white uppercase">
+                  <QrCode className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
+                  <span className="font-bold text-zinc-950 dark:text-white uppercase">
                     QR Lookup Result: {qrLookupPanel.historyMatch.queryCode || qrLookupPanel.result.serialNumber}
                   </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-emerald-300">
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-white dark:bg-zinc-900 border border-zinc-400 dark:border-zinc-700 text-emerald-800 dark:text-emerald-300">
                     {qrLookupPanel.result.format}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setQrLookupPanel(null)}
-                  className="text-[11px] text-zinc-400 hover:text-white underline"
+                  className="text-[11px] text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white underline"
                 >
                   Dismiss
                 </button>
               </div>
 
               {qrLookupPanel.matchedInventory && (
-                <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="p-3 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="space-y-0.5">
-                    <div className="flex items-center gap-1.5 text-emerald-300 font-bold text-[11px]">
+                    <div className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-bold text-[11px]">
                       <Package className="w-3.5 h-3.5" />
                       <span>Matched Spare Part SKU: {qrLookupPanel.matchedInventory.sku}</span>
                     </div>
-                    <div className="text-white font-sans font-semibold">
+                    <div className="text-zinc-950 dark:text-white font-sans font-semibold">
                       {qrLookupPanel.matchedInventory.name}
                     </div>
-                    <div className="text-[11px] text-zinc-400">
+                    <div className="text-[11px] text-zinc-700 dark:text-zinc-400">
                       Bin {qrLookupPanel.matchedInventory.binLocation} · {qrLookupPanel.matchedInventory.stockQty} {qrLookupPanel.matchedInventory.unit} in stock · ${qrLookupPanel.matchedInventory.unitPrice.toFixed(2)}
                     </div>
                   </div>
@@ -868,8 +868,8 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
               {qrLookupPanel.historyMatch.matchingJobs.length > 0 ? (
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-[11px] font-bold text-zinc-200 flex items-center gap-1.5">
-                      <History className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-[11px] font-bold text-zinc-900 dark:text-zinc-200 flex items-center gap-1.5">
+                      <History className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                       <span>
                         Prior Tool Service History ({qrLookupPanel.historyMatch.matchingJobs.length}{' '}
                         {qrLookupPanel.historyMatch.matchingJobs.length === 1 ? 'record' : 'records'})
@@ -878,7 +878,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                     <button
                       type="button"
                       onClick={() => handlePrefillFromHistoryJob(qrLookupPanel.historyMatch.matchingJobs[0])}
-                      className="px-2.5 py-1 bg-white hover:bg-zinc-200 text-zinc-950 font-bold rounded-lg text-[10px]"
+                      className="px-2.5 py-1 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 font-bold rounded-lg text-[10px]"
                     >
                       Prefill Client &amp; Tool from Latest
                     </button>
@@ -888,17 +888,17 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                     {qrLookupPanel.historyMatch.matchingJobs.slice(0, 4).map((histJob) => (
                       <div
                         key={histJob.id}
-                        className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg flex flex-wrap items-center justify-between gap-2"
+                        className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-lg flex flex-wrap items-center justify-between gap-2"
                       >
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-white">{histJob.id}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-950 border border-zinc-700 text-zinc-300">
+                            <span className="font-bold text-zinc-950 dark:text-white">{histJob.id}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 text-zinc-800 dark:text-zinc-300">
                               {histJob.status}
                             </span>
-                            <span className="text-[10px] text-zinc-400">{histJob.intakeDate}</span>
+                            <span className="text-[10px] text-zinc-700 dark:text-zinc-400">{histJob.intakeDate}</span>
                           </div>
-                          <div className="text-[11px] text-zinc-300 font-sans truncate">
+                          <div className="text-[11px] text-zinc-800 dark:text-zinc-300 font-sans truncate">
                             {histJob.customerName} · {histJob.serviceReq.grievanceCategory}
                           </div>
                         </div>
@@ -907,7 +907,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                           <button
                             type="button"
                             onClick={() => onSelectExistingJob(histJob)}
-                            className="px-2.5 py-1 bg-zinc-950 hover:bg-zinc-800 border border-zinc-700 text-emerald-300 rounded-lg text-[10px] font-bold flex items-center gap-1 shrink-0"
+                            className="px-2.5 py-1 bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-400 dark:border-zinc-700 text-emerald-800 dark:text-emerald-300 rounded-lg text-[10px] font-bold flex items-center gap-1 shrink-0"
                           >
                             <span>Open Ticket</span>
                             <ExternalLink className="w-3 h-3" />
@@ -919,16 +919,16 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                 </div>
               ) : (
                 !qrLookupPanel.matchedInventory && (
-                  <p className="text-[11px] text-zinc-400 font-sans">
+                  <p className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans">
                     No prior tool repair records or spare part SKUs matched this code. Serial number filled for new intake.
                   </p>
                 )
               )}
 
               {qrLookupPanel.historyMatch.matchingSchedules.length > 0 && (
-                <div className="pt-1 border-t border-zinc-800 text-[11px] text-zinc-300 font-sans">
+                <div className="pt-1 border-t border-zinc-300 dark:border-zinc-800 text-[11px] text-zinc-800 dark:text-zinc-300 font-sans">
                   Recurring maintenance schedule found: Next service due{' '}
-                  <strong className="text-emerald-300 font-mono">
+                  <strong className="text-emerald-800 dark:text-emerald-300 font-mono">
                     {qrLookupPanel.historyMatch.matchingSchedules[0].nextDueDate}
                   </strong>{' '}
                   ({qrLookupPanel.historyMatch.matchingSchedules[0].status})
@@ -938,8 +938,8 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
           )}
 
           {/* Accessories Received Checklist */}
-          <div className="pt-3 border-t border-zinc-800">
-            <span className="block text-xs font-semibold text-zinc-400 mb-2">Accessories Received at Counter:</span>
+          <div className="pt-3 border-t border-zinc-300 dark:border-zinc-800">
+            <span className="block text-xs font-semibold text-zinc-700 dark:text-zinc-400 mb-2">Accessories Received at Counter:</span>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {accessoryOptions.map((acc) => {
                 const isSelected = selectedAccessories.includes(acc);
@@ -950,8 +950,8 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                     onClick={() => toggleAccessory(acc)}
                     className={`p-2 rounded-xl text-xs text-left transition-all border ${
                       isSelected
-                        ? 'bg-zinc-100 text-zinc-950 border-white font-bold'
-                        : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-white'
+                        ? 'bg-zinc-100 text-zinc-950 border-zinc-950 dark:border-white font-bold'
+                        : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-700 dark:text-zinc-400 border-zinc-300 dark:border-zinc-800 hover:text-zinc-950 dark:hover:text-white'
                     }`}
                   >
                     {acc}
@@ -963,10 +963,10 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
         </div>
 
         {/* Section 3: Grievance & Service Requirements */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-            <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-              <FileText className="w-4 h-4 text-white" />
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-zinc-300 dark:border-zinc-800 pb-3">
+            <h2 className="text-xs font-bold text-zinc-800 dark:text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+              <FileText className="w-4 h-4 text-zinc-950 dark:text-white" />
               <span>3. Grievances &amp; Service Requirements</span>
             </h2>
 
@@ -974,7 +974,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
               type="button"
               onClick={handleRunAiDiagnosis}
               disabled={isAiLoading}
-              className="px-3 py-1.5 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-lg shadow transition-all flex items-center gap-1.5 disabled:opacity-50"
+              className="px-3 py-1.5 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-lg shadow transition-all flex items-center gap-1.5 disabled:opacity-50"
             >
               <Sparkles className={`w-3.5 h-3.5 ${isAiLoading ? 'animate-spin' : ''}`} />
               <span>{isAiLoading ? 'Analyzing...' : '✨ AI Fault Diagnosis'}</span>
@@ -984,13 +984,13 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             {grievanceCategoryCfg.enabled && (
               <div>
-                <label className="block text-zinc-400 mb-1 font-medium">
+                <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-medium">
                   {grievanceCategoryCfg.label} {grievanceCategoryCfg.required && '*'}
                 </label>
                 <select
                   value={grievanceCategory}
                   onChange={(e) => setGrievanceCategory(e.target.value as any)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-zinc-950 dark:text-white font-medium focus:outline-none"
                 >
                   {(grievanceCategoryCfg.options && grievanceCategoryCfg.options.length > 0
                     ? grievanceCategoryCfg.options
@@ -1012,11 +1012,11 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
             )}
 
             <div>
-              <label className="block text-zinc-400 mb-1 font-medium">Service Requirement Type</label>
+              <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-medium">Service Requirement Type</label>
               <select
                 value={serviceType}
                 onChange={(e) => setServiceType(e.target.value as any)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-zinc-950 dark:text-white font-medium focus:outline-none"
               >
                 <option value="Diagnostic & Repair">Diagnostic &amp; Repair</option>
                 <option value="Standard Overhaul">Standard Overhaul &amp; Repack</option>
@@ -1031,10 +1031,10 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
           {detailedComplaintCfg.enabled && (
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-zinc-400">
+                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-400">
                   {detailedComplaintCfg.label} {detailedComplaintCfg.required && '*'}
                 </label>
-                <span className="text-[11px] text-zinc-500">Click a preset below to auto-fill</span>
+                <span className="text-[11px] text-zinc-600 dark:text-zinc-500">Click a preset below to auto-fill</span>
               </div>
 
               <textarea
@@ -1043,7 +1043,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                 value={detailedComplaint}
                 onChange={(e) => setDetailedComplaint(e.target.value)}
                 placeholder={detailedComplaintCfg.placeholder}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-zinc-500 font-mono leading-relaxed"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-3 text-xs text-zinc-950 dark:text-white focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500 font-mono leading-relaxed"
               />
 
               <div className="flex items-center gap-1.5 overflow-x-auto mt-2 pb-1">
@@ -1052,7 +1052,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                     key={idx}
                     type="button"
                     onClick={() => setDetailedComplaint(preset)}
-                    className="px-2.5 py-1 bg-zinc-950 border border-zinc-800 hover:border-zinc-600 rounded-lg text-[11px] text-zinc-400 hover:text-white whitespace-nowrap shrink-0 transition-colors"
+                    className="px-2.5 py-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 hover:border-zinc-500 dark:hover:border-zinc-600 rounded-lg text-[11px] text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white whitespace-nowrap shrink-0 transition-colors"
                   >
                     Preset {idx + 1}
                   </button>
@@ -1062,16 +1062,16 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
           )}
 
           {aiError && (
-            <div className="p-3 bg-rose-950/40 border border-rose-800/70 rounded-xl text-xs font-mono text-rose-200 flex items-center justify-between gap-2">
+            <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800/70 rounded-xl text-xs font-mono text-rose-800 dark:text-rose-200 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <AlertCircle className="w-4 h-4 text-rose-700 dark:text-rose-400 shrink-0" />
                 <span>{aiError}</span>
               </div>
               <button
                 type="button"
                 onClick={() => setAiError(null)}
                 aria-label="Dismiss AI diagnosis error"
-                className="text-rose-300 hover:text-white p-1"
+                className="text-rose-800 dark:text-rose-300 hover:text-zinc-950 dark:hover:text-white p-1"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -1080,26 +1080,26 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
 
           {/* AI Suggestions Box */}
           {aiSuggestions && (
-            <div className="p-4 bg-zinc-950 border border-zinc-700 rounded-xl space-y-1 text-xs">
-              <span className="font-bold text-white uppercase tracking-wider block text-[10px]">AI Diagnostic Assessment</span>
-              <pre className="whitespace-pre-wrap font-mono text-zinc-300 text-[11px] leading-relaxed">{aiSuggestions}</pre>
+            <div className="p-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 rounded-xl space-y-1 text-xs">
+              <span className="font-bold text-zinc-950 dark:text-white uppercase tracking-wider block text-[10px]">AI Diagnostic Assessment</span>
+              <pre className="whitespace-pre-wrap font-mono text-zinc-800 dark:text-zinc-300 text-[11px] leading-relaxed">{aiSuggestions}</pre>
             </div>
           )}
         </div>
 
         {/* Custom Form Fields Section */}
         {customFields.filter(f => !f.isSystem && f.enabled).length > 0 && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
-            <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2 border-b border-zinc-800 pb-3 font-mono">
-              <Sliders className="w-4 h-4 text-white" />
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-4">
+            <h2 className="text-xs font-bold text-zinc-800 dark:text-zinc-300 uppercase tracking-wider flex items-center gap-2 border-b border-zinc-300 dark:border-zinc-800 pb-3 font-mono">
+              <Sliders className="w-4 h-4 text-zinc-950 dark:text-white" />
               <span>Custom Service Intake Properties ({customFields.filter(f => !f.isSystem && f.enabled).length} Custom Fields)</span>
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs font-mono">
               {customFields.filter(f => !f.isSystem && f.enabled).map((field) => (
                 <div key={field.id} className="space-y-1">
-                  <label className="block text-zinc-400 font-medium">
-                    {field.label} {field.required && <span className="text-white">*</span>}
+                  <label className="block text-zinc-700 dark:text-zinc-400 font-medium">
+                    {field.label} {field.required && <span className="text-zinc-950 dark:text-white">*</span>}
                   </label>
 
                   {field.dataType === 'select' ? (
@@ -1107,7 +1107,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                       value={String(customValues[field.key] ?? '')}
                       onChange={(e) => setCustomValues({ ...customValues, [field.key]: e.target.value })}
                       required={field.required}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none"
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-zinc-950 dark:text-white font-medium focus:outline-none"
                     >
                       <option value="">Select option...</option>
                       {(field.options || []).map(opt => (
@@ -1121,18 +1121,18 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                       onChange={(e) => setCustomValues({ ...customValues, [field.key]: e.target.value })}
                       required={field.required}
                       placeholder={field.placeholder || ''}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-white font-mono focus:outline-none"
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-2.5 text-zinc-950 dark:text-white font-mono focus:outline-none"
                     />
                   ) : field.dataType === 'boolean' ? (
-                    <label className="flex items-center gap-2.5 p-2.5 bg-zinc-950 border border-zinc-800 rounded-xl cursor-pointer">
+                    <label className="flex items-center gap-2.5 p-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl cursor-pointer">
                       <input
                         type="checkbox"
                         checked={Boolean(customValues[field.key])}
                         onChange={(e) => setCustomValues({ ...customValues, [field.key]: e.target.checked })}
                         required={field.required}
-                        className="w-4 h-4 accent-white rounded"
+                        className="w-4 h-4 accent-zinc-950 dark:accent-white rounded"
                       />
-                      <span className="text-zinc-200 font-sans text-xs">
+                      <span className="text-zinc-900 dark:text-zinc-200 font-sans text-xs">
                         {field.placeholder || 'Confirmed'}
                       </span>
                     </label>
@@ -1143,7 +1143,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
                       onChange={(e) => setCustomValues({ ...customValues, [field.key]: e.target.value })}
                       required={field.required}
                       placeholder={field.placeholder || ''}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono focus:outline-none"
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-zinc-950 dark:text-white font-mono focus:outline-none"
                     />
                   )}
                 </div>
@@ -1153,13 +1153,13 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
         )}
 
         {/* Section 4: Customer Touch Signature */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-              <PenTool className="w-4 h-4 text-white" />
+            <h2 className="text-xs font-bold text-zinc-800 dark:text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+              <PenTool className="w-4 h-4 text-zinc-950 dark:text-white" />
               <span>
                 4. Customer Intake Sign-off{' '}
-                <span className={settings.requireSignature ? 'text-amber-300' : 'text-zinc-500'}>
+                <span className={settings.requireSignature ? 'text-amber-900 dark:text-amber-300' : 'text-zinc-600 dark:text-zinc-500'}>
                   ({settings.requireSignature ? 'Required' : 'Optional'})
                 </span>
               </span>
@@ -1169,7 +1169,7 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
               <button
                 type="button"
                 onClick={clearSignature}
-                className="text-xs text-zinc-400 hover:text-white hover:underline"
+                className="text-xs text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:underline"
               >
                 Clear Signature
               </button>
@@ -1177,23 +1177,23 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
           </div>
 
           {signatureError && (
-            <div className="p-3 bg-rose-950/40 border border-rose-800/70 rounded-xl text-xs font-mono text-rose-200 flex items-center justify-between gap-2">
+            <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800/70 rounded-xl text-xs font-mono text-rose-800 dark:text-rose-200 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <AlertCircle className="w-4 h-4 text-rose-700 dark:text-rose-400 shrink-0" />
                 <span>{signatureError}</span>
               </div>
               <button
                 type="button"
                 onClick={() => setSignatureError(null)}
                 aria-label="Dismiss validation error"
-                className="text-rose-300 hover:text-white p-1"
+                className="text-rose-800 dark:text-rose-300 hover:text-zinc-950 dark:hover:text-white p-1"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
 
-          <div className="border border-zinc-800 rounded-xl bg-zinc-950 overflow-hidden">
+          <div className="border-2 border-zinc-400 dark:border-zinc-700 rounded-xl bg-white overflow-hidden">
             <canvas
               ref={canvasRef}
               width={400}
@@ -1209,21 +1209,21 @@ export const BoschIntakeForm: React.FC<BoschIntakeFormProps> = ({
             />
           </div>
 
-          <div className="flex items-center justify-between text-[11px] text-zinc-500">
+          <div className="flex items-center justify-between text-[11px] text-zinc-600 dark:text-zinc-500">
             <span>Customer signs above to acknowledge physical tool condition &amp; estimate pre-approval limit (${preApprovedLimit}).</span>
-            {hasSignature && <span className="text-white font-bold">✓ Digital Signature Captured</span>}
+            {hasSignature && <span className="text-zinc-950 dark:text-white font-bold">✓ Digital Signature Captured</span>}
           </div>
         </div>
 
         {/* Submit Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl">
-          <div className="text-xs text-zinc-400">
-            Intake Card ID: <span className="font-mono text-white font-bold">{generatedId}</span>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl shadow-2xl">
+          <div className="text-xs text-zinc-700 dark:text-zinc-400">
+            Intake Card ID: <span className="font-mono text-zinc-950 dark:text-white font-bold">{generatedId}</span>
           </div>
 
           <button
             type="submit"
-            className="w-full sm:w-auto px-6 py-3 font-bold text-xs text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow-xl transition-all flex items-center justify-center gap-2 active:scale-95"
+            className="w-full sm:w-auto px-6 py-3 font-bold text-xs text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl shadow-xl transition-all flex items-center justify-center gap-2 active:scale-95"
           >
             <Plus className="w-4 h-4" />
             <span>Generate Bosch Service Ticket &amp; Save</span>

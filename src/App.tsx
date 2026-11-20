@@ -23,6 +23,13 @@ import {
   syncRecordsToServiceWorker,
 } from './utils/offlineCache';
 import {
+  AppTheme,
+  applyThemeToDocument,
+  loadStoredTheme,
+  saveStoredTheme,
+  toggleThemeValue,
+} from './utils/theme';
+import {
   auth,
   signInWithGoogle,
   signOutWorkshopUser,
@@ -111,6 +118,16 @@ export default function App() {
   const [feedbackSmsNotices, setFeedbackSmsNotices] = useState<FeedbackSmsDispatchNotice[]>([]);
   const [activeTab, setActiveTab] = useState<'intake' | 'jobs' | 'kanban' | 'maintenance' | 'inventory' | 'messaging' | 'analytics' | 'timetracking' | 'transition'>('intake');
   const [transitionSubTab, setTransitionSubTab] = useState<'fields' | 'backups' | 'rules' | 'manual'>('backups');
+  const [theme, setTheme] = useState<AppTheme>(() => loadStoredTheme());
+
+  useEffect(() => {
+    applyThemeToDocument(theme);
+    saveStoredTheme(theme);
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => toggleThemeValue(prev));
+  };
   
   // Core Persistent Transactional State
   const [jobCards, setJobCards] = useState<JobCard[]>(() =>
@@ -1100,6 +1117,8 @@ export default function App() {
         centerName={settings.centerName}
         centerPhone={settings.phone}
         onSubmitFeedback={handleSubmitCustomerFeedback}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
         onExitCustomerView={
           isLockedCustomerUrl
             ? undefined
@@ -1113,7 +1132,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-white selection:text-zinc-950">
+    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 text-zinc-950 dark:text-zinc-100 flex flex-col font-sans selection:bg-zinc-950 selection:text-white dark:selection:bg-white dark:selection:text-zinc-950 transition-colors">
       
       {/* Monochrome Top Bar */}
       <Header
@@ -1142,15 +1161,17 @@ export default function App() {
         authLoading={authLoading}
         onSignIn={handleOperatorSignIn}
         onSignOut={handleOperatorSignOut}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
 
       {authError && (
-        <div className="bg-rose-950/80 border-b border-rose-800 px-4 py-2 text-xs font-mono text-rose-200 flex items-center justify-between gap-3">
+        <div className="bg-rose-50 dark:bg-rose-950/80 border-b border-rose-300 dark:border-rose-800 px-4 py-2 text-xs font-mono text-rose-900 dark:text-rose-200 flex items-center justify-between gap-3">
           <span>Sign-in notice: {authError}</span>
           <button
             type="button"
             onClick={() => setAuthError(null)}
-            className="text-rose-300 hover:text-white font-bold"
+            className="text-rose-800 dark:text-rose-300 hover:text-rose-950 dark:hover:text-white font-bold"
           >
             Dismiss
           </button>
@@ -1310,6 +1331,7 @@ export default function App() {
                 notifications={inventoryNotifications}
                 settings={settings}
                 schedules={schedules}
+                theme={theme}
                 onOpenAnalyticsSettings={() => {
                   setTransitionSubTab('rules');
                   setActiveTab('transition');
@@ -1372,7 +1394,7 @@ export default function App() {
 
       {/* Modals */}
       {aiDiagnosisJob && (
-        <div className="fixed inset-0 z-50 bg-zinc-950/85 backdrop-blur flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-zinc-950/60 dark:bg-zinc-950/85 backdrop-blur flex items-center justify-center p-4 overflow-y-auto">
           <div className="max-w-4xl w-full my-8">
             <AiDiagnosis
               jobCards={jobCards}
@@ -1490,12 +1512,12 @@ export default function App() {
       />
 
       {/* Monochrome Footer */}
-      <footer className="border-t border-zinc-900 py-4 text-center text-xs text-zinc-500 font-mono no-print">
+      <footer className="border-t border-zinc-300 dark:border-zinc-900 bg-white dark:bg-zinc-950 py-4 text-center text-xs text-zinc-700 dark:text-zinc-500 font-mono no-print transition-colors">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>BOSCH &amp; Vendor Power Tools Service Hub · Technician Efficiency &amp; Kanban Workflow</span>
           <button
             onClick={() => setActiveTab('transition')}
-            className="text-zinc-400 hover:text-white underline font-semibold"
+            className="text-zinc-900 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white underline font-semibold"
           >
             Setup Questions &amp; Business Rules
           </button>

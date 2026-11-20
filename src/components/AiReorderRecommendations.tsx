@@ -243,23 +243,23 @@ export const AiReorderRecommendations: React.FC<AiReorderRecommendationsProps> =
   };
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-6 shadow-xl font-mono">
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-6 shadow-xl font-mono">
       
       {/* Title & Action Banner */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-zinc-300 dark:border-zinc-800 pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-white text-zinc-950 font-bold">
+            <span className="p-1.5 rounded-lg bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 font-bold">
               <BrainCircuit className="w-5 h-5" />
             </span>
-            <h2 className="text-base font-bold text-white uppercase tracking-tight">
+            <h2 className="text-base font-bold text-zinc-950 dark:text-white uppercase tracking-tight">
               AI-Driven Inventory Reorder &amp; Failure Pattern Engine
             </h2>
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-950 text-white border border-zinc-700">
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-white border border-zinc-400 dark:border-zinc-700">
               Gemini AI Engine
             </span>
           </div>
-          <p className="text-xs text-zinc-400 mt-1 font-sans">
+          <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-1 font-sans">
             Analyzes historical repair data and common tool failure patterns (motor sparking, lost impact, dead switch) to suggest parts to order before stockouts occur.
           </p>
         </div>
@@ -268,7 +268,7 @@ export const AiReorderRecommendations: React.FC<AiReorderRecommendationsProps> =
           <button
             onClick={handleRunAiAnalysis}
             disabled={loading}
-            className="px-4 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl transition-all shadow flex items-center gap-2 active:scale-95 disabled:opacity-50"
+            className="px-4 py-2 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl transition-all shadow flex items-center gap-2 active:scale-95 disabled:opacity-50"
           >
             {loading ? (
               <RefreshCw className="w-4 h-4 animate-spin text-zinc-950" />
@@ -282,7 +282,7 @@ export const AiReorderRecommendations: React.FC<AiReorderRecommendationsProps> =
             <>
               <button
                 onClick={handleDownloadDraftPoPdf}
-                className="px-3.5 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl transition-all flex items-center gap-1.5 shadow"
+                className="px-3.5 py-2 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl transition-all flex items-center gap-1.5 shadow"
                 title="Generate and download Draft Purchase Order as PDF"
               >
                 <FileText className="w-4 h-4 text-emerald-600" />
@@ -291,7 +291,7 @@ export const AiReorderRecommendations: React.FC<AiReorderRecommendationsProps> =
 
               <button
                 onClick={handleDownloadAiPoCsv}
-                className="px-3.5 py-2 text-xs font-bold text-white bg-zinc-950 hover:bg-zinc-800 border border-zinc-700 rounded-xl transition-all flex items-center gap-1.5"
+                className="px-3.5 py-2 text-xs font-bold text-zinc-950 dark:text-white bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-400 dark:border-zinc-700 rounded-xl transition-all flex items-center gap-1.5"
               >
                 <Download className="w-4 h-4" />
                 <span>Export AI PO CSV</span>
@@ -303,62 +303,62 @@ export const AiReorderRecommendations: React.FC<AiReorderRecommendationsProps> =
 
       {/* Restock Notification Toast */}
       {restockSuccessMsg && (
-        <div className="p-3 bg-zinc-950 border border-white/30 rounded-xl text-xs font-mono text-white flex items-center justify-between shadow-lg">
+        <div className="p-3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-950/30 dark:border-white/30 rounded-xl text-xs font-mono text-zinc-950 dark:text-white flex items-center justify-between shadow-lg">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-white" />
+            <CheckCircle2 className="w-4 h-4 text-zinc-950 dark:text-white" />
             <span>{restockSuccessMsg}</span>
           </div>
-          <span className="text-[10px] text-zinc-400">Inventory Updated</span>
+          <span className="text-[10px] text-zinc-700 dark:text-zinc-400">Inventory Updated</span>
         </div>
       )}
 
       {/* Summary Insight Box */}
       {summaryInsight && (
-        <div className="p-4 bg-zinc-950 border border-zinc-700 rounded-xl space-y-2 shadow-inner">
-          <div className="flex items-center gap-2 text-xs font-bold text-white uppercase">
-            <Sparkles className="w-4 h-4 text-white" />
+        <div className="p-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 rounded-xl space-y-2 shadow-inner">
+          <div className="flex items-center gap-2 text-xs font-bold text-zinc-950 dark:text-white uppercase">
+            <Sparkles className="w-4 h-4 text-zinc-950 dark:text-white" />
             <span>AI Predictive Stock Intelligence Summary</span>
           </div>
-          <p className="text-xs text-zinc-300 font-sans leading-relaxed">{summaryInsight}</p>
+          <p className="text-xs text-zinc-800 dark:text-zinc-300 font-sans leading-relaxed">{summaryInsight}</p>
         </div>
       )}
 
       {/* Detected Failure Patterns Cards */}
       {failurePatterns.length > 0 && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between text-xs font-bold text-zinc-300 uppercase tracking-wider">
+          <div className="flex items-center justify-between text-xs font-bold text-zinc-800 dark:text-zinc-300 uppercase tracking-wider">
             <span className="flex items-center gap-1.5">
-              <ShieldAlert className="w-4 h-4 text-white" />
+              <ShieldAlert className="w-4 h-4 text-zinc-950 dark:text-white" />
               <span>Detected Tool Failure Patterns &amp; Associated Parts</span>
             </span>
-            <span className="text-zinc-500 text-[11px] font-normal font-sans">
+            <span className="text-zinc-600 dark:text-zinc-500 text-[11px] font-normal font-sans">
               Correlated from {jobCards.length} workshop service tickets
             </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {failurePatterns.map((fp, idx) => (
-              <div key={idx} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3.5 space-y-2.5">
+              <div key={idx} className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-3.5 space-y-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-white font-mono truncate">{fp.symptom}</span>
+                  <span className="text-xs font-bold text-zinc-950 dark:text-white font-mono truncate">{fp.symptom}</span>
                   <span
                     className={`px-2 py-0.5 rounded text-[9px] font-bold ${
                       fp.riskLevel === 'CRITICAL'
-                        ? 'bg-white text-zinc-950 font-extrabold'
+                        ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 font-extrabold'
                         : fp.riskLevel === 'HIGH'
-                        ? 'bg-zinc-800 text-white border border-zinc-600'
-                        : 'bg-zinc-900 text-zinc-400'
+                        ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-950 dark:text-white border border-zinc-400 dark:border-zinc-600'
+                        : 'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-400'
                     }`}
                   >
                     {fp.riskLevel} RISK
                   </span>
                 </div>
 
-                <p className="text-[11px] text-zinc-400 font-sans line-clamp-3 leading-snug">{fp.explanation}</p>
+                <p className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans line-clamp-3 leading-snug">{fp.explanation}</p>
 
-                <div className="pt-1 border-t border-zinc-900 flex flex-wrap gap-1">
+                <div className="pt-1 border-t border-zinc-200 dark:border-zinc-900 flex flex-wrap gap-1">
                   {fp.associatedParts.map((partSku) => (
-                    <span key={partSku} className="px-1.5 py-0.5 bg-zinc-900 text-zinc-300 rounded text-[10px] border border-zinc-800">
+                    <span key={partSku} className="px-1.5 py-0.5 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-300 rounded text-[10px] border border-zinc-300 dark:border-zinc-800">
                       {partSku}
                     </span>
                   ))}
@@ -374,29 +374,29 @@ export const AiReorderRecommendations: React.FC<AiReorderRecommendationsProps> =
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <ShoppingCart className="w-4 h-4 text-white" />
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+              <ShoppingCart className="w-4 h-4 text-zinc-950 dark:text-white" />
+              <h3 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider">
                 AI Suggested Reorder Purchase Orders ({recommendations.length} SKUs)
               </h3>
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="text-xs font-bold text-white font-mono">
-                Total PO Est: <span className="text-white">${totalReorderValue.toFixed(2)}</span>
+              <span className="text-xs font-bold text-zinc-950 dark:text-white font-mono">
+                Total PO Est: <span className="text-zinc-950 dark:text-white">${totalReorderValue.toFixed(2)}</span>
               </span>
 
               <button
                 onClick={handleBatchReceiveAll}
-                className="px-3 py-1.5 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-lg transition-all active:scale-95"
+                className="px-3 py-1.5 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-lg transition-all active:scale-95"
               >
                 + Receive All Recommended
               </button>
             </div>
           </div>
 
-          <div className="overflow-x-auto border border-zinc-800 rounded-xl bg-zinc-950">
+          <div className="overflow-x-auto border border-zinc-300 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-950">
             <table className="w-full text-xs text-left font-mono">
-              <thead className="bg-zinc-900 text-zinc-400 text-[11px] uppercase border-b border-zinc-800">
+              <thead className="bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-400 text-[11px] uppercase border-b border-zinc-300 dark:border-zinc-800">
                 <tr>
                   <th className="p-3">Urgency</th>
                   <th className="p-3">SKU &amp; Part Name</th>
@@ -408,18 +408,18 @@ export const AiReorderRecommendations: React.FC<AiReorderRecommendationsProps> =
                   <th className="p-3 text-center">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/80 text-zinc-300">
+              <tbody className="divide-y divide-zinc-200/80 dark:divide-zinc-800/80 text-zinc-800 dark:text-zinc-300">
                 {recommendations.map((rec) => {
                   return (
-                    <tr key={rec.sku} className="hover:bg-zinc-900/60 transition-colors">
+                    <tr key={rec.sku} className="hover:bg-zinc-100 dark:hover:bg-zinc-900/60 transition-colors">
                       <td className="p-3">
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                             rec.urgency === 'CRITICAL'
-                              ? 'bg-white text-zinc-950 font-extrabold shadow'
+                              ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 font-extrabold shadow'
                               : rec.urgency === 'HIGH'
-                              ? 'bg-zinc-800 text-white border border-zinc-600'
-                              : 'bg-zinc-900 text-zinc-400 border border-zinc-800'
+                              ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-950 dark:text-white border border-zinc-400 dark:border-zinc-600'
+                              : 'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-800'
                           }`}
                         >
                           {rec.urgency}
@@ -427,36 +427,36 @@ export const AiReorderRecommendations: React.FC<AiReorderRecommendationsProps> =
                       </td>
 
                       <td className="p-3">
-                        <div className="font-bold text-white">{rec.sku}</div>
-                        <div className="text-[11px] text-zinc-400 truncate max-w-xs">{rec.name}</div>
+                        <div className="font-bold text-zinc-950 dark:text-white">{rec.sku}</div>
+                        <div className="text-[11px] text-zinc-700 dark:text-zinc-400 truncate max-w-xs">{rec.name}</div>
                       </td>
 
                       <td className="p-3 text-center">
-                        <div className="font-bold text-white">{rec.currentStock}</div>
-                        <div className="text-[10px] text-zinc-500">Min: {rec.minStockThreshold}</div>
+                        <div className="font-bold text-zinc-950 dark:text-white">{rec.currentStock}</div>
+                        <div className="text-[10px] text-zinc-600 dark:text-zinc-500">Min: {rec.minStockThreshold}</div>
                       </td>
 
-                      <td className="p-3 text-center font-extrabold text-white bg-zinc-900/50">
+                      <td className="p-3 text-center font-extrabold text-zinc-950 dark:text-white bg-zinc-50 dark:bg-zinc-900/50">
                         +{rec.suggestedReorderQty}
                       </td>
 
                       <td className="p-3 font-sans">
-                        <div className="font-bold text-white text-[11px]">{rec.predictedDefectPattern}</div>
-                        <div className="text-[10px] text-zinc-400 line-clamp-1 mt-0.5">{rec.reasoning}</div>
+                        <div className="font-bold text-zinc-950 dark:text-white text-[11px]">{rec.predictedDefectPattern}</div>
+                        <div className="text-[10px] text-zinc-700 dark:text-zinc-400 line-clamp-1 mt-0.5">{rec.reasoning}</div>
                       </td>
 
-                      <td className="p-3 text-right font-bold text-zinc-300">
+                      <td className="p-3 text-right font-bold text-zinc-800 dark:text-zinc-300">
                         ${rec.costPrice.toFixed(2)}
                       </td>
 
-                      <td className="p-3 text-right font-extrabold text-white">
+                      <td className="p-3 text-right font-extrabold text-zinc-950 dark:text-white">
                         ${rec.estimatedTotalCost.toFixed(2)}
                       </td>
 
                       <td className="p-3 text-center">
                         <button
                           onClick={() => handleReceiveRestockItem(rec.sku, rec.suggestedReorderQty)}
-                          className="px-2.5 py-1 text-[10px] font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded transition-all active:scale-95"
+                          className="px-2.5 py-1 text-[10px] font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded transition-all active:scale-95"
                           title="Receive restock and add suggested quantity to active stock"
                         >
                           + Receive
@@ -471,11 +471,11 @@ export const AiReorderRecommendations: React.FC<AiReorderRecommendationsProps> =
         </div>
       ) : (
         !loading && (
-          <div className="p-6 bg-zinc-950 border border-zinc-800 rounded-xl text-center space-y-3">
-            <BrainCircuit className="w-8 h-8 text-zinc-500 mx-auto" />
-            <div className="text-sm font-bold text-white">Ready for AI Inventory Reorder Analysis</div>
-            <p className="text-xs text-zinc-400 font-sans max-w-md mx-auto">
-              Click <strong className="text-white">"Spark AI Reorder Analysis"</strong> above to analyze historical tool failure patterns and forecast stock requirements using Gemini AI.
+          <div className="p-6 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl text-center space-y-3">
+            <BrainCircuit className="w-8 h-8 text-zinc-600 dark:text-zinc-500 mx-auto" />
+            <div className="text-sm font-bold text-zinc-950 dark:text-white">Ready for AI Inventory Reorder Analysis</div>
+            <p className="text-xs text-zinc-700 dark:text-zinc-400 font-sans max-w-md mx-auto">
+              Click <strong className="text-zinc-950 dark:text-white">"Spark AI Reorder Analysis"</strong> above to analyze historical tool failure patterns and forecast stock requirements using Gemini AI.
             </p>
           </div>
         )

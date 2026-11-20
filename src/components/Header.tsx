@@ -28,7 +28,17 @@ import {
   QrCode,
   LogIn,
   LogOut,
+  Sun,
+  Moon,
+  History,
 } from 'lucide-react';
+import { AppTheme } from '../utils/theme';
+import {
+  loadRecentJobIds,
+  saveRecentJobIds,
+  recordRecentJobId,
+  removeRecentJobId,
+} from '../utils/recentSearches';
 
 export type AppTab =
   | 'intake'
@@ -86,6 +96,8 @@ interface HeaderProps {
   authLoading?: boolean;
   onSignIn?: () => void;
   onSignOut?: () => void;
+  theme?: AppTheme;
+  onToggleTheme?: () => void;
 }
 
 const ACTIVE_TAB_LABELS: Record<AppTab, string> = {
@@ -122,6 +134,8 @@ export const Header: React.FC<HeaderProps> = ({
   authLoading,
   onSignIn,
   onSignOut,
+  theme = 'dark',
+  onToggleTheme,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<MenuGroupId | null>(null);
@@ -129,6 +143,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'critical'>('all');
+  const [recentJobIds, setRecentJobIds] = useState<string[]>(() => loadRecentJobIds());
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const notifContainerRef = useRef<HTMLDivElement>(null);
   const menuBarRef = useRef<HTMLDivElement>(null);
@@ -208,14 +223,27 @@ export const Header: React.FC<HeaderProps> = ({
     : [];
 
   const hasResults = matchingJobs.length > 0 || matchingInventory.length > 0;
+  const recentJobEntries = recentJobIds.map((id) => ({
+    id,
+    job: jobCards.find((j) => j.id === id) || null,
+  }));
 
   const handleSelectJobResult = (job: JobCard) => {
+    setRecentJobIds((prev) => saveRecentJobIds(recordRecentJobId(prev, job.id)));
     onSelectJob(job);
     setActiveTab('jobs');
     setSearchQuery('');
     setIsSearchOpen(false);
     setOpenMenu(null);
     setMobileMenuOpen(false);
+  };
+
+  const handleRemoveRecentJobId = (jobId: string) => {
+    setRecentJobIds((prev) => saveRecentJobIds(removeRecentJobId(prev, jobId)));
+  };
+
+  const handleClearRecentJobIds = () => {
+    setRecentJobIds(saveRecentJobIds([]));
   };
 
   const handleSelectInventoryResult = (_item: InventoryItem) => {
@@ -412,164 +440,63 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   const getBadgeClasses = (tone: MenuItemConfig['badgeTone']) => {
-    if (tone === 'warning') return 'bg-amber-500/20 text-amber-300 border border-amber-500/40';
-    if (tone === 'accent') return 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
-    return 'bg-zinc-800 text-zinc-300 border border-zinc-700';
+    if (tone === 'warning') {
+      return 'bg-amber-100 dark:bg-amber-500/20 text-amber-900 dark:text-amber-300 border border-amber-400 dark:border-amber-500/40';
+    }
+    if (tone === 'accent') {
+      return 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-900 dark:text-emerald-300 border border-emerald-400 dark:border-emerald-500/40';
+    }
+    return 'bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-300 border border-zinc-400 dark:border-zinc-700';
   };
 
+  const isDarkTheme = theme === 'dark';
+
   return (
-    <header className="sticky top-0 z-40 bg-zinc-950/95 backdrop-blur border-b border-zinc-800">
-      {/* Row 1: Wordmark — Prominent Global Search Bar — Essential Operator Utilities */}
+    <>
+    <header className="sticky top-0 z-40 bg-white/95 dark:bg-zinc-950/95 backdrop-blur border-b border-zinc-300 dark:border-zinc-800 transition-colors no-print">
+      {/* Row 1: Wordmark and Essential Operator Utilities */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-3 sm:gap-5">
           {/* Brand Wordmark */}
           <button
             type="button"
             onClick={() => handleNavClick('intake')}
-            className="flex items-center gap-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded-lg group shrink-0"
+            className="flex items-center gap-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/60 dark:focus-visible:ring-white/60 rounded-lg group shrink-0"
           >
-            <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-center text-white group-hover:bg-zinc-800 transition-colors">
+            <div className="w-8 h-8 rounded-lg bg-zinc-950 dark:bg-zinc-900 border border-zinc-950 dark:border-zinc-700 flex items-center justify-center text-white group-hover:bg-zinc-800 transition-colors">
               <Wrench className="w-4 h-4" />
             </div>
-            <span className="text-base font-bold tracking-tight text-white whitespace-nowrap font-mono uppercase hidden sm:inline">
-              BOSCH <span className="text-zinc-400 font-normal">Service Hub</span>
+            <span className="text-sm sm:text-base font-bold tracking-tight text-zinc-950 dark:text-white whitespace-nowrap font-mono uppercase">
+              BOSCH <span className="text-zinc-600 dark:text-zinc-400 font-normal hidden xs:inline sm:inline">Service Hub</span>
             </span>
           </button>
 
-          {/* Global Search Bar */}
-          <div className="relative flex-1 max-w-xl" ref={searchContainerRef}>
-            <div className="relative">
-              <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-2.5 pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setIsSearchOpen(true);
-                }}
-                onFocus={() => setIsSearchOpen(true)}
-                placeholder="Search job cards, client name, phone, SKU, or serial..."
-                aria-label="Global workshop search"
-                className="w-full bg-zinc-900 border border-zinc-800 hover:border-zinc-700 focus:border-white rounded-xl pl-10 pr-16 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none font-mono transition-colors"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  aria-label="Clear search query"
-                  className={`absolute top-2.5 text-zinc-500 hover:text-white text-xs font-bold ${
-                    onOpenGlobalScanner ? 'right-9' : 'right-3'
-                  }`}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-              {onOpenGlobalScanner && (
-                <button
-                  type="button"
-                  onClick={onOpenGlobalScanner}
-                  title="Scan QR or Barcode"
-                  aria-label="Scan QR and Barcode"
-                  className="absolute right-2 top-1.5 p-1.5 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-zinc-800 transition-colors"
-                >
-                  <QrCode className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Global Search Results Dropdown */}
-            {isSearchOpen && query && (
-              <div className="absolute left-0 right-0 top-11 z-50 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden font-mono text-xs">
-                {!hasResults ? (
-                  <div className="p-4 text-center text-zinc-500">
-                    No job cards or inventory matches for &quot;{searchQuery}&quot;
-                  </div>
-                ) : (
-                  <div className="max-h-96 overflow-y-auto divide-y divide-zinc-900">
-                    {matchingJobs.length > 0 && (
-                      <div className="p-2 space-y-1">
-                        <div className="px-2.5 py-1 text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center justify-between">
-                          <span>Job Cards ({matchingJobs.length})</span>
-                          <span>Select to open</span>
-                        </div>
-                        {matchingJobs.map((job) => (
-                          <div
-                            key={job.id}
-                            onClick={() => handleSelectJobResult(job)}
-                            className="p-2.5 rounded-xl hover:bg-zinc-900 cursor-pointer transition-colors flex items-center justify-between gap-2 group"
-                          >
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-white bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800 text-[11px]">
-                                  {job.id}
-                                </span>
-                                <span className="text-xs font-bold text-zinc-200 truncate">{job.customerName}</span>
-                              </div>
-                              <div className="text-[10px] text-zinc-400 mt-0.5 flex items-center gap-2">
-                                <span>{job.customerPhone}</span>
-                                <span aria-hidden="true">·</span>
-                                <span className="text-zinc-300 font-medium">
-                                  {job.tool.brand} {job.tool.modelNumber}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-[10px] text-zinc-300 font-medium">{job.status}</span>
-                              <ChevronRight className="w-3.5 h-3.5 text-zinc-600 group-hover:text-white transition-colors" />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {matchingInventory.length > 0 && (
-                      <div className="p-2 space-y-1">
-                        <div className="px-2.5 py-1 text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center justify-between">
-                          <span>Parts Inventory SKUs ({matchingInventory.length})</span>
-                          <span>Select to view catalog</span>
-                        </div>
-                        {matchingInventory.map((item) => (
-                          <div
-                            key={item.id}
-                            onClick={() => handleSelectInventoryResult(item)}
-                            className="p-2.5 rounded-xl hover:bg-zinc-900 cursor-pointer transition-colors flex items-center justify-between gap-2 group"
-                          >
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-white bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800 text-[11px]">
-                                  {item.sku}
-                                </span>
-                                <span className="text-xs font-bold text-zinc-200 truncate">{item.name}</span>
-                              </div>
-                              <div className="text-[10px] text-zinc-400 mt-0.5">
-                                Category: {item.category} · Bin: {item.binLocation}
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 shrink-0 text-right">
-                              <div>
-                                <div className="text-xs font-bold text-white tabular-nums">
-                                  ${item.unitPrice.toFixed(2)}
-                                </div>
-                                <div className="text-[9px] text-zinc-400 tabular-nums">
-                                  {item.stockQty} in stock
-                                </div>
-                              </div>
-                              <ChevronRight className="w-3.5 h-3.5 text-zinc-600 group-hover:text-white transition-colors" />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
           {/* Right Essential Utilities + Primary Intake Action */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* High-Contrast Light / Dark Theme Toggle */}
+            {onToggleTheme && (
+              <button
+                type="button"
+                onClick={onToggleTheme}
+                aria-label={isDarkTheme ? 'Switch to high-contrast light theme' : 'Switch to dark theme'}
+                aria-pressed={!isDarkTheme}
+                data-testid="theme-toggle"
+                title={
+                  isDarkTheme
+                    ? 'Dark theme active — click for high-contrast light theme'
+                    : 'High-contrast light theme active — click for dark theme'
+                }
+                className="px-2.5 py-2 rounded-lg border border-zinc-400 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-950 dark:text-zinc-100 transition-colors inline-flex items-center gap-1.5 text-xs font-mono font-bold whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 dark:focus-visible:ring-white"
+              >
+                {isDarkTheme ? (
+                  <Sun className="w-4 h-4 text-amber-400" />
+                ) : (
+                  <Moon className="w-4 h-4 text-zinc-950" />
+                )}
+                <span className="hidden xl:inline">{isDarkTheme ? 'Light' : 'Dark'}</span>
+              </button>
+            )}
+
             {/* Inventory Notification Center Bell */}
             <div className="relative" ref={notifContainerRef}>
               <button
@@ -580,15 +507,15 @@ export const Header: React.FC<HeaderProps> = ({
                 }}
                 className={`relative p-2 rounded-lg border transition-colors ${
                   unreadInventoryCount > 0 || lowStockCount > 0
-                    ? 'bg-zinc-900 border-amber-500/60 text-amber-300 hover:bg-zinc-800'
-                    : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800'
+                    ? 'bg-amber-50 dark:bg-zinc-900 border-amber-500 dark:border-amber-500/60 text-amber-900 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-zinc-800'
+                    : 'bg-zinc-100 dark:bg-zinc-900 border-zinc-400 dark:border-zinc-800 text-zinc-800 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-800'
                 }`}
                 title="Inventory Low Stock Notification Center"
                 aria-label="Open Inventory Notification Center"
               >
                 <Bell className="w-4 h-4" />
                 {(unreadInventoryCount > 0 || lowStockCount > 0) && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow tabular-nums">
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 dark:bg-rose-500 text-white text-[9px] font-mono font-extrabold flex items-center justify-center shadow tabular-nums">
                     {unreadInventoryCount > 0
                       ? unreadInventoryCount > 99
                         ? '99+'
@@ -599,14 +526,14 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
 
               {isNotifOpen && (
-                <div className="absolute right-0 top-11 z-50 w-80 sm:w-96 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden font-mono text-xs">
-                  <div className="p-3.5 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between gap-2">
+                <div className="absolute right-0 top-11 z-50 w-80 sm:w-96 bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden font-mono text-xs">
+                  <div className="p-3.5 bg-zinc-100 dark:bg-zinc-900 border-b border-zinc-300 dark:border-zinc-800 flex items-center justify-between gap-2">
                     <div>
-                      <div className="font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                        <Bell className="w-3.5 h-3.5 text-amber-400" />
+                      <div className="font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                        <Bell className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
                         <span>Inventory Notification Center</span>
                       </div>
-                      <div className="text-[10px] text-zinc-400 mt-0.5 tabular-nums">
+                      <div className="text-[10px] text-zinc-700 dark:text-zinc-400 mt-0.5 tabular-nums">
                         {inventoryNotifications.length} items below min threshold · {unreadInventoryCount} unread
                       </div>
                     </div>
@@ -615,16 +542,16 @@ export const Header: React.FC<HeaderProps> = ({
                       <button
                         type="button"
                         onClick={onMarkAllNotificationsRead}
-                        className="px-2 py-1 text-[10px] bg-zinc-950 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 rounded-lg flex items-center gap-1"
+                        className="px-2 py-1 text-[10px] bg-white dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-400 dark:border-zinc-700 text-zinc-900 dark:text-zinc-300 rounded-lg flex items-center gap-1"
                       >
-                        <CheckCheck className="w-3 h-3 text-emerald-400" />
+                        <CheckCheck className="w-3 h-3 text-emerald-700 dark:text-emerald-400" />
                         <span>Read all</span>
                       </button>
                     )}
                   </div>
 
                   {/* Filter Tabs */}
-                  <div className="p-2 bg-zinc-950 border-b border-zinc-900 flex items-center gap-1">
+                  <div className="p-2 bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-900 flex items-center gap-1">
                     {[
                       { id: 'all', label: `All (${inventoryNotifications.length})` },
                       { id: 'unread', label: `Unread (${unreadInventoryCount})` },
@@ -643,8 +570,8 @@ export const Header: React.FC<HeaderProps> = ({
                         onClick={() => setNotifFilter(tab.id as 'all' | 'unread' | 'critical')}
                         className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-bold transition-colors ${
                           notifFilter === tab.id
-                            ? 'bg-white text-zinc-950'
-                            : 'text-zinc-400 hover:bg-zinc-900 hover:text-white'
+                            ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950'
+                            : 'text-zinc-700 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-900 hover:text-zinc-950 dark:hover:text-white'
                         }`}
                       >
                         {tab.label}
@@ -652,9 +579,9 @@ export const Header: React.FC<HeaderProps> = ({
                     ))}
                   </div>
 
-                  <div className="max-h-80 overflow-y-auto divide-y divide-zinc-900">
+                  <div className="max-h-80 overflow-y-auto divide-y divide-zinc-200 dark:divide-zinc-900">
                     {filteredNotifs.length === 0 ? (
-                      <div className="p-6 text-center text-zinc-500 text-xs font-sans">
+                      <div className="p-6 text-center text-zinc-600 dark:text-zinc-500 text-xs font-sans">
                         All spare part SKUs in this view are above minimum stock thresholds.
                       </div>
                     ) : (
@@ -664,43 +591,43 @@ export const Header: React.FC<HeaderProps> = ({
                           <div
                             key={notif.id}
                             onClick={() => onMarkNotificationRead && onMarkNotificationRead(notif.id)}
-                            className={`p-3 space-y-2 hover:bg-zinc-900/70 transition-colors cursor-pointer ${
-                              !notif.read ? 'bg-zinc-900/40' : ''
+                            className={`p-3 space-y-2 hover:bg-zinc-100 dark:hover:bg-zinc-900/70 transition-colors cursor-pointer ${
+                              !notif.read ? 'bg-zinc-50 dark:bg-zinc-900/40' : ''
                             }`}
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="font-bold text-white truncate">{notif.sku}</span>
+                                  <span className="font-bold text-zinc-950 dark:text-white truncate">{notif.sku}</span>
                                   <span
                                     className={`text-[9px] px-1.5 py-0.5 rounded font-bold border ${
                                       isOut
-                                        ? 'bg-rose-950 text-rose-300 border-rose-700'
+                                        ? 'bg-rose-50 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-700'
                                         : notif.severity === 'CRITICAL'
-                                        ? 'bg-amber-950 text-amber-300 border-amber-700'
-                                        : 'bg-zinc-900 text-zinc-300 border-zinc-700'
+                                        ? 'bg-amber-50 dark:bg-amber-950 text-amber-900 dark:text-amber-300 border-amber-400 dark:border-amber-700'
+                                        : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700'
                                     }`}
                                   >
                                     {notif.severity.replace(/_/g, ' ')}
                                   </span>
                                 </div>
-                                <div className="text-[11px] text-zinc-300 font-sans truncate mt-0.5">
+                                <div className="text-[11px] text-zinc-800 dark:text-zinc-300 font-sans truncate mt-0.5">
                                   {notif.name}
                                 </div>
                               </div>
 
                               <div className="text-right shrink-0 tabular-nums">
-                                <div className={`text-xs font-extrabold ${isOut ? 'text-rose-400' : 'text-amber-400'}`}>
+                                <div className={`text-xs font-extrabold ${isOut ? 'text-rose-700 dark:text-rose-400' : 'text-amber-800 dark:text-amber-400'}`}>
                                   {notif.stockQty} / Min {notif.minStockThreshold}
                                 </div>
-                                <div className="text-[9px] text-zinc-500">{notif.binLocation}</div>
+                                <div className="text-[9px] text-zinc-600 dark:text-zinc-500">{notif.binLocation}</div>
                               </div>
                             </div>
 
                             <div className="flex items-center justify-between gap-2 pt-0.5">
-                              <span className="text-[10px] text-zinc-400 tabular-nums">
+                              <span className="text-[10px] text-zinc-700 dark:text-zinc-400 tabular-nums">
                                 Suggest:{' '}
-                                <strong className="text-emerald-400">
+                                <strong className="text-emerald-800 dark:text-emerald-400">
                                   +{notif.suggestedReorderQty} {notif.unit}
                                 </strong>{' '}
                                 (${notif.estimatedReorderCost.toFixed(2)})
@@ -712,7 +639,7 @@ export const Header: React.FC<HeaderProps> = ({
                                     e.stopPropagation();
                                     onQuickReorderItem(notif.itemId, notif.suggestedReorderQty);
                                   }}
-                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[10px] flex items-center gap-1"
+                                  className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-bold rounded-lg text-[10px] flex items-center gap-1"
                                 >
                                   <ShoppingCart className="w-3 h-3" />
                                   <span>Reorder +{notif.suggestedReorderQty}</span>
@@ -725,7 +652,7 @@ export const Header: React.FC<HeaderProps> = ({
                     )}
                   </div>
 
-                  <div className="p-2.5 bg-zinc-900 border-t border-zinc-800 flex items-center justify-between">
+                  <div className="p-2.5 bg-zinc-100 dark:bg-zinc-900 border-t border-zinc-300 dark:border-zinc-800 flex items-center justify-between">
                     <button
                       type="button"
                       onClick={() => {
@@ -736,7 +663,7 @@ export const Header: React.FC<HeaderProps> = ({
                           handleNavClick('inventory');
                         }
                       }}
-                      className="w-full py-1.5 px-3 bg-white hover:bg-zinc-200 text-zinc-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
+                      className="w-full py-1.5 px-3 bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
                     >
                       {lowStockCount > 0 ? <AlertTriangle className="w-3.5 h-3.5" /> : <PackageX className="w-3.5 h-3.5" />}
                       <span>Open Inventory Notification Center</span>
@@ -751,9 +678,9 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={onOpenCustomerView}
                 title="Open isolated Client Status Portal"
-                className="hidden md:inline-flex px-2.5 py-2 text-xs font-bold text-zinc-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg transition-colors items-center gap-1.5 whitespace-nowrap shrink-0"
+                className="hidden md:inline-flex px-2.5 py-2 text-xs font-bold text-zinc-900 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-400 dark:border-zinc-700 rounded-lg transition-colors items-center gap-1.5 whitespace-nowrap shrink-0"
               >
-                <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
+                <ExternalLink className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                 <span>Client Portal</span>
               </button>
             )}
@@ -766,13 +693,13 @@ export const Header: React.FC<HeaderProps> = ({
                       onClick={onSignOut}
                       title={`Signed in as ${authUser.email || authUser.displayName || 'Operator'} — Click to sign out`}
                       aria-label="Sign out operator account"
-                      className="hidden sm:inline-flex px-2.5 py-2 text-xs font-mono font-bold text-zinc-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg transition-colors items-center gap-1.5 whitespace-nowrap shrink-0"
+                      className="hidden sm:inline-flex px-2.5 py-2 text-xs font-mono font-bold text-zinc-900 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-400 dark:border-zinc-700 rounded-lg transition-colors items-center gap-1.5 whitespace-nowrap shrink-0"
                     >
-                      <User className="w-3.5 h-3.5 text-emerald-400" />
+                      <User className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                       <span className="max-w-[96px] truncate">
                         {authUser.displayName?.split(' ')[0] || authUser.email?.split('@')[0] || 'Operator'}
                       </span>
-                      <LogOut className="w-3.5 h-3.5 text-zinc-400" />
+                      <LogOut className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
                     </button>
                   )
                 : onSignIn && (
@@ -781,9 +708,9 @@ export const Header: React.FC<HeaderProps> = ({
                       onClick={onSignIn}
                       title="Sign in with Google to sync workshop tickets across devices"
                       aria-label="Sign in with Google"
-                      className="hidden sm:inline-flex px-2.5 py-2 text-xs font-bold text-zinc-100 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg transition-colors items-center gap-1.5 whitespace-nowrap shrink-0"
+                      className="hidden sm:inline-flex px-2.5 py-2 text-xs font-bold text-zinc-950 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-400 dark:border-zinc-700 rounded-lg transition-colors items-center gap-1.5 whitespace-nowrap shrink-0"
                     >
-                      <LogIn className="w-3.5 h-3.5 text-emerald-400" />
+                      <LogIn className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                       <span>Sign In</span>
                     </button>
                   ))}
@@ -793,7 +720,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onOpenNewJobModal}
-              className="px-3 sm:px-3.5 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-lg shadow transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 active:scale-95"
+              className="px-3 sm:px-3.5 py-2 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 rounded-lg shadow transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 active:scale-95"
             >
               <PlusCircle className="w-4 h-4" />
               <span>+ New Intake</span>
@@ -803,7 +730,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white focus:outline-none"
+              className="lg:hidden p-2 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-400 dark:border-zinc-800 text-zinc-900 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white focus:outline-none"
               aria-label="Toggle Navigation Menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -813,7 +740,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Row 2: Organized Dropdown Menus Directly Under the Search Bar (Desktop) */}
-      <div className="hidden lg:block border-t border-zinc-800/80 bg-zinc-950/90" ref={menuBarRef}>
+      <div className="hidden lg:block border-t border-zinc-300 dark:border-zinc-800/80 bg-zinc-50/95 dark:bg-zinc-950/90" ref={menuBarRef}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-11 flex items-center justify-between gap-4">
           <nav className="flex items-center gap-1.5" aria-label="Workshop Feature Menus">
             {menuGroups.map((group) => {
@@ -831,8 +758,8 @@ export const Header: React.FC<HeaderProps> = ({
                     }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 ${
                       group.active || isOpen
-                        ? 'bg-zinc-800 text-white border border-zinc-700'
-                        : 'text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent'
+                        ? 'bg-zinc-950 text-white border border-zinc-950 dark:bg-zinc-800 dark:text-white dark:border-zinc-700'
+                        : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-900 border border-transparent'
                     }`}
                   >
                     {group.icon}
@@ -841,17 +768,21 @@ export const Header: React.FC<HeaderProps> = ({
                       <span
                         className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold tabular-nums ${
                           group.badgeTone === 'warning'
-                            ? 'bg-amber-500 text-zinc-950'
-                            : 'bg-zinc-950 text-zinc-200 border border-zinc-700'
+                            ? 'bg-amber-400 dark:bg-amber-500 text-zinc-950'
+                            : group.active || isOpen
+                            ? 'bg-zinc-800 text-white dark:bg-zinc-950 dark:text-zinc-200 border border-zinc-700'
+                            : 'bg-zinc-200 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-200 border border-zinc-400 dark:border-zinc-700'
                         }`}
                       >
                         {group.badgeCount}
                       </span>
                     )}
                     <ChevronDown
-                      className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-150 ${
-                        isOpen ? 'rotate-180 text-white' : ''
-                      }`}
+                      className={`w-3.5 h-3.5 transition-transform duration-150 ${
+                        group.active || isOpen
+                          ? 'text-white'
+                          : 'text-zinc-600 dark:text-zinc-400'
+                      } ${isOpen ? 'rotate-180' : ''}`}
                     />
                   </button>
 
@@ -859,7 +790,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <div
                       role="menu"
                       aria-label={group.label}
-                      className="absolute left-0 top-10 z-50 w-80 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl p-1.5 space-y-1"
+                      className="absolute left-0 top-10 z-50 w-80 bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-2xl shadow-2xl p-1.5 space-y-1"
                     >
                       {group.items.map((item) => (
                         <button
@@ -869,13 +800,15 @@ export const Header: React.FC<HeaderProps> = ({
                           onClick={item.onSelect}
                           className={`w-full text-left px-3 py-2.5 rounded-xl flex items-start gap-3 transition-colors ${
                             item.active
-                              ? 'bg-zinc-800/90 text-white border border-zinc-700'
-                              : 'text-zinc-300 hover:bg-zinc-900 hover:text-white border border-transparent'
+                              ? 'bg-zinc-950 text-white border border-zinc-950 dark:bg-zinc-800/90 dark:text-white dark:border-zinc-700'
+                              : 'text-zinc-800 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-950 dark:hover:text-white border border-transparent'
                           }`}
                         >
                           <div
                             className={`mt-0.5 shrink-0 ${
-                              item.active ? 'text-emerald-400' : 'text-zinc-400'
+                              item.active
+                                ? 'text-emerald-300 dark:text-emerald-400'
+                                : 'text-zinc-600 dark:text-zinc-400'
                             }`}
                           >
                             {item.icon}
@@ -893,7 +826,13 @@ export const Header: React.FC<HeaderProps> = ({
                                 </span>
                               )}
                             </div>
-                            <p className="text-[11px] text-zinc-400 leading-snug mt-0.5">
+                            <p
+                              className={`text-[11px] leading-snug mt-0.5 ${
+                                item.active
+                                  ? 'text-zinc-300 dark:text-zinc-400'
+                                  : 'text-zinc-600 dark:text-zinc-400'
+                              }`}
+                            >
                               {item.description}
                             </p>
                           </div>
@@ -907,22 +846,22 @@ export const Header: React.FC<HeaderProps> = ({
           </nav>
 
           {/* Subtle Current View Indicator */}
-          <div className="text-[11px] font-mono text-zinc-400 whitespace-nowrap shrink-0 flex items-center gap-1.5">
+          <div className="text-[11px] font-mono text-zinc-700 dark:text-zinc-400 whitespace-nowrap shrink-0 flex items-center gap-1.5">
             <span>View:</span>
-            <span className="text-zinc-200 font-semibold">{ACTIVE_TAB_LABELS[activeTab]}</span>
+            <span className="text-zinc-950 dark:text-zinc-200 font-semibold">{ACTIVE_TAB_LABELS[activeTab]}</span>
           </div>
         </div>
       </div>
 
       {/* Responsive Mobile / Tablet Categorized Drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-zinc-950 border-t border-zinc-800 px-4 py-4 space-y-4 max-h-[80vh] overflow-y-auto shadow-2xl font-mono text-xs">
+        <div className="lg:hidden bg-white dark:bg-zinc-950 border-t border-zinc-300 dark:border-zinc-800 px-4 py-4 space-y-4 max-h-[80vh] overflow-y-auto shadow-2xl font-mono text-xs">
           {menuGroups.map((group) => (
             <div key={group.id} className="space-y-1.5">
-              <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 flex items-center justify-between">
+              <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-400 flex items-center justify-between">
                 <span>{group.label}</span>
                 {typeof group.badgeCount === 'number' && group.badgeCount > 0 && (
-                  <span className="text-zinc-300 tabular-nums">{group.badgeCount}</span>
+                  <span className="text-zinc-900 dark:text-zinc-300 tabular-nums">{group.badgeCount}</span>
                 )}
               </div>
               <div className="space-y-1">
@@ -933,8 +872,8 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={item.onSelect}
                     className={`w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between gap-2 ${
                       item.active
-                        ? 'bg-white text-zinc-950'
-                        : 'text-zinc-200 bg-zinc-900/60 hover:bg-zinc-900'
+                        ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950'
+                        : 'text-zinc-900 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-900/60 hover:bg-zinc-200 dark:hover:bg-zinc-900'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -945,7 +884,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <span
                         className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 tabular-nums ${
                           item.active
-                            ? 'bg-zinc-950 text-white'
+                            ? 'bg-white text-zinc-950 dark:bg-zinc-950 dark:text-white'
                             : getBadgeClasses(item.badgeTone)
                         }`}
                       >
@@ -967,13 +906,13 @@ export const Header: React.FC<HeaderProps> = ({
                       setMobileMenuOpen(false);
                       onSignOut();
                     }}
-                    className="w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between text-zinc-200 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800"
+                    className="w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between text-zinc-900 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-900 border border-zinc-400 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-800"
                   >
                     <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-emerald-400" />
+                      <User className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                       <span>Sign Out ({authUser.displayName || authUser.email || 'Operator'})</span>
                     </div>
-                    <LogOut className="w-4 h-4 text-zinc-400" />
+                    <LogOut className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
                   </button>
                 )
               : onSignIn && (
@@ -983,10 +922,10 @@ export const Header: React.FC<HeaderProps> = ({
                       setMobileMenuOpen(false);
                       onSignIn();
                     }}
-                    className="w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between text-zinc-100 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800"
+                    className="w-full p-2.5 rounded-xl font-bold text-left flex items-center justify-between text-zinc-950 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-900 border border-zinc-400 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-800"
                   >
                     <div className="flex items-center gap-2">
-                      <LogIn className="w-4 h-4 text-emerald-400" />
+                      <LogIn className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                       <span>Operator Sign In (Google)</span>
                     </div>
                   </button>
@@ -994,5 +933,256 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       )}
     </header>
+
+    {/* Full-Width Global Search Bar Directly Under Top Header */}
+    <section
+      aria-label="Global workshop search"
+      className="relative z-30 w-full bg-white/95 dark:bg-zinc-950/90 border-b border-zinc-300 dark:border-zinc-800 transition-colors no-print"
+    >
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-2.5">
+        <div className="relative w-full" ref={searchContainerRef}>
+          <div className="relative w-full">
+            <Search className="w-4 h-4 text-zinc-600 dark:text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsSearchOpen(true);
+              }}
+              onFocus={() => setIsSearchOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && query && matchingJobs.length > 0) {
+                  e.preventDefault();
+                  handleSelectJobResult(matchingJobs[0]);
+                }
+              }}
+              placeholder="Search job cards, client name, phone, SKU, or serial..."
+              aria-label="Global workshop search"
+              data-testid="global-search-input"
+              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-400 dark:border-zinc-700 hover:border-zinc-600 dark:hover:border-zinc-600 focus:border-zinc-950 dark:focus:border-white rounded-xl pl-10 pr-20 py-2.5 text-xs sm:text-sm text-zinc-950 dark:text-white placeholder-zinc-500 focus:outline-none font-mono shadow-xs transition-colors"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear search query"
+                className={`absolute top-1/2 -translate-y-1/2 p-1 text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white text-xs font-bold ${
+                  onOpenGlobalScanner ? 'right-10' : 'right-3'
+                }`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+            {onOpenGlobalScanner && (
+              <button
+                type="button"
+                onClick={onOpenGlobalScanner}
+                title="Scan QR or Barcode"
+                aria-label="Scan QR and Barcode"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-emerald-700 dark:text-emerald-400 hover:text-emerald-900 dark:hover:text-emerald-300 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <QrCode className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Recent Searches Dropdown (Last 5 Searched Job IDs when Search Focused Empty) */}
+          {isSearchOpen && !query && (
+            <div
+              data-testid="recent-searches-dropdown"
+              className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden font-mono text-xs"
+            >
+              <div className="px-3.5 py-2 bg-zinc-50 dark:bg-zinc-900/80 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-700 dark:text-zinc-400 uppercase tracking-wider">
+                  <History className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-400" />
+                  <span>Recent Searches (Last {recentJobEntries.length}/5 Job IDs)</span>
+                </div>
+                {recentJobEntries.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearRecentJobIds}
+                    className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-colors"
+                  >
+                    Clear history
+                  </button>
+                )}
+              </div>
+
+              {recentJobEntries.length === 0 ? (
+                <div className="p-4 text-center text-zinc-600 dark:text-zinc-500 font-sans text-xs">
+                  No recent job IDs yet. Select a job card from search to pin your last 5 records here.
+                </div>
+              ) : (
+                <div className="p-2 space-y-1 divide-y divide-zinc-200/70 dark:divide-zinc-900">
+                  {recentJobEntries.map((entry) =>
+                    entry.job ? (
+                      <div
+                        key={entry.id}
+                        className="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors flex items-center justify-between gap-2 group"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleSelectJobResult(entry.job!)}
+                          className="flex-1 min-w-0 text-left flex items-center justify-between gap-2"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-zinc-950 dark:text-white bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-300 dark:border-zinc-800 text-[11px]">
+                                {entry.job.id}
+                              </span>
+                              <span className="text-xs font-bold text-zinc-900 dark:text-zinc-200 truncate">
+                                {entry.job.customerName}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-zinc-700 dark:text-zinc-400 mt-0.5 flex items-center gap-2">
+                              <span>{entry.job.customerPhone}</span>
+                              <span aria-hidden="true">·</span>
+                              <span className="text-zinc-800 dark:text-zinc-300 font-medium truncate">
+                                {entry.job.tool.brand} {entry.job.tool.modelNumber}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[10px] text-zinc-800 dark:text-zinc-300 font-medium">
+                              {entry.job.status}
+                            </span>
+                            <ChevronRight className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-600 group-hover:text-zinc-950 dark:group-hover:text-white transition-colors" />
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveRecentJobId(entry.id);
+                          }}
+                          aria-label={`Remove ${entry.id} from recent searches`}
+                          className="p-1 rounded-lg text-zinc-500 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors shrink-0"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        key={entry.id}
+                        className="p-2 rounded-xl flex items-center justify-between gap-2 text-zinc-600 dark:text-zinc-500"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-bold bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-300 dark:border-zinc-800 text-[11px]">
+                            {entry.id}
+                          </span>
+                          <span className="text-[11px] font-sans truncate">Record no longer in active workshop list</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRecentJobId(entry.id)}
+                          aria-label={`Remove ${entry.id} from recent searches`}
+                          className="p-1 rounded-lg hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors shrink-0"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Full-Width Global Search Results Dropdown */}
+          {isSearchOpen && query && (
+            <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden font-mono text-xs">
+              {!hasResults ? (
+                <div className="p-4 text-center text-zinc-600 dark:text-zinc-500">
+                  No job cards or inventory matches for &quot;{searchQuery}&quot;
+                </div>
+              ) : (
+                <div className="max-h-96 overflow-y-auto divide-y divide-zinc-200 dark:divide-zinc-900">
+                  {matchingJobs.length > 0 && (
+                    <div className="p-2 space-y-1">
+                      <div className="px-2.5 py-1 text-[10px] font-bold text-zinc-700 dark:text-zinc-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>Job Cards ({matchingJobs.length})</span>
+                        <span>Select to open</span>
+                      </div>
+                      {matchingJobs.map((job) => (
+                        <div
+                          key={job.id}
+                          onClick={() => handleSelectJobResult(job)}
+                          className="p-2.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer transition-colors flex items-center justify-between gap-2 group"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-zinc-950 dark:text-white bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-300 dark:border-zinc-800 text-[11px]">
+                                {job.id}
+                              </span>
+                              <span className="text-xs font-bold text-zinc-900 dark:text-zinc-200 truncate">{job.customerName}</span>
+                            </div>
+                            <div className="text-[10px] text-zinc-700 dark:text-zinc-400 mt-0.5 flex items-center gap-2">
+                              <span>{job.customerPhone}</span>
+                              <span aria-hidden="true">·</span>
+                              <span className="text-zinc-800 dark:text-zinc-300 font-medium">
+                                {job.tool.brand} {job.tool.modelNumber}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[10px] text-zinc-800 dark:text-zinc-300 font-medium">{job.status}</span>
+                            <ChevronRight className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-600 group-hover:text-zinc-950 dark:group-hover:text-white transition-colors" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {matchingInventory.length > 0 && (
+                    <div className="p-2 space-y-1">
+                      <div className="px-2.5 py-1 text-[10px] font-bold text-zinc-700 dark:text-zinc-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>Parts Inventory SKUs ({matchingInventory.length})</span>
+                        <span>Select to view catalog</span>
+                      </div>
+                      {matchingInventory.map((item) => (
+                        <div
+                          key={item.id}
+                          onClick={() => handleSelectInventoryResult(item)}
+                          className="p-2.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer transition-colors flex items-center justify-between gap-2 group"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-zinc-950 dark:text-white bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-300 dark:border-zinc-800 text-[11px]">
+                                {item.sku}
+                              </span>
+                              <span className="text-xs font-bold text-zinc-900 dark:text-zinc-200 truncate">{item.name}</span>
+                            </div>
+                            <div className="text-[10px] text-zinc-700 dark:text-zinc-400 mt-0.5">
+                              Category: {item.category} · Bin: {item.binLocation}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 text-right">
+                            <div>
+                              <div className="text-xs font-bold text-zinc-950 dark:text-white tabular-nums">
+                                ${item.unitPrice.toFixed(2)}
+                              </div>
+                              <div className="text-[9px] text-zinc-700 dark:text-zinc-400 tabular-nums">
+                                {item.stockQty} in stock
+                              </div>
+                            </div>
+                            <ChevronRight className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-600 group-hover:text-zinc-950 dark:group-hover:text-white transition-colors" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+    </>
   );
 };

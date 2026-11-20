@@ -318,32 +318,32 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
     <div className="space-y-6 font-mono">
       
       {/* Top Banner & Quick Clock In Control Workbench */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl space-y-5">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 shadow-xl space-y-5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-zinc-300 dark:border-zinc-800 pb-4">
           <div>
             <div className="flex items-center gap-3">
-              <span className="p-2 rounded-xl bg-white text-zinc-950 font-bold">
+              <span className="p-2 rounded-xl bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 font-bold">
                 <Timer className="w-5 h-5" />
               </span>
-              <h1 className="text-xl font-bold text-white tracking-tight uppercase">
+              <h1 className="text-xl font-bold text-zinc-950 dark:text-white tracking-tight uppercase">
                 Technician Labor &amp; Time Clock System
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-zinc-950 text-white border border-zinc-700">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-white border border-zinc-400 dark:border-zinc-700">
                 {activeSessions.length} Active Timers
               </span>
             </div>
-            <p className="text-xs text-zinc-400 mt-1 font-sans">
+            <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-1 font-sans">
               Clock-in and clock-out of specific job tickets to track exact workshop bench repair hours per technician.
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap shrink-0">
-            <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+            <div className="flex items-center gap-1 bg-zinc-50 dark:bg-zinc-950 p-1 rounded-xl border border-zinc-300 dark:border-zinc-800">
               <button
                 type="button"
                 onClick={() => setActiveSection('all')}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 ${
-                  activeSection === 'all' ? 'bg-white text-zinc-950' : 'text-zinc-400 hover:text-white'
+                  activeSection === 'all' ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950' : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
                 }`}
               >
                 All Views
@@ -352,7 +352,7 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
                 type="button"
                 onClick={() => setActiveSection('calendar')}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 ${
-                  activeSection === 'calendar' ? 'bg-white text-zinc-950' : 'text-zinc-400 hover:text-white'
+                  activeSection === 'calendar' ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950' : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
                 }`}
               >
                 Weekly Calendar
@@ -361,7 +361,7 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
                 type="button"
                 onClick={() => setActiveSection('timeclock')}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 ${
-                  activeSection === 'timeclock' ? 'bg-white text-zinc-950' : 'text-zinc-400 hover:text-white'
+                  activeSection === 'timeclock' ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950' : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
                 }`}
               >
                 Time Clock &amp; Logs
@@ -370,15 +370,15 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
 
             <button
               onClick={() => setManualModalOpen(true)}
-              className="px-3.5 py-2 text-xs font-bold text-zinc-200 bg-zinc-950 hover:bg-zinc-800 rounded-xl transition-all border border-zinc-700 flex items-center gap-1.5 whitespace-nowrap shrink-0"
+              className="px-3.5 py-2 text-xs font-bold text-zinc-900 dark:text-zinc-200 bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl transition-all border border-zinc-400 dark:border-zinc-700 flex items-center gap-1.5 whitespace-nowrap shrink-0"
             >
-              <Plus className="w-4 h-4 text-white" />
+              <Plus className="w-4 h-4 text-zinc-950 dark:text-white" />
               <span>Manual Time Entry</span>
             </button>
 
             <button
               onClick={handleExportTimeCsv}
-              className="px-4 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow transition-all flex items-center gap-1.5 active:scale-95 whitespace-nowrap shrink-0"
+              className="px-4 py-2 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl shadow transition-all flex items-center gap-1.5 active:scale-95 whitespace-nowrap shrink-0"
             >
               <FileSpreadsheet className="w-4 h-4" />
               <span>Export Time CSV</span>
@@ -388,20 +388,20 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
 
         {/* Quick Clock-In Action Box */}
         {activeSection !== 'calendar' && (
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-4">
-            <div className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <Play className="w-4 h-4 text-white fill-white" />
+          <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 space-y-4">
+            <div className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-2">
+              <Play className="w-4 h-4 text-zinc-950 dark:text-white fill-white" />
               <span>Clock In Technician to Job Card</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               {/* Technician Select */}
               <div>
-                <label className="text-[10px] text-zinc-400 block mb-1 uppercase font-bold">Select Technician</label>
+                <label className="text-[10px] text-zinc-700 dark:text-zinc-400 block mb-1 uppercase font-bold">Select Technician</label>
                 <select
                   value={selectedTechId}
                   onChange={(e) => setSelectedTechId(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-500 font-mono"
+                  className="w-full bg-white dark:bg-zinc-900 border border-zinc-400 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-950 dark:text-white focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500 font-mono"
                 >
                   {SHOP_TECHNICIANS.map((tech) => (
                     <option key={tech.id} value={tech.id}>
@@ -413,11 +413,11 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
 
               {/* Job Card Select */}
               <div>
-                <label className="text-[10px] text-zinc-400 block mb-1 uppercase font-bold">Target Job Ticket</label>
+                <label className="text-[10px] text-zinc-700 dark:text-zinc-400 block mb-1 uppercase font-bold">Target Job Ticket</label>
                 <select
                   value={selectedJobId}
                   onChange={(e) => setSelectedJobId(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-500 font-mono"
+                  className="w-full bg-white dark:bg-zinc-900 border border-zinc-400 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-950 dark:text-white focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500 font-mono"
                 >
                   {jobCards.map((j) => (
                     <option key={j.id} value={j.id}>
@@ -429,13 +429,13 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
 
               {/* Notes */}
               <div>
-                <label className="text-[10px] text-zinc-400 block mb-1 uppercase font-bold">Task Scope / Notes</label>
+                <label className="text-[10px] text-zinc-700 dark:text-zinc-400 block mb-1 uppercase font-bold">Task Scope / Notes</label>
                 <input
                   type="text"
                   value={logNotes}
                   onChange={(e) => setLogNotes(e.target.value)}
                   placeholder="e.g., Motor teardown & armature check..."
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 font-mono"
+                  className="w-full bg-white dark:bg-zinc-900 border border-zinc-400 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-950 dark:text-white placeholder-zinc-500 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500 font-mono"
                 />
               </div>
 
@@ -443,7 +443,7 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
               <div className="flex items-end">
                 <button
                   onClick={handleClockIn}
-                  className="w-full py-2 px-4 bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-bold rounded-xl shadow flex items-center justify-center gap-2 transition-all active:scale-95"
+                  className="w-full py-2 px-4 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 text-xs font-bold rounded-xl shadow flex items-center justify-center gap-2 transition-all active:scale-95"
                 >
                   <Play className="w-4 h-4 fill-zinc-950" />
                   <span>Clock In Now</span>
@@ -456,12 +456,12 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
 
       {/* Notification Toast */}
       {notification && (
-        <div className="bg-zinc-900 border border-white/30 p-3.5 rounded-xl text-xs font-mono text-white flex items-center justify-between shadow-lg">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-950/30 dark:border-white/30 p-3.5 rounded-xl text-xs font-mono text-zinc-950 dark:text-white flex items-center justify-between shadow-lg">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-white" />
+            <CheckCircle2 className="w-4 h-4 text-zinc-950 dark:text-white" />
             <span>{notification}</span>
           </div>
-          <span className="text-[10px] text-zinc-400">Workshop Schedule &amp; Log Updated</span>
+          <span className="text-[10px] text-zinc-700 dark:text-zinc-400">Workshop Schedule &amp; Log Updated</span>
         </div>
       )}
 
@@ -481,39 +481,39 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
 
       {/* Live Active Clock-Ins Workshop Monitor */}
       {activeSection !== 'calendar' && activeSessions.length > 0 && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3 shadow-xl">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-3 shadow-xl">
           <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
+            <h2 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-zinc-950 dark:bg-white animate-pulse" />
               <span>Live Running Workshop Sessions ({activeSessions.length})</span>
             </h2>
-            <span className="text-[11px] text-zinc-400">Timers updating real-time</span>
+            <span className="text-[11px] text-zinc-700 dark:text-zinc-400">Timers updating real-time</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {activeSessions.map((session) => (
-              <div key={session.id} className="bg-zinc-950 border border-zinc-700 rounded-xl p-4 space-y-3">
+              <div key={session.id} className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 rounded-xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white font-mono">{session.jobCardId}</span>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-white text-zinc-950 animate-pulse">
+                  <span className="text-xs font-bold text-zinc-950 dark:text-white font-mono">{session.jobCardId}</span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 animate-pulse">
                     ACTIVE BENCH TIME
                   </span>
                 </div>
 
                 <div>
-                  <div className="text-xs font-bold text-zinc-200">{session.technicianName}</div>
-                  <div className="text-[11px] text-zinc-400 font-sans truncate">{session.notes}</div>
+                  <div className="text-xs font-bold text-zinc-900 dark:text-zinc-200">{session.technicianName}</div>
+                  <div className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans truncate">{session.notes}</div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-zinc-900 text-xs font-mono">
+                <div className="flex items-center justify-between pt-2 border-t border-zinc-200 dark:border-zinc-900 text-xs font-mono">
                   <div>
-                    <span className="text-[10px] text-zinc-500 block uppercase">Elapsed Time</span>
-                    <span className="text-white font-extrabold text-sm">{formatElapsed(session.clockInTime)}</span>
+                    <span className="text-[10px] text-zinc-600 dark:text-zinc-500 block uppercase">Elapsed Time</span>
+                    <span className="text-zinc-950 dark:text-white font-extrabold text-sm">{formatElapsed(session.clockInTime)}</span>
                   </div>
 
                   <button
                     onClick={() => handleClockOut(session.jobCardId, session.id)}
-                    className="px-3 py-1.5 bg-white hover:bg-zinc-200 text-zinc-950 font-bold rounded-lg text-xs flex items-center gap-1 transition-all active:scale-95"
+                    className="px-3 py-1.5 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 font-bold rounded-lg text-xs flex items-center gap-1 transition-all active:scale-95"
                   >
                     <Square className="w-3.5 h-3.5 fill-zinc-950" />
                     <span>Clock Out</span>
@@ -529,12 +529,12 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
       {activeSection !== 'calendar' && (
       <>
       <div className="space-y-3">
-        <div className="flex items-center justify-between text-xs font-bold text-white uppercase tracking-wider">
+        <div className="flex items-center justify-between text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider">
           <span className="flex items-center gap-2">
-            <UserCheck className="w-4 h-4 text-white" />
+            <UserCheck className="w-4 h-4 text-zinc-950 dark:text-white" />
             <span>Total Hours Logged Per Technician ({grandTotalHours} Total Hours)</span>
           </span>
-          <span className="text-zinc-400 text-[11px] font-mono font-normal">
+          <span className="text-zinc-700 dark:text-zinc-400 text-[11px] font-mono font-normal">
             Synced from {allLogs.length} benchmark time entries
           </span>
         </div>
@@ -543,7 +543,7 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
           {techStats.map(({ tech, totalHours, totalMinutes, completedCount, activeCount, totalLogsCount }) => (
             <div
               key={tech.id}
-              className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-4 space-y-3 transition-all shadow-lg"
+              className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-700 rounded-2xl p-4 space-y-3 transition-all shadow-lg"
             >
               {/* Header */}
               <div className="flex items-center justify-between gap-2">
@@ -552,43 +552,43 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
                     {tech.name.charAt(0)}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-xs font-bold text-white truncate">
+                    <h3 className="text-xs font-bold text-zinc-950 dark:text-white truncate">
                       {tech.name.split(' ')[0]} {tech.name.split(' ')[1] || ''}
                     </h3>
-                    <span className="text-[10px] text-zinc-400 block truncate">{tech.role}</span>
+                    <span className="text-[10px] text-zinc-700 dark:text-zinc-400 block truncate">{tech.role}</span>
                   </div>
                 </div>
 
                 {activeCount > 0 && (
-                  <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping shrink-0" title="Currently Clocked In" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-zinc-950 dark:bg-white animate-ping shrink-0" title="Currently Clocked In" />
                 )}
               </div>
 
               {/* Total Hours Big Display */}
-              <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 flex items-center justify-between font-mono">
+              <div className="bg-zinc-50 dark:bg-zinc-950 p-3 rounded-xl border border-zinc-300 dark:border-zinc-800 flex items-center justify-between font-mono">
                 <div>
-                  <span className="text-[10px] text-zinc-500 block uppercase font-bold">Total Logged Time</span>
-                  <span className="text-xl font-extrabold text-white">{totalHours} hrs</span>
+                  <span className="text-[10px] text-zinc-600 dark:text-zinc-500 block uppercase font-bold">Total Logged Time</span>
+                  <span className="text-xl font-extrabold text-zinc-950 dark:text-white">{totalHours} hrs</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] text-zinc-500 block uppercase font-bold">Labor Value</span>
-                  <span className="text-xs font-bold text-white">${(totalHours * 45).toFixed(0)}</span>
+                  <span className="text-[10px] text-zinc-600 dark:text-zinc-500 block uppercase font-bold">Labor Value</span>
+                  <span className="text-xs font-bold text-zinc-950 dark:text-white">${(totalHours * 45).toFixed(0)}</span>
                 </div>
               </div>
 
               {/* Breakdown Stats */}
               <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
-                <div className="bg-zinc-950 p-2 rounded-lg border border-zinc-800 text-center">
-                  <span className="text-zinc-500 text-[9px] block uppercase">Completed</span>
-                  <span className="text-white font-bold">{completedCount} sessions</span>
+                <div className="bg-zinc-50 dark:bg-zinc-950 p-2 rounded-lg border border-zinc-300 dark:border-zinc-800 text-center">
+                  <span className="text-zinc-600 dark:text-zinc-500 text-[9px] block uppercase">Completed</span>
+                  <span className="text-zinc-950 dark:text-white font-bold">{completedCount} sessions</span>
                 </div>
-                <div className="bg-zinc-950 p-2 rounded-lg border border-zinc-800 text-center">
-                  <span className="text-zinc-500 text-[9px] block uppercase font-bold">Active Now</span>
-                  <span className="text-white font-bold">{activeCount} active</span>
+                <div className="bg-zinc-50 dark:bg-zinc-950 p-2 rounded-lg border border-zinc-300 dark:border-zinc-800 text-center">
+                  <span className="text-zinc-600 dark:text-zinc-500 text-[9px] block uppercase font-bold">Active Now</span>
+                  <span className="text-zinc-950 dark:text-white font-bold">{activeCount} active</span>
                 </div>
               </div>
 
-              <div className="text-[10px] text-zinc-400 font-sans bg-zinc-950 p-2 rounded border border-zinc-800/80 truncate">
+              <div className="text-[10px] text-zinc-700 dark:text-zinc-400 font-sans bg-zinc-50 dark:bg-zinc-950 p-2 rounded border border-zinc-300/80 dark:border-zinc-800/80 truncate">
                 Specialization: {tech.specialization}
               </div>
             </div>
@@ -597,10 +597,10 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
       </div>
 
       {/* Time Logs History Table & Filter Controls */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl space-y-4 p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
-          <h2 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-            <Clock className="w-4 h-4 text-white" />
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-xl space-y-4 p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-300 dark:border-zinc-800 pb-3">
+          <h2 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-2">
+            <Clock className="w-4 h-4 text-zinc-950 dark:text-white" />
             <span>Time Logs Audit History ({filteredLogs.length} Entries)</span>
           </h2>
 
@@ -609,7 +609,7 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
             <select
               value={filterTech}
               onChange={(e) => setFilterTech(e.target.value)}
-              className="bg-zinc-950 border border-zinc-800 text-zinc-300 text-xs rounded-xl px-3 py-1.5 focus:outline-none font-mono"
+              className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-800 dark:text-zinc-300 text-xs rounded-xl px-3 py-1.5 focus:outline-none font-mono"
             >
               <option value="All">All Technicians</option>
               {SHOP_TECHNICIANS.map((t) => (
@@ -619,22 +619,22 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
               ))}
             </select>
 
-            <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+            <div className="flex items-center gap-1 bg-zinc-50 dark:bg-zinc-950 p-1 rounded-xl border border-zinc-300 dark:border-zinc-800">
               <button
                 onClick={() => setFilterStatus('All')}
-                className={`px-2.5 py-1 text-xs rounded-lg ${filterStatus === 'All' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400'}`}
+                className={`px-2.5 py-1 text-xs rounded-lg ${filterStatus === 'All' ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-950 dark:text-white font-bold' : 'text-zinc-700 dark:text-zinc-400'}`}
               >
                 All
               </button>
               <button
                 onClick={() => setFilterStatus('ACTIVE')}
-                className={`px-2.5 py-1 text-xs rounded-lg ${filterStatus === 'ACTIVE' ? 'bg-white text-zinc-950 font-bold' : 'text-zinc-400'}`}
+                className={`px-2.5 py-1 text-xs rounded-lg ${filterStatus === 'ACTIVE' ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 font-bold' : 'text-zinc-700 dark:text-zinc-400'}`}
               >
                 Active
               </button>
               <button
                 onClick={() => setFilterStatus('COMPLETED')}
-                className={`px-2.5 py-1 text-xs rounded-lg ${filterStatus === 'COMPLETED' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400'}`}
+                className={`px-2.5 py-1 text-xs rounded-lg ${filterStatus === 'COMPLETED' ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-950 dark:text-white font-bold' : 'text-zinc-700 dark:text-zinc-400'}`}
               >
                 Completed
               </button>
@@ -643,9 +643,9 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto border border-zinc-800 rounded-xl bg-zinc-950">
+        <div className="overflow-x-auto border border-zinc-300 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-950">
           <table className="w-full text-xs text-left font-mono">
-            <thead className="bg-zinc-900 text-zinc-400 text-[11px] uppercase border-b border-zinc-800">
+            <thead className="bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-400 text-[11px] uppercase border-b border-zinc-300 dark:border-zinc-800">
               <tr>
                 <th className="p-3">Status</th>
                 <th className="p-3">Technician</th>
@@ -657,10 +657,10 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
                 <th className="p-3 text-center">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/80 text-zinc-300">
+            <tbody className="divide-y divide-zinc-200/80 dark:divide-zinc-800/80 text-zinc-800 dark:text-zinc-300">
               {filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-zinc-500 font-sans">
+                  <td colSpan={8} className="p-8 text-center text-zinc-600 dark:text-zinc-500 font-sans">
                     No time logs found matching the selected filters.
                   </td>
                 </tr>
@@ -668,21 +668,21 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
                 filteredLogs.map((log) => {
                   const isActive = log.status === 'ACTIVE';
                   return (
-                    <tr key={log.id} className="hover:bg-zinc-900/60 transition-colors">
+                    <tr key={log.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-900/60 transition-colors">
                       <td className="p-3">
                         {isActive ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-white text-zinc-950 shadow animate-pulse">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 shadow animate-pulse">
                             ACTIVE
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-900 text-zinc-400 border border-zinc-800">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-800">
                             COMPLETED
                           </span>
                         )}
                       </td>
 
                       <td className="p-3">
-                        <div className="font-bold text-white">{log.technicianName}</div>
+                        <div className="font-bold text-zinc-950 dark:text-white">{log.technicianName}</div>
                       </td>
 
                       <td className="p-3">
@@ -691,29 +691,29 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
                             const foundJob = jobCards.find((j) => j.id === log.jobCardId);
                             if (foundJob && onSelectJobCard) onSelectJobCard(foundJob);
                           }}
-                          className="font-bold text-white hover:underline text-left"
+                          className="font-bold text-zinc-950 dark:text-white hover:underline text-left"
                         >
                           {log.jobCardId}
                         </button>
-                        <div className="text-[11px] text-zinc-400 truncate max-w-xs">{log.toolModel}</div>
+                        <div className="text-[11px] text-zinc-700 dark:text-zinc-400 truncate max-w-xs">{log.toolModel}</div>
                       </td>
 
-                      <td className="p-3 text-zinc-300">
+                      <td className="p-3 text-zinc-800 dark:text-zinc-300">
                         {new Date(log.clockInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        <span className="text-[10px] text-zinc-500 block">{new Date(log.clockInTime).toLocaleDateString()}</span>
+                        <span className="text-[10px] text-zinc-600 dark:text-zinc-500 block">{new Date(log.clockInTime).toLocaleDateString()}</span>
                       </td>
 
-                      <td className="p-3 text-zinc-300">
+                      <td className="p-3 text-zinc-800 dark:text-zinc-300">
                         {log.clockOutTime
                           ? new Date(log.clockOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                           : 'Running...'}
                       </td>
 
-                      <td className="p-3 text-center font-bold text-white">
+                      <td className="p-3 text-center font-bold text-zinc-950 dark:text-white">
                         {isActive ? formatElapsed(log.clockInTime) : `${log.durationHours || 0} hrs (${log.durationMinutes || 0}m)`}
                       </td>
 
-                      <td className="p-3 font-sans text-[11px] text-zinc-300 max-w-xs truncate">
+                      <td className="p-3 font-sans text-[11px] text-zinc-800 dark:text-zinc-300 max-w-xs truncate">
                         {log.notes || 'No work notes logged.'}
                       </td>
 
@@ -721,12 +721,12 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
                         {isActive ? (
                           <button
                             onClick={() => handleClockOut(log.jobCardId, log.id)}
-                            className="px-2.5 py-1 text-[10px] font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded transition-all active:scale-95"
+                            className="px-2.5 py-1 text-[10px] font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded transition-all active:scale-95"
                           >
                             Clock Out
                           </button>
                         ) : (
-                          <span className="text-[10px] text-zinc-500">Logged</span>
+                          <span className="text-[10px] text-zinc-600 dark:text-zinc-500">Logged</span>
                         )}
                       </td>
                     </tr>
@@ -742,25 +742,25 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
 
       {/* Manual Time Entry Modal */}
       {manualModalOpen && (
-        <div className="fixed inset-0 z-50 bg-zinc-950/85 backdrop-blur flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl font-mono">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <h3 className="text-base font-bold text-white uppercase flex items-center gap-2">
-                <Plus className="w-5 h-5 text-white" />
+        <div className="fixed inset-0 z-50 bg-zinc-950/60 dark:bg-zinc-950/85 backdrop-blur flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl font-mono">
+            <div className="flex items-center justify-between border-b border-zinc-300 dark:border-zinc-800 pb-3">
+              <h3 className="text-base font-bold text-zinc-950 dark:text-white uppercase flex items-center gap-2">
+                <Plus className="w-5 h-5 text-zinc-950 dark:text-white" />
                 <span>Manual Technician Time Entry</span>
               </h3>
-              <button onClick={() => setManualModalOpen(false)} className="text-xs text-zinc-500 hover:text-white">
+              <button onClick={() => setManualModalOpen(false)} className="text-xs text-zinc-600 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white">
                 Cancel
               </button>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="text-[10px] text-zinc-400 block mb-1 uppercase font-bold">Select Technician</label>
+                <label className="text-[10px] text-zinc-700 dark:text-zinc-400 block mb-1 uppercase font-bold">Select Technician</label>
                 <select
                   value={manualTechId}
                   onChange={(e) => setManualTechId(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none font-mono"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-950 dark:text-white focus:outline-none font-mono"
                 >
                   {SHOP_TECHNICIANS.map((tech) => (
                     <option key={tech.id} value={tech.id}>
@@ -771,11 +771,11 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
               </div>
 
               <div>
-                <label className="text-[10px] text-zinc-400 block mb-1 uppercase font-bold">Select Job Ticket</label>
+                <label className="text-[10px] text-zinc-700 dark:text-zinc-400 block mb-1 uppercase font-bold">Select Job Ticket</label>
                 <select
                   value={manualJobId}
                   onChange={(e) => setManualJobId(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none font-mono"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-950 dark:text-white focus:outline-none font-mono"
                 >
                   {jobCards.map((j) => (
                     <option key={j.id} value={j.id}>
@@ -786,37 +786,37 @@ export const TechnicianTimeTracker: React.FC<TechnicianTimeTrackerProps> = ({
               </div>
 
               <div>
-                <label className="text-[10px] text-zinc-400 block mb-1 uppercase font-bold">Hours Spent (Decimal, e.g. 1.5)</label>
+                <label className="text-[10px] text-zinc-700 dark:text-zinc-400 block mb-1 uppercase font-bold">Hours Spent (Decimal, e.g. 1.5)</label>
                 <input
                   type="number"
                   step="0.1"
                   value={manualHours}
                   onChange={(e) => setManualHours(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-950 dark:text-white font-mono focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] text-zinc-400 block mb-1 uppercase font-bold">Work Scope / Notes</label>
+                <label className="text-[10px] text-zinc-700 dark:text-zinc-400 block mb-1 uppercase font-bold">Work Scope / Notes</label>
                 <textarea
                   value={manualNotes}
                   onChange={(e) => setManualNotes(e.target.value)}
                   rows={2}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-950 dark:text-white font-mono focus:outline-none"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-300 dark:border-zinc-800">
               <button
                 onClick={() => setManualModalOpen(false)}
-                className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white"
+                className="px-4 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddManualLog}
-                className="px-5 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow"
+                className="px-5 py-2 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl shadow"
               >
                 Save Manual Time Log
               </button>

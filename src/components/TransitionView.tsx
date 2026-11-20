@@ -166,16 +166,16 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
       
       {/* Header Banner */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl font-mono">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-6 shadow-xl font-mono">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1.5 max-w-2xl">
-            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white bg-zinc-950 px-3 py-1 rounded-md border border-zinc-800">
+            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-950 dark:text-white bg-zinc-50 dark:bg-zinc-950 px-3 py-1 rounded-md border border-zinc-300 dark:border-zinc-800">
               System Settings &amp; Data Governance
             </div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-white uppercase tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-zinc-950 dark:text-white uppercase tracking-tight">
               Settings, Data Exports &amp; Auto-Backup Management
             </h1>
-            <p className="text-xs text-zinc-400 leading-relaxed">
+            <p className="text-xs text-zinc-700 dark:text-zinc-400 leading-relaxed">
               Export CSV reports for external accounting, configure automatic daily database backups, customize form fields, and tune operational rules.
             </p>
           </div>
@@ -183,7 +183,7 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={onProceedToJobs}
-              className="px-5 py-3 text-xs font-bold font-mono text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 shrink-0"
+              className="px-5 py-3 text-xs font-bold font-mono text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 shrink-0"
             >
               <span>Launch Service Hub</span>
               <ArrowRight className="w-4 h-4" />
@@ -192,13 +192,13 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
         </div>
 
         {/* Navigation Sub-Tabs */}
-        <div className="mt-6 pt-4 border-t border-zinc-800 flex flex-wrap items-center gap-2">
+        <div className="mt-6 pt-4 border-t border-zinc-300 dark:border-zinc-800 flex flex-wrap items-center gap-2">
           <button
             onClick={() => setActiveSubTab('backups')}
             className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 ${
               activeSubTab === 'backups'
-                ? 'bg-white text-zinc-950 shadow'
-                : 'bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800'
+                ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 shadow'
+                : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white border border-zinc-300 dark:border-zinc-800'
             }`}
           >
             <Database className="w-4 h-4" />
@@ -209,8 +209,8 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
             onClick={() => setActiveSubTab('fields')}
             className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 ${
               activeSubTab === 'fields'
-                ? 'bg-white text-zinc-950 shadow'
-                : 'bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800'
+                ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 shadow'
+                : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white border border-zinc-300 dark:border-zinc-800'
             }`}
           >
             <Sliders className="w-4 h-4" />
@@ -221,8 +221,8 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
             onClick={() => setActiveSubTab('rules')}
             className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 ${
               activeSubTab === 'rules'
-                ? 'bg-white text-zinc-950 shadow'
-                : 'bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800'
+                ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 shadow'
+                : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white border border-zinc-300 dark:border-zinc-800'
             }`}
           >
             <Settings className="w-4 h-4" />
@@ -233,8 +233,8 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
             onClick={() => setActiveSubTab('manual')}
             className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 ${
               activeSubTab === 'manual'
-                ? 'bg-white text-zinc-950 shadow'
-                : 'bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800'
+                ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 shadow'
+                : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white border border-zinc-300 dark:border-zinc-800'
             }`}
           >
             <HelpCircle className="w-4 h-4" />
@@ -245,12 +245,12 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
 
       {/* Action Notification Toast */}
       {actionNotice && (
-        <div className="bg-zinc-900 border border-white/20 p-3.5 rounded-xl text-xs font-mono text-white flex items-center justify-between shadow-lg">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-950/20 dark:border-white/20 p-3.5 rounded-xl text-xs font-mono text-zinc-950 dark:text-white flex items-center justify-between shadow-lg">
           <div className="flex items-center gap-2">
-            <FileCheck className="w-4 h-4 text-white" />
+            <FileCheck className="w-4 h-4 text-zinc-950 dark:text-white" />
             <span>{actionNotice}</span>
           </div>
-          <span className="text-[10px] text-zinc-400">System Notification</span>
+          <span className="text-[10px] text-zinc-700 dark:text-zinc-400">System Notification</span>
         </div>
       )}
 
@@ -259,21 +259,21 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
         <div className="space-y-6 font-mono">
           
           {/* Section A: CSV Data Export Center */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xl">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xl">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-zinc-300 dark:border-zinc-800 pb-3">
               <div>
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <FileSpreadsheet className="w-4 h-4 text-white" />
+                <h2 className="text-sm font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  <FileSpreadsheet className="w-4 h-4 text-zinc-950 dark:text-white" />
                   <span>CSV Data Exports for Accounting &amp; Audit</span>
                 </h2>
-                <p className="text-xs text-zinc-400 mt-0.5">
+                <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-0.5">
                   Export complete job history and spare parts inventory data into standard CSV files for external audits and reporting.
                 </p>
               </div>
 
               <button
                 onClick={handleExportAllCsv}
-                className="px-4 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl transition-all shadow flex items-center gap-1.5 shrink-0 active:scale-95"
+                className="px-4 py-2 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl transition-all shadow flex items-center gap-1.5 shrink-0 active:scale-95"
               >
                 <Download className="w-4 h-4" />
                 <span>Export Both CSVs (Job Cards &amp; Stock)</span>
@@ -283,19 +283,19 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               
               {/* Job Cards CSV Card */}
-              <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-3">
+              <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-300 dark:border-zinc-800 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-white text-xs uppercase">Job Cards History CSV</span>
-                  <span className="text-[10px] text-zinc-400 bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">
+                  <span className="font-bold text-zinc-950 dark:text-white text-xs uppercase">Job Cards History CSV</span>
+                  <span className="text-[10px] text-zinc-700 dark:text-zinc-400 bg-white dark:bg-zinc-900 px-2 py-0.5 rounded border border-zinc-300 dark:border-zinc-800">
                     {jobCards.length} Tickets
                   </span>
                 </div>
-                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                <p className="text-[11px] text-zinc-700 dark:text-zinc-400 leading-relaxed">
                   Exports all customer details, tool models, serials, complaints, technician assignments, labor hours, parts costs, tax rates, and total estimate amounts.
                 </p>
                 <button
                   onClick={handleExportJobCardsCsv}
-                  className="w-full py-2 bg-zinc-900 hover:bg-zinc-800 text-white font-bold rounded-lg border border-zinc-700 text-xs flex items-center justify-center gap-1.5 transition-colors"
+                  className="w-full py-2 bg-white dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-950 dark:text-white font-bold rounded-lg border border-zinc-400 dark:border-zinc-700 text-xs flex items-center justify-center gap-1.5 transition-colors"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5" />
                   <span>Download Job Cards CSV</span>
@@ -303,19 +303,19 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
               </div>
 
               {/* Parts Inventory CSV Card */}
-              <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-3">
+              <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-300 dark:border-zinc-800 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-white text-xs uppercase">Spare Parts Inventory CSV</span>
-                  <span className="text-[10px] text-zinc-400 bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">
+                  <span className="font-bold text-zinc-950 dark:text-white text-xs uppercase">Spare Parts Inventory CSV</span>
+                  <span className="text-[10px] text-zinc-700 dark:text-zinc-400 bg-white dark:bg-zinc-900 px-2 py-0.5 rounded border border-zinc-300 dark:border-zinc-800">
                     {inventory.length} SKUs
                   </span>
                 </div>
-                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                <p className="text-[11px] text-zinc-700 dark:text-zinc-400 leading-relaxed">
                   Exports full ~1,000 spare parts catalog with SKUs, barcodes, categories, compatible models, cost prices, selling unit prices, stock quantities, and bin locations.
                 </p>
                 <button
                   onClick={handleExportInventoryCsv}
-                  className="w-full py-2 bg-zinc-900 hover:bg-zinc-800 text-white font-bold rounded-lg border border-zinc-700 text-xs flex items-center justify-center gap-1.5 transition-colors"
+                  className="w-full py-2 bg-white dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-950 dark:text-white font-bold rounded-lg border border-zinc-400 dark:border-zinc-700 text-xs flex items-center justify-center gap-1.5 transition-colors"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Download Inventory Stock CSV</span>
@@ -326,14 +326,14 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
           </div>
 
           {/* Section B: Automatic Daily Backups & Database Restoration */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-5 shadow-xl">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-5 shadow-xl">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-zinc-300 dark:border-zinc-800 pb-3">
               <div>
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <Database className="w-4 h-4 text-white" />
+                <h2 className="text-sm font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  <Database className="w-4 h-4 text-zinc-950 dark:text-white" />
                   <span>Automatic Daily Database Backups &amp; Disaster Recovery</span>
                 </h2>
-                <p className="text-xs text-zinc-400 mt-0.5">
+                <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-0.5">
                   Automatically backs up all job cards, 1,000 inventory items, custom fields, and settings to local browser storage or JSON file.
                 </p>
               </div>
@@ -341,8 +341,8 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
               <div className="flex items-center gap-2">
                 <span className={`px-2.5 py-1 text-[10px] font-bold rounded-full border ${
                   settings.autoDailyBackupEnabled 
-                    ? 'bg-zinc-950 text-white border-zinc-700' 
-                    : 'bg-zinc-950/40 text-zinc-600 border-zinc-900'
+                    ? 'bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-white border-zinc-400 dark:border-zinc-700' 
+                    : 'bg-zinc-100/80 dark:bg-zinc-950/40 text-zinc-600 border-zinc-200 dark:border-zinc-900'
                 }`}>
                   {settings.autoDailyBackupEnabled ? '● AUTO BACKUP ACTIVE' : '○ BACKUP DISABLED'}
                 </span>
@@ -353,57 +353,57 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               
               {/* Toggle Switch */}
-              <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-3">
+              <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-300 dark:border-zinc-800 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-white text-xs uppercase">Enable Automatic Daily Backups</span>
+                  <span className="font-bold text-zinc-950 dark:text-white text-xs uppercase">Enable Automatic Daily Backups</span>
                   <input
                     type="checkbox"
                     checked={!!settings.autoDailyBackupEnabled}
                     onChange={(e) => toggleAutoBackup(e.target.checked)}
-                    className="w-5 h-5 accent-white rounded cursor-pointer"
+                    className="w-5 h-5 accent-zinc-950 dark:accent-white rounded cursor-pointer"
                   />
                 </div>
-                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                <p className="text-[11px] text-zinc-700 dark:text-zinc-400 leading-relaxed">
                   When enabled, the system automatically creates a daily snapshot of all transactional data once per day.
                 </p>
-                <div className="text-[10px] text-zinc-500 pt-1 border-t border-zinc-900">
-                  Last Auto-Backup Date: <span className="text-white font-bold">{settings.lastAutoBackupDate || 'Not run today'}</span>
+                <div className="text-[10px] text-zinc-600 dark:text-zinc-500 pt-1 border-t border-zinc-200 dark:border-zinc-900">
+                  Last Auto-Backup Date: <span className="text-zinc-950 dark:text-white font-bold">{settings.lastAutoBackupDate || 'Not run today'}</span>
                 </div>
               </div>
 
               {/* Destination Selector */}
-              <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-3">
-                <span className="font-bold text-white text-xs uppercase block">Backup Destination &amp; Target</span>
+              <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-300 dark:border-zinc-800 space-y-3">
+                <span className="font-bold text-zinc-950 dark:text-white text-xs uppercase block">Backup Destination &amp; Target</span>
                 <select
                   value={settings.autoDailyBackupDestination || 'localStorage'}
                   onChange={(e) => onUpdateSettings({ ...settings, autoDailyBackupDestination: e.target.value as any })}
                   disabled={!settings.autoDailyBackupEnabled}
-                  className="w-full bg-zinc-900 border border-zinc-800 text-xs text-white rounded-lg px-3 py-2 focus:outline-none disabled:opacity-40"
+                  className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-xs text-zinc-950 dark:text-white rounded-lg px-3 py-2 focus:outline-none disabled:opacity-40"
                 >
                   <option value="localStorage">Local Browser Storage Snapshot (Indexed/Local)</option>
                   <option value="downloadJson">Automatic JSON File Download Prompt</option>
                   <option value="both">Both Browser Snapshot &amp; Auto JSON File Download</option>
                 </select>
-                <p className="text-[10px] text-zinc-500">
-                  Snapshots are stored under <code className="text-zinc-300">autotrack_daily_snapshot_YYYY-MM-DD</code>.
+                <p className="text-[10px] text-zinc-600 dark:text-zinc-500">
+                  Snapshots are stored under <code className="text-zinc-800 dark:text-zinc-300">autotrack_daily_snapshot_YYYY-MM-DD</code>.
                 </p>
               </div>
 
             </div>
 
             {/* Manual Backup Download & File Restore */}
-            <div className="pt-3 border-t border-zinc-800 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="pt-3 border-t border-zinc-300 dark:border-zinc-800 grid grid-cols-1 md:grid-cols-2 gap-4">
               
               {/* Instant Backup Download */}
-              <div className="p-3.5 bg-zinc-950 rounded-xl border border-zinc-800 flex items-center justify-between">
+              <div className="p-3.5 bg-zinc-50 dark:bg-zinc-950 rounded-xl border border-zinc-300 dark:border-zinc-800 flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold text-white">Instant Full Database Backup (.json)</div>
-                  <div className="text-[10px] text-zinc-400 mt-0.5">Download a complete snapshot JSON file now</div>
+                  <div className="text-xs font-bold text-zinc-950 dark:text-white">Instant Full Database Backup (.json)</div>
+                  <div className="text-[10px] text-zinc-700 dark:text-zinc-400 mt-0.5">Download a complete snapshot JSON file now</div>
                 </div>
 
                 <button
                   onClick={handleDownloadJsonBackup}
-                  className="px-3.5 py-2 bg-white hover:bg-zinc-200 text-zinc-950 font-bold rounded-lg text-xs flex items-center gap-1.5 shadow shrink-0 active:scale-95"
+                  className="px-3.5 py-2 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 font-bold rounded-lg text-xs flex items-center gap-1.5 shadow shrink-0 active:scale-95"
                 >
                   <HardDrive className="w-3.5 h-3.5" />
                   <span>Download JSON</span>
@@ -411,14 +411,14 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
               </div>
 
               {/* File Restoration */}
-              <div className="p-3.5 bg-zinc-950 rounded-xl border border-zinc-800 flex items-center justify-between">
+              <div className="p-3.5 bg-zinc-50 dark:bg-zinc-950 rounded-xl border border-zinc-300 dark:border-zinc-800 flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold text-white">Restore Database from JSON Backup</div>
-                  <div className="text-[10px] text-zinc-400 mt-0.5">Upload a previously exported .json backup file</div>
+                  <div className="text-xs font-bold text-zinc-950 dark:text-white">Restore Database from JSON Backup</div>
+                  <div className="text-[10px] text-zinc-700 dark:text-zinc-400 mt-0.5">Upload a previously exported .json backup file</div>
                 </div>
 
-                <label className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-white font-bold rounded-lg text-xs border border-zinc-700 flex items-center gap-1.5 cursor-pointer shrink-0">
-                  <Upload className="w-3.5 h-3.5 text-white" />
+                <label className="px-3.5 py-2 bg-white dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-950 dark:text-white font-bold rounded-lg text-xs border border-zinc-400 dark:border-zinc-700 flex items-center gap-1.5 cursor-pointer shrink-0">
+                  <Upload className="w-3.5 h-3.5 text-zinc-950 dark:text-white" />
                   <span>Upload &amp; Restore</span>
                   <input
                     type="file"
@@ -450,14 +450,14 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {/* Question 1 */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-colors space-y-3">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl p-5 hover:border-zinc-400 dark:hover:border-zinc-700 transition-colors space-y-3">
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 flex items-center justify-center text-zinc-950 dark:text-white font-bold text-sm shrink-0">
                   1
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white uppercase">Service Center Domain &amp; Niche</h3>
-                  <p className="text-xs text-zinc-400">Determines default intake fields (Reg No, Odometer, Serial No).</p>
+                  <h3 className="text-sm font-bold text-zinc-950 dark:text-white uppercase">Service Center Domain &amp; Niche</h3>
+                  <p className="text-xs text-zinc-700 dark:text-zinc-400">Determines default intake fields (Reg No, Odometer, Serial No).</p>
                 </div>
               </div>
 
@@ -473,8 +473,8 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                     onClick={() => onUpdateQuestionnaire({ ...questionnaire, serviceType: opt.id })}
                     className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                       questionnaire.serviceType === opt.id
-                        ? 'bg-zinc-950 border-white text-white font-bold'
-                        : 'bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                        ? 'bg-zinc-50 dark:bg-zinc-950 border-zinc-950 dark:border-white text-zinc-950 dark:text-white font-bold'
+                        : 'bg-zinc-100/80 dark:bg-zinc-950/40 border-zinc-300 dark:border-zinc-800 text-zinc-700 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-700'
                     }`}
                   >
                     <input
@@ -482,11 +482,11 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                       name="serviceType"
                       checked={questionnaire.serviceType === opt.id}
                       onChange={() => {}}
-                      className="mt-1 accent-white"
+                      className="mt-1 accent-zinc-950 dark:accent-white"
                     />
                     <div>
-                      <div className="text-xs font-bold text-zinc-200">{opt.label}</div>
-                      <div className="text-[11px] text-zinc-400">{opt.desc}</div>
+                      <div className="text-xs font-bold text-zinc-900 dark:text-zinc-200">{opt.label}</div>
+                      <div className="text-[11px] text-zinc-700 dark:text-zinc-400">{opt.desc}</div>
                     </div>
                   </label>
                 ))}
@@ -494,46 +494,46 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
             </div>
 
             {/* Question 2 */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-colors space-y-3">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl p-5 hover:border-zinc-400 dark:hover:border-zinc-700 transition-colors space-y-3">
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 flex items-center justify-center text-zinc-950 dark:text-white font-bold text-sm shrink-0">
                   2
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white uppercase">Job Card Prefix &amp; Numbering</h3>
-                  <p className="text-xs text-zinc-400">Replaces physical paper booklet counter numbers.</p>
+                  <h3 className="text-sm font-bold text-zinc-950 dark:text-white uppercase">Job Card Prefix &amp; Numbering</h3>
+                  <p className="text-xs text-zinc-700 dark:text-zinc-400">Replaces physical paper booklet counter numbers.</p>
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-300 mb-1">Job Card Prefix Code</label>
+                  <label className="block text-xs font-semibold text-zinc-800 dark:text-zinc-300 mb-1">Job Card Prefix Code</label>
                   <input
                     type="text"
                     value={settings.jobCardPrefix}
                     onChange={(e) => onUpdateSettings({ ...settings, jobCardPrefix: e.target.value })}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-zinc-500 font-bold"
+                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-zinc-950 dark:text-white focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500 font-bold"
                     placeholder="e.g. BOSCH-2026-"
                   />
-                  <p className="text-[11px] text-zinc-500 mt-1">Example generated card ID: <span className="font-mono text-white font-bold">{settings.jobCardPrefix}0045</span></p>
+                  <p className="text-[11px] text-zinc-600 dark:text-zinc-500 mt-1">Example generated card ID: <span className="font-mono text-zinc-950 dark:text-white font-bold">{settings.jobCardPrefix}0045</span></p>
                 </div>
 
-                <div className="p-3 bg-zinc-950/60 rounded-lg border border-zinc-800 text-xs text-zinc-300 space-y-1">
-                  <div className="font-semibold text-white uppercase text-[10px]">Paper Transition Benefit:</div>
-                  <p className="text-[11px] text-zinc-400">Prevents missing pages or duplicated paper numbers. System automatically increments card IDs safely.</p>
+                <div className="p-3 bg-zinc-100/80 dark:bg-zinc-950/60 rounded-lg border border-zinc-300 dark:border-zinc-800 text-xs text-zinc-800 dark:text-zinc-300 space-y-1">
+                  <div className="font-semibold text-zinc-950 dark:text-white uppercase text-[10px]">Paper Transition Benefit:</div>
+                  <p className="text-[11px] text-zinc-700 dark:text-zinc-400">Prevents missing pages or duplicated paper numbers. System automatically increments card IDs safely.</p>
                 </div>
               </div>
             </div>
 
             {/* Question 3 */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-colors space-y-3">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl p-5 hover:border-zinc-400 dark:hover:border-zinc-700 transition-colors space-y-3">
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 flex items-center justify-center text-zinc-950 dark:text-white font-bold text-sm shrink-0">
                   3
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white uppercase">Customer Messaging Channel</h3>
-                  <p className="text-xs text-zinc-400">Replaces manual phone calls &amp; paper receipts.</p>
+                  <h3 className="text-sm font-bold text-zinc-950 dark:text-white uppercase">Customer Messaging Channel</h3>
+                  <p className="text-xs text-zinc-700 dark:text-zinc-400">Replaces manual phone calls &amp; paper receipts.</p>
                 </div>
               </div>
 
@@ -548,8 +548,8 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                     onClick={() => onUpdateQuestionnaire({ ...questionnaire, messagingChannel: opt.id })}
                     className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                       questionnaire.messagingChannel === opt.id
-                        ? 'bg-zinc-950 border-white text-white font-bold'
-                        : 'bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                        ? 'bg-zinc-50 dark:bg-zinc-950 border-zinc-950 dark:border-white text-zinc-950 dark:text-white font-bold'
+                        : 'bg-zinc-100/80 dark:bg-zinc-950/40 border-zinc-300 dark:border-zinc-800 text-zinc-700 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-700'
                     }`}
                   >
                     <input
@@ -557,26 +557,26 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                       name="messagingChannel"
                       checked={questionnaire.messagingChannel === opt.id}
                       onChange={() => {}}
-                      className="mt-1 accent-white"
+                      className="mt-1 accent-zinc-950 dark:accent-white"
                     />
                     <div>
-                      <div className="text-xs font-bold text-zinc-200">{opt.label}</div>
-                      <div className="text-[11px] text-zinc-400">{opt.desc}</div>
+                      <div className="text-xs font-bold text-zinc-900 dark:text-zinc-200">{opt.label}</div>
+                      <div className="text-[11px] text-zinc-700 dark:text-zinc-400">{opt.desc}</div>
                     </div>
                   </label>
                 ))}
               </div>
 
               {/* API Credentials Setup Instructions Box */}
-              <div className="mt-3 p-3 bg-zinc-950 rounded-lg border border-zinc-800 font-mono text-[11px] space-y-1 text-zinc-400">
-                <div className="text-white font-bold flex items-center gap-1.5">
+              <div className="mt-3 p-3 bg-zinc-50 dark:bg-zinc-950 rounded-lg border border-zinc-300 dark:border-zinc-800 font-mono text-[11px] space-y-1 text-zinc-700 dark:text-zinc-400">
+                <div className="text-zinc-950 dark:text-white font-bold flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400" />
                   <span>Twilio SMS &amp; WhatsApp API (.env Integration)</span>
                 </div>
-                <p className="text-[10px] text-zinc-500 font-sans">
+                <p className="text-[10px] text-zinc-600 dark:text-zinc-500 font-sans">
                   To enable direct REST API dispatch without launching native apps, add the following variables to your environment:
                 </p>
-                <div className="p-2 bg-zinc-900 rounded border border-zinc-800 text-emerald-400 text-[10px] font-mono overflow-x-auto">
+                <div className="p-2 bg-white dark:bg-zinc-900 rounded border border-zinc-300 dark:border-zinc-800 text-emerald-700 dark:text-emerald-400 text-[10px] font-mono overflow-x-auto">
                   TWILIO_ACCOUNT_SID="ACxxx..."<br />
                   TWILIO_AUTH_TOKEN="your_token..."<br />
                   TWILIO_PHONE_NUMBER="+18005550199"<br />
@@ -587,14 +587,14 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
             </div>
 
             {/* Question 4 */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-colors space-y-3">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl p-5 hover:border-zinc-400 dark:hover:border-zinc-700 transition-colors space-y-3">
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 flex items-center justify-center text-zinc-950 dark:text-white font-bold text-sm shrink-0">
                   4
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white uppercase">1,000-Item Stock Deduction Policy</h3>
-                  <p className="text-xs text-zinc-400">Controls when spare parts stock is automatically decremented.</p>
+                  <h3 className="text-sm font-bold text-zinc-950 dark:text-white uppercase">1,000-Item Stock Deduction Policy</h3>
+                  <p className="text-xs text-zinc-700 dark:text-zinc-400">Controls when spare parts stock is automatically decremented.</p>
                 </div>
               </div>
 
@@ -612,8 +612,8 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                     }}
                     className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                       settings.deductStockOn === opt.id
-                        ? 'bg-zinc-950 border-white text-white font-bold'
-                        : 'bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                        ? 'bg-zinc-50 dark:bg-zinc-950 border-zinc-950 dark:border-white text-zinc-950 dark:text-white font-bold'
+                        : 'bg-zinc-100/80 dark:bg-zinc-950/40 border-zinc-300 dark:border-zinc-800 text-zinc-700 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-700'
                     }`}
                   >
                     <input
@@ -621,11 +621,11 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                       name="stockDeduction"
                       checked={settings.deductStockOn === opt.id}
                       onChange={() => {}}
-                      className="mt-1 accent-white"
+                      className="mt-1 accent-zinc-950 dark:accent-white"
                     />
                     <div>
-                      <div className="text-xs font-bold text-zinc-200">{opt.label}</div>
-                      <div className="text-[11px] text-zinc-400">{opt.desc}</div>
+                      <div className="text-xs font-bold text-zinc-900 dark:text-zinc-200">{opt.label}</div>
+                      <div className="text-[11px] text-zinc-700 dark:text-zinc-400">{opt.desc}</div>
                     </div>
                   </label>
                 ))}
@@ -633,101 +633,101 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
             </div>
 
             {/* Question 5 */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-colors space-y-3">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl p-5 hover:border-zinc-400 dark:hover:border-zinc-700 transition-colors space-y-3">
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 flex items-center justify-center text-zinc-950 dark:text-white font-bold text-sm shrink-0">
                   5
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white uppercase">Labor &amp; Service Pricing Model</h3>
-                  <p className="text-xs text-zinc-400">Configure base labor rates and sales tax/VAT percentages.</p>
+                  <h3 className="text-sm font-bold text-zinc-950 dark:text-white uppercase">Labor &amp; Service Pricing Model</h3>
+                  <p className="text-xs text-zinc-700 dark:text-zinc-400">Configure base labor rates and sales tax/VAT percentages.</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-300 mb-1">Base Labor Rate ($ / hr)</label>
+                  <label className="block text-xs font-semibold text-zinc-800 dark:text-zinc-300 mb-1">Base Labor Rate ($ / hr)</label>
                   <input
                     type="number"
                     value={settings.laborRate}
                     onChange={(e) => onUpdateSettings({ ...settings, laborRate: parseFloat(e.target.value) || 0 })}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-zinc-500 font-bold"
+                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-zinc-950 dark:text-white focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500 font-bold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-300 mb-1">Sales Tax / GST Rate (%)</label>
+                  <label className="block text-xs font-semibold text-zinc-800 dark:text-zinc-300 mb-1">Sales Tax / GST Rate (%)</label>
                   <input
                     type="number"
                     value={settings.taxRate}
                     onChange={(e) => onUpdateSettings({ ...settings, taxRate: parseFloat(e.target.value) || 0 })}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-zinc-500 font-bold"
+                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-zinc-950 dark:text-white focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500 font-bold"
                   />
                 </div>
               </div>
             </div>
 
             {/* Question 6 */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-colors space-y-3">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl p-5 hover:border-zinc-400 dark:hover:border-zinc-700 transition-colors space-y-3">
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 flex items-center justify-center text-zinc-950 dark:text-white font-bold text-sm shrink-0">
                   6
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white uppercase">Customer Digital Signature Mandate</h3>
-                  <p className="text-xs text-zinc-400">Replaces physical paper signature pad check-in.</p>
+                  <h3 className="text-sm font-bold text-zinc-950 dark:text-white uppercase">Customer Digital Signature Mandate</h3>
+                  <p className="text-xs text-zinc-700 dark:text-zinc-400">Replaces physical paper signature pad check-in.</p>
                 </div>
               </div>
 
               <div className="space-y-3">
-                <label className="flex items-center gap-3 p-3 bg-zinc-950/60 border border-zinc-800 rounded-lg cursor-pointer">
+                <label className="flex items-center gap-3 p-3 bg-zinc-100/80 dark:bg-zinc-950/60 border border-zinc-300 dark:border-zinc-800 rounded-lg cursor-pointer">
                   <input
                     type="checkbox"
                     checked={settings.requireSignature}
                     onChange={(e) => onUpdateSettings({ ...settings, requireSignature: e.target.checked })}
-                    className="w-4 h-4 accent-white rounded"
+                    className="w-4 h-4 accent-zinc-950 dark:accent-white rounded"
                   />
-                  <span className="text-xs font-semibold text-zinc-200">
+                  <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-200">
                     Require Digital Screen Signature during Customer Intake
                   </span>
                 </label>
 
-                <label className="flex items-center gap-3 p-3 bg-zinc-950/60 border border-zinc-800 rounded-lg cursor-pointer">
+                <label className="flex items-center gap-3 p-3 bg-zinc-100/80 dark:bg-zinc-950/60 border border-zinc-300 dark:border-zinc-800 rounded-lg cursor-pointer">
                   <input
                     type="checkbox"
                     checked={settings.autoSendFeedbackSms !== false}
                     onChange={(e) => onUpdateSettings({ ...settings, autoSendFeedbackSms: e.target.checked })}
-                    className="w-4 h-4 accent-white rounded"
+                    className="w-4 h-4 accent-zinc-950 dark:accent-white rounded"
                   />
-                  <span className="text-xs font-semibold text-zinc-200">
+                  <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-200">
                     Auto-Send Customer Feedback SMS Survey upon Job Completion
                   </span>
                 </label>
 
-                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                <p className="text-[11px] text-zinc-700 dark:text-zinc-400 leading-relaxed">
                   When enabled, customer signs directly on tablet or mobile touchscreen during intake, and an automated SMS survey link dispatches when a ticket reaches Completed status.
                 </p>
               </div>
             </div>
 
             {/* Section 7: Analytics Dashboard Metrics Configuration */}
-            <div className="md:col-span-2 bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-colors space-y-4">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+            <div className="md:col-span-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl p-5 hover:border-zinc-400 dark:hover:border-zinc-700 transition-colors space-y-4">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-zinc-300 dark:border-zinc-800 pb-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 flex items-center justify-center text-zinc-950 dark:text-white font-bold text-sm shrink-0">
                     7
                   </div>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-bold text-white uppercase flex items-center gap-2">
-                        <BarChart3 className="w-4 h-4 text-emerald-400" />
+                      <h3 className="text-sm font-bold text-zinc-950 dark:text-white uppercase flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                         <span>Analytics Dashboard Metrics Visibility</span>
                       </h3>
-                      <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-zinc-950 border border-zinc-700 text-emerald-400">
+                      <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 text-emerald-700 dark:text-emerald-400">
                         {enabledMetricsCount} / {ANALYTICS_METRIC_DEFINITIONS.length} Active
                       </span>
                     </div>
-                    <p className="text-xs text-zinc-400 mt-1 font-sans">
+                    <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-1 font-sans">
                       Toggle which KPI cards and reporting sections appear on the Analytics dashboard. Changes save automatically.
                     </p>
                   </div>
@@ -737,21 +737,21 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleApplyMetricsPreset(DEFAULT_ANALYTICS_METRICS, 'Enabled all 8 Analytics dashboard metrics.')}
-                    className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-zinc-950 hover:bg-zinc-800 text-white border border-zinc-700 transition-colors"
+                    className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-950 dark:text-white border border-zinc-400 dark:border-zinc-700 transition-colors"
                   >
                     Enable All
                   </button>
                   <button
                     type="button"
                     onClick={() => handleApplyMetricsPreset(CORE_ANALYTICS_METRICS, 'Applied Core 4 KPIs preset (Active Jobs, Low Inventory, Revenue, Today\'s Appointments).')}
-                    className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-zinc-950 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 transition-colors"
+                    className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-200 border border-zinc-400 dark:border-zinc-700 transition-colors"
                   >
                     Core 4 Only
                   </button>
                   <button
                     type="button"
                     onClick={() => handleApplyMetricsPreset(DEFAULT_ANALYTICS_METRICS, 'Reset Analytics metrics to default configuration.')}
-                    className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-zinc-950 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition-colors flex items-center gap-1"
+                    className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-800 transition-colors flex items-center gap-1"
                   >
                     <RefreshCw className="w-3 h-3" />
                     <span>Reset Defaults</span>
@@ -760,7 +760,7 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                     <button
                       type="button"
                       onClick={onOpenAnalytics}
-                      className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-white hover:bg-zinc-200 text-zinc-950 transition-colors flex items-center gap-1.5"
+                      className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 transition-colors flex items-center gap-1.5"
                     >
                       <BarChart3 className="w-3.5 h-3.5" />
                       <span>Open Analytics</span>
@@ -777,28 +777,28 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                       key={metric.key}
                       className={`flex items-start justify-between gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
                         isEnabled
-                          ? 'bg-zinc-950 border-zinc-600 text-white'
-                          : 'bg-zinc-950/40 border-zinc-800/80 text-zinc-400 hover:border-zinc-700'
+                          ? 'bg-zinc-50 dark:bg-zinc-950 border-zinc-400 dark:border-zinc-600 text-zinc-950 dark:text-white'
+                          : 'bg-zinc-100/80 dark:bg-zinc-950/40 border-zinc-300/80 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-700'
                       }`}
                     >
                       <div className="space-y-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className={`text-xs font-bold ${isEnabled ? 'text-white' : 'text-zinc-400'}`}>
+                          <span className={`text-xs font-bold ${isEnabled ? 'text-zinc-950 dark:text-white' : 'text-zinc-700 dark:text-zinc-400'}`}>
                             {metric.label}
                           </span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-700 dark:text-zinc-400">
                             {metric.group}
                           </span>
                           <span
                             className={`text-[10px] font-bold inline-flex items-center gap-1 ${
-                              isEnabled ? 'text-emerald-400' : 'text-zinc-500'
+                              isEnabled ? 'text-emerald-700 dark:text-emerald-400' : 'text-zinc-600 dark:text-zinc-500'
                             }`}
                           >
                             {isEnabled ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
                             <span>{isEnabled ? 'Visible' : 'Hidden'}</span>
                           </span>
                         </div>
-                        <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
+                        <p className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans leading-relaxed">
                           {metric.description}
                         </p>
                       </div>
@@ -808,7 +808,7 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                         checked={isEnabled}
                         onChange={() => handleToggleAnalyticsMetric(metric.key, metric.label)}
                         aria-label={`Toggle ${metric.label} on Analytics dashboard`}
-                        className="mt-0.5 w-4 h-4 accent-white rounded cursor-pointer shrink-0"
+                        className="mt-0.5 w-4 h-4 accent-zinc-950 dark:accent-white rounded cursor-pointer shrink-0"
                       />
                     </label>
                   );
@@ -819,15 +819,15 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
           </div>
 
           {/* Save Notification & Action Footer */}
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 p-5 bg-zinc-900/90 border border-zinc-800 rounded-2xl font-mono">
-            <div className="flex items-center gap-3 text-xs text-zinc-300">
-              <ShieldCheck className="w-5 h-5 text-white shrink-0" />
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 p-5 bg-white/95 dark:bg-zinc-900/90 border border-zinc-300 dark:border-zinc-800 rounded-2xl font-mono">
+            <div className="flex items-center gap-3 text-xs text-zinc-800 dark:text-zinc-300">
+              <ShieldCheck className="w-5 h-5 text-zinc-950 dark:text-white shrink-0" />
               <span>All settings take effect immediately across all Job Cards, Inventory Stock &amp; Messaging tools.</span>
             </div>
 
             <div className="flex items-center gap-3 w-full sm:w-auto">
               {savedSuccess && (
-                <span className="text-xs font-semibold text-white flex items-center gap-1">
+                <span className="text-xs font-semibold text-zinc-950 dark:text-white flex items-center gap-1">
                   <CheckCircle2 className="w-4 h-4" />
                   <span>Configuration Saved!</span>
                 </span>
@@ -835,7 +835,7 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
 
               <button
                 onClick={handleSave}
-                className="w-full sm:w-auto px-5 py-2.5 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl transition-all flex items-center justify-center gap-2 shadow"
+                className="w-full sm:w-auto px-5 py-2.5 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl transition-all flex items-center justify-center gap-2 shadow"
               >
                 <Save className="w-4 h-4" />
                 <span>Save System Rules</span>
@@ -847,18 +847,18 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
 
       {/* SUB-TAB 4: END-USER OPERATING MANUAL & SETUP MAINTENANCE GUIDE */}
       {activeSubTab === 'manual' && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-6 font-mono shadow-xl">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-6 space-y-6 font-mono shadow-xl">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-300 dark:border-zinc-800 pb-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="p-1.5 rounded-lg bg-white text-zinc-950 font-bold">
+                <span className="p-1.5 rounded-lg bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 font-bold">
                   <HelpCircle className="w-5 h-5" />
                 </span>
-                <h2 className="text-base font-bold text-white uppercase tracking-tight">
+                <h2 className="text-base font-bold text-zinc-950 dark:text-white uppercase tracking-tight">
                   System Operating Manual &amp; Technical Setup Maintenance Documentation
                 </h2>
               </div>
-              <p className="text-xs text-zinc-400 mt-1 font-sans">
+              <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-1 font-sans">
                 Official end-user manual, staff training checklists, deployment instructions, MySQL schema import, API setup, and maintenance protocols.
               </p>
             </div>
@@ -877,7 +877,7 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                   document.body.removeChild(link);
                   showNotice('Downloaded USER_MANUAL_AND_TRAINING_GUIDE.md');
                 }}
-                className="px-3.5 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow transition-all flex items-center gap-1.5 active:scale-95"
+                className="px-3.5 py-2 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl shadow transition-all flex items-center gap-1.5 active:scale-95"
               >
                 <Download className="w-4 h-4" />
                 <span>User Manual (.md)</span>
@@ -896,7 +896,7 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
                   document.body.removeChild(link);
                   showNotice('Downloaded SETUP_AND_MAINTENANCE_GUIDE.md');
                 }}
-                className="px-3.5 py-2 text-xs font-bold text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
+                className="px-3.5 py-2 text-xs font-bold text-zinc-950 dark:text-white bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 border border-zinc-400 dark:border-zinc-700 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
               >
                 <Download className="w-4 h-4" />
                 <span>Setup &amp; Maintenance (.md)</span>
@@ -905,63 +905,63 @@ export const TransitionView: React.FC<TransitionViewProps> = ({
           </div>
 
           {/* Rendered Manual Summary Sections */}
-          <div className="space-y-4 font-sans text-xs text-zinc-300">
+          <div className="space-y-4 font-sans text-xs text-zinc-800 dark:text-zinc-300">
             
-            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2">
-              <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider flex items-center gap-2">
+            <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-300 dark:border-zinc-800 space-y-2">
+              <h3 className="text-xs font-bold text-zinc-950 dark:text-white uppercase font-mono tracking-wider flex items-center gap-2">
                 <span>1. System Architecture &amp; Technology Stack (v4.0)</span>
               </h3>
-              <ul className="list-disc list-inside space-y-1 text-zinc-300 text-[11px] font-mono">
-                <li><strong className="text-white">Frontend SPA</strong>: React 19, Vite 8, Tailwind CSS v4, Recharts, Motion + Offline Service Worker (`/sw.js`)</li>
-                <li><strong className="text-white">Backend Server</strong>: Express Node 22 (`server.ts`) on Port 3000 with Bearer JWT verification &amp; SSE live sync</li>
-                <li><strong className="text-white">Artificial Intelligence</strong>: `@google/genai` SDK (`gemini-3.8-flash` / `gemini-4-hydrogen` / `gemini-3.5-transcribe`)</li>
-                <li><strong className="text-white">Messaging APIs</strong>: Twilio SMS &amp; WhatsApp REST API + Meta WhatsApp Cloud API with deep-link fallbacks</li>
-                <li><strong className="text-white">Databases</strong>: Live Cloud Firestore (`onSnapshot` + `publicDeliveries`) + `localStorage`/CacheStorage offline store + PostgreSQL 16 &amp; MySQL 8.0 SQL schemas</li>
+              <ul className="list-disc list-inside space-y-1 text-zinc-800 dark:text-zinc-300 text-[11px] font-mono">
+                <li><strong className="text-zinc-950 dark:text-white">Frontend SPA</strong>: React 19, Vite 8, Tailwind CSS v4, Recharts, Motion + Offline Service Worker (`/sw.js`)</li>
+                <li><strong className="text-zinc-950 dark:text-white">Backend Server</strong>: Express Node 22 (`server.ts`) on Port 3000 with Bearer JWT verification &amp; SSE live sync</li>
+                <li><strong className="text-zinc-950 dark:text-white">Artificial Intelligence</strong>: `@google/genai` SDK (`gemini-3.8-flash` / `gemini-4-hydrogen` / `gemini-3.5-transcribe`)</li>
+                <li><strong className="text-zinc-950 dark:text-white">Messaging APIs</strong>: Twilio SMS &amp; WhatsApp REST API + Meta WhatsApp Cloud API with deep-link fallbacks</li>
+                <li><strong className="text-zinc-950 dark:text-white">Databases</strong>: Live Cloud Firestore (`onSnapshot` + `publicDeliveries`) + `localStorage`/CacheStorage offline store + PostgreSQL 16 &amp; MySQL 8.0 SQL schemas</li>
               </ul>
             </div>
 
-            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2 font-mono">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+            <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-300 dark:border-zinc-800 space-y-2 font-mono">
+              <h3 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider">
                 2. Operational Modules &amp; API Capabilities
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
-                <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 space-y-1">
-                  <div className="font-bold text-white">Tool Intake, QR Scanner &amp; Job Cards</div>
-                  <div className="text-zinc-400 font-sans">Digital check-in under 60s, camera QR/barcode scanner (8 entry points), touch signatures, and PDF receipts.</div>
+                <div className="p-3 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-300 dark:border-zinc-800 space-y-1">
+                  <div className="font-bold text-zinc-950 dark:text-white">Tool Intake, QR Scanner &amp; Job Cards</div>
+                  <div className="text-zinc-700 dark:text-zinc-400 font-sans">Digital check-in under 60s, camera QR/barcode scanner (8 entry points), touch signatures, and PDF receipts.</div>
                 </div>
-                <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 space-y-1">
-                  <div className="font-bold text-white">Predictive Revenue &amp; CSAT Analytics</div>
-                  <div className="text-zinc-400 font-sans">Recharts LineChart revenue forecast (3M/6M/12M + seasonal index) and 1–5 star Client Feedback CSAT tracking.</div>
+                <div className="p-3 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-300 dark:border-zinc-800 space-y-1">
+                  <div className="font-bold text-zinc-950 dark:text-white">Predictive Revenue &amp; CSAT Analytics</div>
+                  <div className="text-zinc-700 dark:text-zinc-400 font-sans">Recharts LineChart revenue forecast (3M/6M/12M + seasonal index) and 1–5 star Client Feedback CSAT tracking.</div>
                 </div>
-                <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 space-y-1">
-                  <div className="font-bold text-white">Bulk Excel/CSV Import &amp; AI Reorders</div>
-                  <div className="text-zinc-400 font-sans">Paste Excel or CSV rows directly in 1,000 SKUs to seed/upsert stock, paired with AI reorder PO analysis.</div>
+                <div className="p-3 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-300 dark:border-zinc-800 space-y-1">
+                  <div className="font-bold text-zinc-950 dark:text-white">Bulk Excel/CSV Import &amp; AI Reorders</div>
+                  <div className="text-zinc-700 dark:text-zinc-400 font-sans">Paste Excel or CSV rows directly in 1,000 SKUs to seed/upsert stock, paired with AI reorder PO analysis.</div>
                 </div>
-                <div className="p-3 bg-zinc-900 rounded-lg border border-zinc-800 space-y-1">
-                  <div className="font-bold text-white">Automated Feedback SMS &amp; Client Portal</div>
-                  <div className="text-zinc-400 font-sans">Auto-sends survey link (`&amp;feedback=1`) on Completed status; stores 1–5 star ratings and comments per ticket.</div>
+                <div className="p-3 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-300 dark:border-zinc-800 space-y-1">
+                  <div className="font-bold text-zinc-950 dark:text-white">Automated Feedback SMS &amp; Client Portal</div>
+                  <div className="text-zinc-700 dark:text-zinc-400 font-sans">Auto-sends survey link (`&amp;feedback=1`) on Completed status; stores 1–5 star ratings and comments per ticket.</div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2">
-              <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">
+            <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-300 dark:border-zinc-800 space-y-2">
+              <h3 className="text-xs font-bold text-zinc-950 dark:text-white uppercase font-mono tracking-wider">
                 3. Database Schemas &amp; Admin Credentials
               </h3>
-              <p className="text-[11px] text-zinc-400 leading-relaxed font-sans">
-                Complete 11-table DDL/DML scripts live in <code className="text-white font-mono font-bold">/database.postgres.sql</code> (PostgreSQL 16) and <code className="text-white font-mono font-bold">/database.sql</code> (MySQL 8.0), alongside live Firestore collections in <code className="text-white font-mono font-bold">/firebase-blueprint.json</code>. Default SQL Administrator credentials: <code className="text-white font-mono font-bold">admin</code> / <code className="text-white font-mono font-bold">123456</code>.
+              <p className="text-[11px] text-zinc-700 dark:text-zinc-400 leading-relaxed font-sans">
+                Complete 11-table DDL/DML scripts live in <code className="text-zinc-950 dark:text-white font-mono font-bold">/database.postgres.sql</code> (PostgreSQL 16) and <code className="text-zinc-950 dark:text-white font-mono font-bold">/database.sql</code> (MySQL 8.0), alongside live Firestore collections in <code className="text-zinc-950 dark:text-white font-mono font-bold">/firebase-blueprint.json</code>. Default SQL Administrator credentials: <code className="text-zinc-950 dark:text-white font-mono font-bold">admin</code> / <code className="text-zinc-950 dark:text-white font-mono font-bold">123456</code>.
               </p>
             </div>
 
-            <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2">
-              <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">
+            <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-300 dark:border-zinc-800 space-y-2">
+              <h3 className="text-xs font-bold text-zinc-950 dark:text-white uppercase font-mono tracking-wider">
                 4. Documentation Files Location
               </h3>
-              <div className="space-y-1.5 p-3 bg-zinc-900 rounded-lg border border-zinc-800 text-xs font-mono text-zinc-300">
-                <div>User Manual &amp; Training Guide: <code className="text-white font-bold">/docs/USER_MANUAL_AND_TRAINING_GUIDE.md</code></div>
-                <div>Setup, Security &amp; Maintenance Guide: <code className="text-white font-bold">/docs/SETUP_AND_MAINTENANCE_GUIDE.md</code></div>
-                <div>Database Setup &amp; Dummy Data Guide: <code className="text-white font-bold">/docs/DATABASE_SETUP_AND_INTEGRATION_GUIDE.md</code></div>
-                <div>QA &amp; Testing Acceptance Guide: <code className="text-white font-bold">/docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md</code></div>
+              <div className="space-y-1.5 p-3 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-300 dark:border-zinc-800 text-xs font-mono text-zinc-800 dark:text-zinc-300">
+                <div>User Manual &amp; Training Guide: <code className="text-zinc-950 dark:text-white font-bold">/docs/USER_MANUAL_AND_TRAINING_GUIDE.md</code></div>
+                <div>Setup, Security &amp; Maintenance Guide: <code className="text-zinc-950 dark:text-white font-bold">/docs/SETUP_AND_MAINTENANCE_GUIDE.md</code></div>
+                <div>Database Setup &amp; Dummy Data Guide: <code className="text-zinc-950 dark:text-white font-bold">/docs/DATABASE_SETUP_AND_INTEGRATION_GUIDE.md</code></div>
+                <div>QA &amp; Testing Acceptance Guide: <code className="text-zinc-950 dark:text-white font-bold">/docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md</code></div>
               </div>
             </div>
 

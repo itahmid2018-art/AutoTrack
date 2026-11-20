@@ -420,23 +420,23 @@ export const SerialBarcodeScannerModal: React.FC<SerialBarcodeScannerModalProps>
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-zinc-950/85 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-zinc-950/60 dark:bg-zinc-950/85 backdrop-blur-sm flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="serial-scanner-title"
     >
-      <div className="w-full max-w-xl bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden font-mono">
+      <div className="w-full max-w-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden font-mono">
         {/* Header */}
-        <div className="px-5 py-4 bg-zinc-950 border-b border-zinc-800 flex items-center justify-between gap-3">
+        <div className="px-5 py-4 bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-300 dark:border-zinc-800 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-zinc-900 border border-zinc-700 text-emerald-400">
+            <div className="p-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-400 dark:border-zinc-700 text-emerald-700 dark:text-emerald-400">
               {prioritizeQr ? <QrCode className="w-5 h-5" /> : <ScanBarcode className="w-5 h-5" />}
             </div>
             <div>
-              <h3 id="serial-scanner-title" className="text-sm font-bold text-white uppercase tracking-wider">
+              <h3 id="serial-scanner-title" className="text-sm font-bold text-zinc-950 dark:text-white uppercase tracking-wider">
                 {title}
               </h3>
-              <p className="text-[11px] text-zinc-400 font-sans">
+              <p className="text-[11px] text-zinc-700 dark:text-zinc-400 font-sans">
                 {subtitle}
               </p>
             </div>
@@ -445,7 +445,7 @@ export const SerialBarcodeScannerModal: React.FC<SerialBarcodeScannerModalProps>
           <button
             type="button"
             onClick={handleCloseModal}
-            className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 transition-colors"
+            className="p-2 rounded-xl bg-white dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white border border-zinc-300 dark:border-zinc-800 transition-colors"
             aria-label="Close scanner"
           >
             <X className="w-4 h-4" />
@@ -454,7 +454,7 @@ export const SerialBarcodeScannerModal: React.FC<SerialBarcodeScannerModalProps>
 
         {/* Live Viewfinder Area */}
         <div className="p-5 space-y-4">
-          <div className="relative w-full aspect-video bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden flex items-center justify-center">
+          <div className="relative w-full aspect-video bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl overflow-hidden flex items-center justify-center">
             <video
               ref={videoRef}
               playsInline
@@ -468,7 +468,7 @@ export const SerialBarcodeScannerModal: React.FC<SerialBarcodeScannerModalProps>
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-8">
                 <div className="w-full max-w-sm h-28 border-2 border-emerald-400/70 rounded-xl relative shadow-[0_0_0_9999px_rgba(9,9,11,0.45)]">
                   <div className="absolute inset-x-3 top-1/2 h-0.5 bg-emerald-400/80 shadow-[0_0_8px_#34d399]" />
-                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-emerald-300 bg-zinc-950/90 px-2.5 py-0.5 rounded border border-emerald-700/60 whitespace-nowrap">
+                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-emerald-800 dark:text-emerald-300 bg-white/95 dark:bg-zinc-950/90 px-2.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-700/60 whitespace-nowrap">
                     {hardwareDetectorActive ? 'AUTO-SCAN ACTIVE' : 'ALIGN BARCODE INSIDE FRAME'}
                   </span>
                 </div>
@@ -476,28 +476,28 @@ export const SerialBarcodeScannerModal: React.FC<SerialBarcodeScannerModalProps>
             )}
 
             {!cameraReady && !cameraError && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-xs text-zinc-400">
-                <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-xs text-zinc-700 dark:text-zinc-400">
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-700 dark:text-emerald-400" />
                 <span>Waiting for camera permission...</span>
               </div>
             )}
 
             {isAnalyzingSnapshot && (
-              <div className="absolute inset-0 bg-zinc-950/75 flex flex-col items-center justify-center gap-2 text-xs text-white">
-                <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+              <div className="absolute inset-0 bg-zinc-100/80 dark:bg-zinc-950/75 flex flex-col items-center justify-center gap-2 text-xs text-zinc-950 dark:text-white">
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-700 dark:text-emerald-400" />
                 <span>Decoding barcode &amp; nameplate serial...</span>
               </div>
             )}
           </div>
 
           {/* Status & Error Notices */}
-          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
-            <span className="text-zinc-300 font-sans">{statusMessage}</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2">
+            <span className="text-zinc-800 dark:text-zinc-300 font-sans">{statusMessage}</span>
             <span
               className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
                 hardwareDetectorActive
-                  ? 'bg-emerald-950/60 text-emerald-300 border-emerald-700/60'
-                  : 'bg-zinc-900 text-zinc-400 border-zinc-700'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700/60'
+                  : 'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-400 border-zinc-400 dark:border-zinc-700'
               }`}
             >
               {hardwareDetectorActive ? 'Hardware BarcodeDetector' : 'Snapshot Vision Mode'}
@@ -505,8 +505,8 @@ export const SerialBarcodeScannerModal: React.FC<SerialBarcodeScannerModalProps>
           </div>
 
           {cameraError && (
-            <div className="p-3 bg-rose-950/40 border border-rose-800/70 rounded-xl text-xs text-rose-200 font-sans flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+            <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800/70 rounded-xl text-xs text-rose-800 dark:text-rose-200 font-sans flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-700 dark:text-rose-400 shrink-0 mt-0.5" />
               <span>{cameraError}</span>
             </div>
           )}
@@ -518,7 +518,7 @@ export const SerialBarcodeScannerModal: React.FC<SerialBarcodeScannerModalProps>
                 type="button"
                 onClick={() => startCamera(facingMode === 'environment' ? 'user' : 'environment')}
                 disabled={isAnalyzingSnapshot}
-                className="px-3 py-2 text-xs font-bold bg-zinc-950 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 rounded-xl flex items-center gap-1.5 transition-colors"
+                className="px-3 py-2 text-xs font-bold bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-200 border border-zinc-400 dark:border-zinc-700 rounded-xl flex items-center gap-1.5 transition-colors"
               >
                 <SwitchCamera className="w-3.5 h-3.5" />
                 <span>Switch Camera</span>
@@ -531,7 +531,7 @@ export const SerialBarcodeScannerModal: React.FC<SerialBarcodeScannerModalProps>
                   className={`px-3 py-2 text-xs font-bold border rounded-xl flex items-center gap-1.5 transition-colors ${
                     torchEnabled
                       ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                      : 'bg-zinc-950 hover:bg-zinc-800 text-zinc-200 border-zinc-700'
+                      : 'bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-200 border-zinc-400 dark:border-zinc-700'
                   }`}
                 >
                   <Flashlight className="w-3.5 h-3.5" />
@@ -543,7 +543,7 @@ export const SerialBarcodeScannerModal: React.FC<SerialBarcodeScannerModalProps>
                 <button
                   type="button"
                   onClick={() => startCamera(facingMode)}
-                  className="px-3 py-2 text-xs font-bold bg-zinc-950 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 rounded-xl flex items-center gap-1.5 transition-colors"
+                  className="px-3 py-2 text-xs font-bold bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-200 border border-zinc-400 dark:border-zinc-700 rounded-xl flex items-center gap-1.5 transition-colors"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span>Retry Camera</span>
@@ -552,7 +552,7 @@ export const SerialBarcodeScannerModal: React.FC<SerialBarcodeScannerModalProps>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <label className="px-3 py-2 text-xs font-bold bg-zinc-950 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors">
+              <label className="px-3 py-2 text-xs font-bold bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-200 border border-zinc-400 dark:border-zinc-700 rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors">
                 <Upload className="w-3.5 h-3.5" />
                 <span>Upload / Photo</span>
                 <input
@@ -569,7 +569,7 @@ export const SerialBarcodeScannerModal: React.FC<SerialBarcodeScannerModalProps>
                   type="button"
                   onClick={handleCaptureSnapshot}
                   disabled={isAnalyzingSnapshot}
-                  className="px-4 py-2 text-xs font-bold bg-white hover:bg-zinc-200 text-zinc-950 rounded-xl shadow flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  className="px-4 py-2 text-xs font-bold bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 rounded-xl shadow flex items-center gap-1.5 transition-colors disabled:opacity-50"
                 >
                   <Camera className="w-3.5 h-3.5" />
                   <span>{isAnalyzingSnapshot ? 'Reading...' : 'Capture & Read Label'}</span>

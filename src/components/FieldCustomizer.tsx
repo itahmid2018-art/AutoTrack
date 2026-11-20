@@ -164,15 +164,15 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
   const getTypeBadgeClass = (type: FieldDataType) => {
     switch (type) {
       case 'select':
-        return 'bg-purple-950/80 text-purple-300 border-purple-800';
+        return 'bg-purple-50 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-800';
       case 'number':
-        return 'bg-amber-950/80 text-amber-300 border-amber-800';
+        return 'bg-amber-50 dark:bg-amber-950/80 text-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-800';
       case 'textarea':
-        return 'bg-blue-950/80 text-blue-300 border-blue-800';
+        return 'bg-blue-50 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-800';
       case 'date':
-        return 'bg-emerald-950/80 text-emerald-300 border-emerald-800';
+        return 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800';
       default:
-        return 'bg-zinc-800 text-zinc-300 border-zinc-700';
+        return 'bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-300 border-zinc-400 dark:border-zinc-700';
     }
   };
 
@@ -180,24 +180,24 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
     <div className="space-y-6 font-mono">
       
       {/* Header Banner */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-white">
+            <span className="p-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-950 dark:text-white">
               <Sliders className="w-5 h-5" />
             </span>
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-tight uppercase">
+            <h2 className="text-base sm:text-lg font-bold text-zinc-950 dark:text-white tracking-tight uppercase">
               UI &amp; Intake Form Field Customization
             </h2>
           </div>
-          <p className="text-xs text-zinc-400 mt-1">
+          <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-1">
             Configure built-in service intake fields, add custom customer/tool properties, set data types, and manage validation mandates.
           </p>
         </div>
 
         <button
           onClick={handleOpenAddModal}
-          className="px-4 py-2.5 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl transition-all shadow flex items-center gap-1.5 shrink-0 active:scale-95"
+          className="px-4 py-2.5 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl transition-all shadow flex items-center gap-1.5 shrink-0 active:scale-95"
         >
           <Plus className="w-4 h-4" />
           <span>+ Add Custom Field</span>
@@ -206,14 +206,14 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
 
       {/* Inline Delete Confirmation Banner */}
       {pendingDeleteField && (
-        <div className="p-4 bg-amber-950/40 border border-amber-700/80 rounded-2xl text-xs text-amber-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+        <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/80 rounded-2xl text-xs text-amber-900 dark:text-amber-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
           <div className="flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <AlertCircle className="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <div className="font-bold text-white">
+              <div className="font-bold text-zinc-950 dark:text-white">
                 Delete custom field &quot;{pendingDeleteField.label}&quot; ({pendingDeleteField.key})?
               </div>
-              <p className="text-[11px] text-amber-200/90 font-sans mt-0.5">
+              <p className="text-[11px] text-amber-900 dark:text-amber-200/90 font-sans mt-0.5">
                 Removing this definition stops showing it on new intakes and leaves previously recorded values on existing job cards without an active field definition.
               </p>
             </div>
@@ -222,7 +222,7 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
             <button
               type="button"
               onClick={() => setPendingDeleteField(null)}
-              className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-200 hover:text-white font-bold"
+              className="px-3 py-1.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-400 dark:border-zinc-700 text-zinc-900 dark:text-zinc-200 hover:text-zinc-950 dark:hover:text-white font-bold"
             >
               Keep Field
             </button>
@@ -239,17 +239,17 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="p-3 bg-zinc-900 border border-white/20 rounded-xl text-xs text-white flex items-center gap-2 shadow-lg">
-          <CheckCircle2 className="w-4 h-4 text-white shrink-0" />
+        <div className="p-3 bg-white dark:bg-zinc-900 border border-zinc-950/20 dark:border-white/20 rounded-xl text-xs text-zinc-950 dark:text-white flex items-center gap-2 shadow-lg">
+          <CheckCircle2 className="w-4 h-4 text-zinc-950 dark:text-white shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Stats & Category Filter Bar */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-lg space-y-3">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-4 shadow-lg space-y-3">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
           <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto">
-            <span className="text-xs text-zinc-400 font-bold uppercase shrink-0 mr-1 flex items-center gap-1">
+            <span className="text-xs text-zinc-700 dark:text-zinc-400 font-bold uppercase shrink-0 mr-1 flex items-center gap-1">
               <ListFilter className="w-3.5 h-3.5" />
               <span>Category Filter:</span>
             </span>
@@ -257,7 +257,7 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
             <button
               onClick={() => setSelectedCategory('All')}
               className={`px-3 py-1 text-xs font-bold rounded-lg transition-all shrink-0 ${
-                selectedCategory === 'All' ? 'bg-white text-zinc-950 shadow' : 'bg-zinc-950 text-zinc-400 hover:text-white'
+                selectedCategory === 'All' ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 shadow' : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
               }`}
             >
               All Fields ({customFields.length})
@@ -270,7 +270,7 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={`px-3 py-1 text-xs font-bold rounded-lg transition-all shrink-0 ${
-                    selectedCategory === cat ? 'bg-white text-zinc-950 shadow' : 'bg-zinc-950 text-zinc-400 hover:text-white'
+                    selectedCategory === cat ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 shadow' : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
                   }`}
                 >
                   {cat} ({count})
@@ -279,18 +279,18 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
             })}
           </div>
 
-          <div className="text-[11px] text-zinc-400 shrink-0">
-            Active: <span className="text-white font-bold">{customFields.filter(f => f.enabled).length}</span> · Custom User Fields: <span className="text-white font-bold">{customFields.filter(f => !f.isSystem).length}</span>
+          <div className="text-[11px] text-zinc-700 dark:text-zinc-400 shrink-0">
+            Active: <span className="text-zinc-950 dark:text-white font-bold">{customFields.filter(f => f.enabled).length}</span> · Custom User Fields: <span className="text-zinc-950 dark:text-white font-bold">{customFields.filter(f => !f.isSystem).length}</span>
           </div>
         </div>
       </div>
 
       {/* Fields List Table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-zinc-950 border-b border-zinc-800 text-zinc-400 uppercase text-[10px]">
+              <tr className="bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-300 dark:border-zinc-800 text-zinc-700 dark:text-zinc-400 uppercase text-[10px]">
                 <th className="py-3 px-4">Field Label &amp; Property Key</th>
                 <th className="py-3 px-4">Category</th>
                 <th className="py-3 px-4">Data Type</th>
@@ -299,41 +299,41 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
                 <th className="py-3 px-4 text-center">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/80 text-zinc-300">
+            <tbody className="divide-y divide-zinc-200/80 dark:divide-zinc-800/80 text-zinc-800 dark:text-zinc-300">
               {filteredFields.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-zinc-500 text-xs">
+                  <td colSpan={6} className="py-8 text-center text-zinc-600 dark:text-zinc-500 text-xs">
                     No intake fields match the selected category filter.
                   </td>
                 </tr>
               ) : (
                 filteredFields.map((field) => (
-                  <tr key={field.id} className="hover:bg-zinc-950/60 transition-colors">
+                  <tr key={field.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-950/60 transition-colors">
                     <td className="py-3.5 px-4">
-                      <div className="font-bold text-white flex items-center gap-2">
+                      <div className="font-bold text-zinc-950 dark:text-white flex items-center gap-2">
                         <span>{field.label}</span>
                         {field.isSystem ? (
-                          <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-zinc-950 text-zinc-400 border border-zinc-800">
+                          <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-zinc-50 dark:bg-zinc-950 text-zinc-700 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-800">
                             Built-in System
                           </span>
                         ) : (
-                          <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-white text-zinc-950 font-extrabold">
+                          <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 font-extrabold">
                             User Custom
                           </span>
                         )}
                       </div>
-                      <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                        Property Key: <span className="text-zinc-300">{field.key}</span>
+                      <div className="text-[10px] text-zinc-600 dark:text-zinc-500 font-mono mt-0.5">
+                        Property Key: <span className="text-zinc-800 dark:text-zinc-300">{field.key}</span>
                         {field.placeholder && <span> · Placeholder: &quot;{field.placeholder}&quot;</span>}
                       </div>
                       {field.options && (
-                        <div className="text-[10px] text-zinc-400 mt-1 line-clamp-1">
+                        <div className="text-[10px] text-zinc-700 dark:text-zinc-400 mt-1 line-clamp-1">
                           Options: {field.options.join(' · ')}
                         </div>
                       )}
                     </td>
 
-                    <td className="py-3.5 px-4 text-zinc-300 font-medium">
+                    <td className="py-3.5 px-4 text-zinc-800 dark:text-zinc-300 font-medium">
                       {field.category}
                     </td>
 
@@ -345,11 +345,11 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
 
                     <td className="py-3.5 px-4 text-center">
                       {field.required ? (
-                        <span className="px-2 py-0.5 rounded bg-zinc-950 text-white border border-zinc-700 font-bold text-[10px]">
+                        <span className="px-2 py-0.5 rounded bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-white border border-zinc-400 dark:border-zinc-700 font-bold text-[10px]">
                           Required
                         </span>
                       ) : (
-                        <span className="text-zinc-500 text-[10px]">Optional</span>
+                        <span className="text-zinc-600 dark:text-zinc-500 text-[10px]">Optional</span>
                       )}
                     </td>
 
@@ -358,14 +358,14 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
                         onClick={() => handleToggleEnabled(field.id)}
                         className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors flex items-center justify-center gap-1 mx-auto ${
                           field.enabled
-                            ? 'bg-zinc-950 text-white border-zinc-700'
-                            : 'bg-zinc-950/40 text-zinc-600 border-zinc-900'
+                            ? 'bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-white border-zinc-400 dark:border-zinc-700'
+                            : 'bg-zinc-100/80 dark:bg-zinc-950/40 text-zinc-600 border-zinc-200 dark:border-zinc-900'
                         }`}
                         title={field.enabled ? 'Click to disable field from form' : 'Click to enable field on form'}
                       >
                         {field.enabled ? (
                           <>
-                            <Eye className="w-3 h-3 text-white" />
+                            <Eye className="w-3 h-3 text-zinc-950 dark:text-white" />
                             <span>Active</span>
                           </>
                         ) : (
@@ -382,7 +382,7 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
                         <button
                           onClick={() => handleOpenEditModal(field)}
                           title="Edit Field Configuration"
-                          className="p-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-300 hover:text-white transition-colors"
+                          className="p-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-800 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white transition-colors"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
@@ -392,8 +392,8 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
                           title={field.isSystem ? 'System core fields cannot be deleted' : 'Delete Custom Field'}
                           className={`p-1.5 rounded-lg border transition-colors ${
                             field.isSystem 
-                              ? 'bg-zinc-950 text-zinc-700 border-zinc-900 cursor-not-allowed' 
-                              : 'bg-zinc-950 border border-zinc-800 text-zinc-400 hover:text-white'
+                              ? 'bg-zinc-50 dark:bg-zinc-950 text-zinc-700 border-zinc-200 dark:border-zinc-900 cursor-not-allowed' 
+                              : 'bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
                           }`}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -410,22 +410,22 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
 
       {/* Add / Edit Field Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl animate-in zoom-in-95 duration-150">
             
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+            <div className="flex items-center justify-between border-b border-zinc-300 dark:border-zinc-800 pb-3">
               <div className="flex items-center gap-2">
-                <span className="p-1 rounded-lg bg-zinc-900 border border-zinc-800 text-white">
+                <span className="p-1 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-950 dark:text-white">
                   <Sliders className="w-4 h-4" />
                 </span>
-                <h3 className="text-sm font-bold text-white uppercase">
+                <h3 className="text-sm font-bold text-zinc-950 dark:text-white uppercase">
                   {editingField ? `Edit Field: "${editingField.label}"` : 'Add New Custom Form Field'}
                 </h3>
               </div>
 
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-lg bg-zinc-900 text-zinc-400 hover:text-white"
+                className="p-1.5 rounded-lg bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -434,24 +434,24 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
             <form onSubmit={handleSaveField} className="space-y-4 text-xs">
               
               <div>
-                <label className="block text-zinc-400 font-bold mb-1 uppercase text-[10px]">Field Display Label *</label>
+                <label className="block text-zinc-700 dark:text-zinc-400 font-bold mb-1 uppercase text-[10px]">Field Display Label *</label>
                 <input
                   type="text"
                   required
                   value={fieldLabel}
                   onChange={(e) => setFieldLabel(e.target.value)}
                   placeholder="e.g. Battery Serial Number, Loaner Tool Barcode, Passcode..."
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-zinc-500 font-mono"
+                  className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-zinc-950 dark:text-white focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500 font-mono"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-zinc-400 font-bold mb-1 uppercase text-[10px]">Section Category</label>
+                  <label className="block text-zinc-700 dark:text-zinc-400 font-bold mb-1 uppercase text-[10px]">Section Category</label>
                   <select
                     value={fieldCategory}
                     onChange={(e) => setFieldCategory(e.target.value as FieldCategory)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white focus:outline-none font-mono"
+                    className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-zinc-950 dark:text-white focus:outline-none font-mono"
                   >
                     {CATEGORIES.map(c => (
                       <option key={c} value={c}>{c}</option>
@@ -460,11 +460,11 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-zinc-400 font-bold mb-1 uppercase text-[10px]">Data Type</label>
+                  <label className="block text-zinc-700 dark:text-zinc-400 font-bold mb-1 uppercase text-[10px]">Data Type</label>
                   <select
                     value={fieldDataType}
                     onChange={(e) => setFieldDataType(e.target.value as FieldDataType)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white focus:outline-none font-mono"
+                    className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-zinc-950 dark:text-white focus:outline-none font-mono"
                   >
                     {DATA_TYPES.map(d => (
                       <option key={d.type} value={d.type}>{d.label} ({d.type})</option>
@@ -476,56 +476,56 @@ export const FieldCustomizer: React.FC<FieldCustomizerProps> = ({
               {/* Options input if Select */}
               {fieldDataType === 'select' && (
                 <div>
-                  <label className="block text-zinc-400 font-bold mb-1 uppercase text-[10px]">Dropdown Options (Comma Separated) *</label>
+                  <label className="block text-zinc-700 dark:text-zinc-400 font-bold mb-1 uppercase text-[10px]">Dropdown Options (Comma Separated) *</label>
                   <input
                     type="text"
                     required
                     value={fieldOptionsText}
                     onChange={(e) => setFieldOptionsText(e.target.value)}
                     placeholder="e.g. Option 1, Option 2, Option 3..."
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white focus:outline-none font-mono"
+                    className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-zinc-950 dark:text-white focus:outline-none font-mono"
                   />
-                  <p className="text-[10px] text-zinc-500 mt-1">Separate dropdown choices with commas.</p>
+                  <p className="text-[10px] text-zinc-600 dark:text-zinc-500 mt-1">Separate dropdown choices with commas.</p>
                 </div>
               )}
 
               <div>
-                <label className="block text-zinc-400 font-bold mb-1 uppercase text-[10px]">Placeholder / Helper Text</label>
+                <label className="block text-zinc-700 dark:text-zinc-400 font-bold mb-1 uppercase text-[10px]">Placeholder / Helper Text</label>
                 <input
                   type="text"
                   value={fieldPlaceholder}
                   onChange={(e) => setFieldPlaceholder(e.target.value)}
                   placeholder="e.g. Enter serial number printed on housing..."
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white focus:outline-none font-mono"
+                  className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-zinc-950 dark:text-white focus:outline-none font-mono"
                 />
               </div>
 
               <div className="pt-2">
-                <label className="flex items-center gap-2 p-3 bg-zinc-900 rounded-xl border border-zinc-800 cursor-pointer">
+                <label className="flex items-center gap-2 p-3 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-300 dark:border-zinc-800 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={fieldRequired}
                     onChange={(e) => setFieldRequired(e.target.checked)}
-                    className="w-4 h-4 accent-white rounded"
+                    className="w-4 h-4 accent-zinc-950 dark:accent-white rounded"
                   />
                   <div>
-                    <span className="font-bold text-white block">Make Mandatory / Required Field</span>
-                    <span className="text-[10px] text-zinc-400">Intake form cannot be submitted without completing this field.</span>
+                    <span className="font-bold text-zinc-950 dark:text-white block">Make Mandatory / Required Field</span>
+                    <span className="text-[10px] text-zinc-700 dark:text-zinc-400">Intake form cannot be submitted without completing this field.</span>
                   </div>
                 </label>
               </div>
 
-              <div className="pt-4 border-t border-zinc-800 flex items-center justify-end gap-2">
+              <div className="pt-4 border-t border-zinc-300 dark:border-zinc-800 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-zinc-900 border border-zinc-800 text-zinc-300 font-bold rounded-xl hover:text-white"
+                  className="px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-800 dark:text-zinc-300 font-bold rounded-xl hover:text-zinc-950 dark:hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-white text-zinc-950 font-bold rounded-xl hover:bg-zinc-200 shadow"
+                  className="px-5 py-2 bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 font-bold rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow"
                 >
                   {editingField ? 'Save Field Changes' : 'Create Custom Field'}
                 </button>

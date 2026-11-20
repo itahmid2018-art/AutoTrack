@@ -27,8 +27,8 @@ export const InventoryNotificationToast: React.FC<InventoryNotificationToastProp
         return (
           <div
             key={toast.id}
-            className={`pointer-events-auto rounded-2xl border p-4 shadow-2xl backdrop-blur bg-zinc-950/95 font-mono space-y-2.5 animate-in slide-in-from-bottom-4 duration-200 ${
-              isOut ? 'border-rose-500/80' : 'border-amber-500/80'
+            className={`pointer-events-auto rounded-2xl border p-4 shadow-2xl backdrop-blur bg-white/95 dark:bg-zinc-950/95 font-mono space-y-2.5 animate-in slide-in-from-bottom-4 duration-200 ${
+              isOut ? 'border-rose-500 dark:border-rose-500/80' : 'border-amber-500 dark:border-amber-500/80'
             }`}
           >
             <div className="flex items-start justify-between gap-2">
@@ -36,42 +36,42 @@ export const InventoryNotificationToast: React.FC<InventoryNotificationToastProp
                 <span
                   className={`p-1.5 rounded-lg border ${
                     isOut
-                      ? 'bg-rose-950 text-rose-300 border-rose-700'
-                      : 'bg-amber-950 text-amber-300 border-amber-700'
+                      ? 'bg-rose-50 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-700'
+                      : 'bg-amber-50 dark:bg-amber-950 text-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-700'
                   }`}
                 >
                   {isOut ? <PackageX className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
                 </span>
                 <div>
-                  <div className="text-[11px] font-extrabold uppercase tracking-wider text-white">
+                  <div className="text-[11px] font-extrabold uppercase tracking-wider text-zinc-950 dark:text-white">
                     {isOut ? 'Stockout Alert' : 'Low Stock Threshold Alert'}
                   </div>
-                  <div className="text-[10px] text-zinc-400">
-                    SKU: <strong className="text-white">{toast.sku}</strong> · {toast.binLocation}
+                  <div className="text-[10px] text-zinc-700 dark:text-zinc-400">
+                    SKU: <strong className="text-zinc-950 dark:text-white">{toast.sku}</strong> · {toast.binLocation}
                   </div>
                 </div>
               </div>
 
               <button
                 onClick={() => onDismiss(toast.id)}
-                className="text-zinc-500 hover:text-white p-0.5"
+                className="text-zinc-600 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white p-0.5"
                 aria-label="Dismiss inventory alert"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="text-xs text-zinc-200 font-sans leading-snug">
-              <strong className="text-white">{toast.name}</strong> dropped to{' '}
-              <span className={isOut ? 'text-rose-400 font-bold' : 'text-amber-400 font-bold'}>
+            <div className="text-xs text-zinc-900 dark:text-zinc-200 font-sans leading-snug">
+              <strong className="text-zinc-950 dark:text-white">{toast.name}</strong> dropped to{' '}
+              <span className={isOut ? 'text-rose-700 dark:text-rose-400 font-bold' : 'text-amber-700 dark:text-amber-400 font-bold'}>
                 {toast.stockQty} {toast.unit}
               </span>{' '}
               (Min threshold: {toast.minStockThreshold}).
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 flex items-center justify-between text-[11px]">
-              <span className="text-zinc-400">Suggested Reorder:</span>
-              <span className="text-emerald-400 font-bold">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 flex items-center justify-between text-[11px]">
+              <span className="text-zinc-700 dark:text-zinc-400">Suggested Reorder:</span>
+              <span className="text-emerald-700 dark:text-emerald-400 font-bold">
                 +{toast.suggestedReorderQty} {toast.unit} (${toast.estimatedReorderCost.toFixed(2)})
               </span>
             </div>
@@ -93,7 +93,7 @@ export const InventoryNotificationToast: React.FC<InventoryNotificationToastProp
                   onOpenInventoryAlerts();
                   onDismiss(toast.id);
                 }}
-                className="py-1.5 px-3 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 font-bold rounded-xl text-[11px] flex items-center gap-1 transition-colors"
+                className="py-1.5 px-3 bg-white dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-200 border border-zinc-400 dark:border-zinc-700 font-bold rounded-xl text-[11px] flex items-center gap-1 transition-colors"
               >
                 <span>Alerts</span>
                 <ArrowRight className="w-3 h-3" />

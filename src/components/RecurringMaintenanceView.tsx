@@ -192,16 +192,16 @@ export const RecurringMaintenanceView: React.FC<RecurringMaintenanceViewProps> =
     <div className="space-y-6 font-mono">
       
       {/* Header Banner */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold text-white tracking-tight uppercase flex items-center gap-2">
-                <Clock className="w-5 h-5 text-white" />
+              <h1 className="text-xl font-bold text-zinc-950 dark:text-white tracking-tight uppercase flex items-center gap-2">
+                <Clock className="w-5 h-5 text-zinc-950 dark:text-white" />
                 <span>Recurring Tool Maintenance Tracker</span>
               </h1>
             </div>
-            <p className="text-xs text-zinc-400 mt-1 font-sans">
+            <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-1 font-sans">
               Schedule periodic safety checks, carbon brush replacements &amp; gearbox overhauls for commercial contractors with automated WhatsApp reminders.
             </p>
           </div>
@@ -222,47 +222,47 @@ export const RecurringMaintenanceView: React.FC<RecurringMaintenanceViewProps> =
             <button
               type="button"
               onClick={() => exportMaintenanceCsv(schedules)}
-              className="px-3 py-2 text-xs font-semibold text-zinc-300 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
+              className="px-3 py-2 text-xs font-semibold text-zinc-800 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-800 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
               title="Export all client schedules to CSV"
             >
-              <Download className="w-3.5 h-3.5 text-zinc-400" />
+              <Download className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-400" />
               <span>Export CSV</span>
             </button>
 
             <button
               type="button"
               onClick={() => downloadMaintenanceCsvTemplate()}
-              className="px-3 py-2 text-xs font-semibold text-zinc-300 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
+              className="px-3 py-2 text-xs font-semibold text-zinc-800 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-800 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
               title="Download standard CSV template for client maintenance schedules"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-zinc-400" />
+              <FileSpreadsheet className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-400" />
               <span>Download Template</span>
             </button>
 
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="px-3.5 py-2 text-xs font-semibold text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
+              className="px-3.5 py-2 text-xs font-semibold text-zinc-950 dark:text-white bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 border border-zinc-400 dark:border-zinc-700 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
               title="Bulk import client maintenance schedules from CSV"
             >
-              <Upload className="w-3.5 h-3.5 text-white" />
+              <Upload className="w-3.5 h-3.5 text-zinc-950 dark:text-white" />
               <span>Bulk Import CSV</span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsInstructionModalOpen(true)}
-              className="px-2.5 py-2 text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
+              className="px-2.5 py-2 text-xs font-semibold text-zinc-800 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-800 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
               title="View CSV formatting guide and specifications"
             >
-              <HelpCircle className="w-3.5 h-3.5 text-zinc-400" />
+              <HelpCircle className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-400" />
               <span>CSV Format Guide</span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsAddModalOpen(true)}
-              className="px-4 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow transition-all flex items-center gap-1.5 active:scale-95"
+              className="px-4 py-2 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl shadow transition-all flex items-center gap-1.5 active:scale-95"
             >
               <Plus className="w-4 h-4" />
               <span>+ Register Tool Schedule</span>
@@ -271,39 +271,39 @@ export const RecurringMaintenanceView: React.FC<RecurringMaintenanceViewProps> =
         </div>
 
         {/* Quick KPI Stat Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-zinc-800 text-xs">
-          <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800">
-            <span className="text-zinc-500 font-bold block text-[10px]">TOTAL TRACKED TOOLS</span>
-            <span className="text-lg font-bold text-white">{schedules.length}</span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-zinc-300 dark:border-zinc-800 text-xs">
+          <div className="bg-zinc-50 dark:bg-zinc-950 p-3 rounded-xl border border-zinc-300 dark:border-zinc-800">
+            <span className="text-zinc-600 dark:text-zinc-500 font-bold block text-[10px]">TOTAL TRACKED TOOLS</span>
+            <span className="text-lg font-bold text-zinc-950 dark:text-white">{schedules.length}</span>
           </div>
 
-          <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800">
-            <span className="text-zinc-500 font-bold block text-[10px]">DUE SOON (NEXT 14 DAYS)</span>
-            <span className="text-lg font-bold text-white">{dueSoonCount}</span>
+          <div className="bg-zinc-50 dark:bg-zinc-950 p-3 rounded-xl border border-zinc-300 dark:border-zinc-800">
+            <span className="text-zinc-600 dark:text-zinc-500 font-bold block text-[10px]">DUE SOON (NEXT 14 DAYS)</span>
+            <span className="text-lg font-bold text-zinc-950 dark:text-white">{dueSoonCount}</span>
           </div>
 
-          <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800">
-            <span className="text-zinc-500 font-bold block text-[10px]">OVERDUE SERVICE</span>
-            <span className="text-lg font-bold text-white">{overdueCount}</span>
+          <div className="bg-zinc-50 dark:bg-zinc-950 p-3 rounded-xl border border-zinc-300 dark:border-zinc-800">
+            <span className="text-zinc-600 dark:text-zinc-500 font-bold block text-[10px]">OVERDUE SERVICE</span>
+            <span className="text-lg font-bold text-zinc-950 dark:text-white">{overdueCount}</span>
           </div>
 
-          <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800">
-            <span className="text-zinc-500 font-bold block text-[10px]">SERVICE INTERVALS</span>
-            <span className="text-xs text-zinc-300">3, 6 &amp; 12 Months</span>
+          <div className="bg-zinc-50 dark:bg-zinc-950 p-3 rounded-xl border border-zinc-300 dark:border-zinc-800">
+            <span className="text-zinc-600 dark:text-zinc-500 font-bold block text-[10px]">SERVICE INTERVALS</span>
+            <span className="text-xs text-zinc-800 dark:text-zinc-300">3, 6 &amp; 12 Months</span>
           </div>
         </div>
       </div>
 
       {/* Toast Notification */}
       {notification && (
-        <div className="bg-zinc-900 border border-emerald-500/50 p-3 rounded-xl text-xs font-mono text-emerald-300 flex items-center justify-between shadow-lg">
+        <div className="bg-white dark:bg-zinc-900 border border-emerald-500 dark:border-emerald-500/50 p-3 rounded-xl text-xs font-mono text-emerald-800 dark:text-emerald-300 flex items-center justify-between shadow-lg">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
             <span>{notification}</span>
           </div>
           <button
             onClick={() => setNotification(null)}
-            className="text-zinc-500 hover:text-zinc-300"
+            className="text-zinc-600 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -311,29 +311,29 @@ export const RecurringMaintenanceView: React.FC<RecurringMaintenanceViewProps> =
       )}
 
       {/* Filter & Search Toolbar */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl space-y-3">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-4 shadow-xl space-y-3">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3" />
+            <Search className="w-4 h-4 text-zinc-600 dark:text-zinc-500 absolute left-3.5 top-3" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search by Model (GBH 11 DE), Serial SN, Client Name, Phone..."
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500 font-mono"
+              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-xs text-zinc-950 dark:text-zinc-100 placeholder-zinc-500 dark:placeholder-zinc-600 focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500 font-mono"
             />
           </div>
 
-          <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800 text-xs">
+          <div className="flex items-center gap-1 bg-zinc-50 dark:bg-zinc-950 p-1 rounded-xl border border-zinc-300 dark:border-zinc-800 text-xs">
             {(['All', 'Due Soon', 'Overdue', 'Upcoming'] as const).map((st) => (
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
                 className={`px-3 py-1.5 font-semibold rounded-lg transition-all ${
                   statusFilter === st
-                    ? 'bg-white text-zinc-950 font-bold shadow'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 font-bold shadow'
+                    : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
                 }`}
               >
                 {st}
@@ -347,79 +347,79 @@ export const RecurringMaintenanceView: React.FC<RecurringMaintenanceViewProps> =
       {/* Scheduled Maintenance Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredSchedules.length === 0 ? (
-          <div className="col-span-full bg-zinc-900 border border-zinc-800 rounded-2xl p-12 text-center text-zinc-500">
+          <div className="col-span-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-12 text-center text-zinc-600 dark:text-zinc-500">
             No recurring maintenance schedules found. Click "+ Register Tool Schedule" or "Bulk Import CSV" above.
           </div>
         ) : (
           filteredSchedules.map((item) => (
             <div
               key={item.id}
-              className={`bg-zinc-900 border rounded-2xl p-5 shadow-lg flex flex-col justify-between space-y-4 ${
+              className={`bg-white dark:bg-zinc-900 border rounded-2xl p-5 shadow-lg flex flex-col justify-between space-y-4 ${
                 item.status === 'Overdue'
-                  ? 'border-white bg-zinc-950'
+                  ? 'border-zinc-950 dark:border-white bg-zinc-50 dark:bg-zinc-950'
                   : item.status === 'Due Soon'
-                  ? 'border-zinc-700'
-                  : 'border-zinc-800'
+                  ? 'border-zinc-400 dark:border-zinc-700'
+                  : 'border-zinc-300 dark:border-zinc-800'
               }`}
             >
               <div>
                 {/* Header */}
                 <div className="flex items-center justify-between text-xs mb-2">
-                  <span className="font-bold text-white bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800">
+                  <span className="font-bold text-zinc-950 dark:text-white bg-zinc-50 dark:bg-zinc-950 px-2 py-0.5 rounded border border-zinc-300 dark:border-zinc-800">
                     {item.id}
                   </span>
 
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border ${
                     item.status === 'Overdue'
-                      ? 'bg-white text-zinc-950 border-white'
+                      ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white'
                       : item.status === 'Due Soon'
-                      ? 'bg-zinc-800 text-white border-zinc-600'
-                      : 'bg-zinc-950 text-zinc-400 border-zinc-800'
+                      ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-950 dark:text-white border-zinc-400 dark:border-zinc-600'
+                      : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-700 dark:text-zinc-400 border-zinc-300 dark:border-zinc-800'
                   }`}>
                     {item.status}
                   </span>
                 </div>
 
                 {/* Tool Specs */}
-                <div className="text-xs text-zinc-400 uppercase">{item.toolBrand}</div>
-                <h3 className="text-base font-bold text-white">{item.modelNumber}</h3>
-                <div className="text-[11px] text-zinc-400">
-                  SN: <span className="text-white font-bold">{item.serialNumber}</span> · Category: {item.toolCategory}
+                <div className="text-xs text-zinc-700 dark:text-zinc-400 uppercase">{item.toolBrand}</div>
+                <h3 className="text-base font-bold text-zinc-950 dark:text-white">{item.modelNumber}</h3>
+                <div className="text-[11px] text-zinc-700 dark:text-zinc-400">
+                  SN: <span className="text-zinc-950 dark:text-white font-bold">{item.serialNumber}</span> · Category: {item.toolCategory}
                 </div>
 
                 {/* Customer Lockup */}
-                <div className="flex items-center justify-between text-xs text-zinc-300 mt-2 pt-2 border-t border-zinc-800">
+                <div className="flex items-center justify-between text-xs text-zinc-800 dark:text-zinc-300 mt-2 pt-2 border-t border-zinc-300 dark:border-zinc-800">
                   <div className="flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-zinc-500" />
+                    <User className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-500" />
                     <span className="font-bold">{item.customerName}</span>
                   </div>
-                  <span className="text-zinc-400 text-[11px]">{item.customerPhone}</span>
+                  <span className="text-zinc-700 dark:text-zinc-400 text-[11px]">{item.customerPhone}</span>
                 </div>
 
                 {/* Due Date & Scope */}
-                <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 mt-3 text-xs space-y-1">
+                <div className="bg-zinc-50 dark:bg-zinc-950 p-3 rounded-xl border border-zinc-300 dark:border-zinc-800 mt-3 text-xs space-y-1">
                   <div className="flex justify-between text-[11px]">
-                    <span className="text-zinc-500 font-semibold">Service Interval:</span>
-                    <span className="text-white font-bold">{item.intervalMonths} Months</span>
+                    <span className="text-zinc-600 dark:text-zinc-500 font-semibold">Service Interval:</span>
+                    <span className="text-zinc-950 dark:text-white font-bold">{item.intervalMonths} Months</span>
                   </div>
 
                   <div className="flex justify-between text-[11px]">
-                    <span className="text-zinc-500 font-semibold">Next Scheduled Due:</span>
-                    <span className="text-white font-bold">{item.nextDueDate}</span>
+                    <span className="text-zinc-600 dark:text-zinc-500 font-semibold">Next Scheduled Due:</span>
+                    <span className="text-zinc-950 dark:text-white font-bold">{item.nextDueDate}</span>
                   </div>
 
-                  <div className="text-[11px] text-zinc-400 pt-1 border-t border-zinc-800/80">
-                    <span className="text-zinc-500 block text-[10px] font-bold uppercase">Recommended Scope:</span>
-                    <p className="text-zinc-300 font-sans leading-relaxed">{item.recommendedServiceScope}</p>
+                  <div className="text-[11px] text-zinc-700 dark:text-zinc-400 pt-1 border-t border-zinc-300/80 dark:border-zinc-800/80">
+                    <span className="text-zinc-600 dark:text-zinc-500 block text-[10px] font-bold uppercase">Recommended Scope:</span>
+                    <p className="text-zinc-800 dark:text-zinc-300 font-sans leading-relaxed">{item.recommendedServiceScope}</p>
                   </div>
                 </div>
               </div>
 
               {/* Actions Footer */}
-              <div className="pt-3 border-t border-zinc-800 flex items-center justify-between gap-2">
+              <div className="pt-3 border-t border-zinc-300 dark:border-zinc-800 flex items-center justify-between gap-2">
                 <button
                   onClick={() => handleQueueWhatsAppReminder(item)}
-                  className="px-3 py-1.5 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
+                  className="px-3 py-1.5 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl transition-all flex items-center gap-1.5 active:scale-95"
                   title="Queue Automated WhatsApp Reminder"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
@@ -429,7 +429,7 @@ export const RecurringMaintenanceView: React.FC<RecurringMaintenanceViewProps> =
 
                 <button
                   onClick={() => onCreateJobCardFromSchedule(item)}
-                  className="px-3 py-1.5 text-xs font-bold text-zinc-200 bg-zinc-950 hover:bg-zinc-800 rounded-xl border border-zinc-800 transition-colors flex items-center gap-1"
+                  className="px-3 py-1.5 text-xs font-bold text-zinc-900 dark:text-zinc-200 bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl border border-zinc-300 dark:border-zinc-800 transition-colors flex items-center gap-1"
                 >
                   <Wrench className="w-3.5 h-3.5" />
                   <span>Create Intake</span>
@@ -557,12 +557,12 @@ const RegisterScheduleModal: React.FC<RegisterScheduleModalProps> = ({ onClose, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-zinc-950/80 backdrop-blur flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 font-mono">
-        <div className="flex items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+    <div className="fixed inset-0 z-50 bg-zinc-950/60 dark:bg-zinc-950/80 backdrop-blur flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 font-mono">
+        <div className="flex items-center justify-between gap-2 border-b border-zinc-300 dark:border-zinc-800 pb-3">
           <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-white" />
-            <h2 className="text-base font-bold text-white uppercase">Register Scheduled Tool Servicing</h2>
+            <Clock className="w-5 h-5 text-zinc-950 dark:text-white" />
+            <h2 className="text-base font-bold text-zinc-950 dark:text-white uppercase">Register Scheduled Tool Servicing</h2>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -573,14 +573,14 @@ const RegisterScheduleModal: React.FC<RegisterScheduleModalProps> = ({ onClose, 
               <QrCode className="w-3.5 h-3.5" />
               <span>Scan QR / Barcode</span>
             </button>
-            <button onClick={onClose} className="text-zinc-500 hover:text-white">
+            <button onClick={onClose} className="text-zinc-600 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white">
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
         {scanNotice && (
-          <div className="px-3 py-2 rounded-lg bg-emerald-950/40 border border-emerald-800/60 text-[11px] font-mono text-emerald-300">
+          <div className="px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800/60 text-[11px] font-mono text-emerald-800 dark:text-emerald-300">
             {scanNotice}
           </div>
         )}
@@ -588,37 +588,37 @@ const RegisterScheduleModal: React.FC<RegisterScheduleModalProps> = ({ onClose, 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs font-sans">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-zinc-400 mb-1 font-mono">Client Name *</label>
+              <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-mono">Client Name *</label>
               <input
                 type="text"
                 required
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
                 placeholder="Apex Construction"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-950 dark:text-white focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-zinc-400 mb-1 font-mono">Mobile Phone (WhatsApp) *</label>
+              <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-mono">Mobile Phone (WhatsApp) *</label>
               <input
                 type="text"
                 required
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
                 placeholder="+1 (555) 234-5678"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white font-mono focus:outline-none"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-950 dark:text-white font-mono focus:outline-none"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-zinc-400 mb-1 font-mono">Tool Brand</label>
+              <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-mono">Tool Brand</label>
               <select
                 value={toolBrand}
                 onChange={(e) => setToolBrand(e.target.value as any)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none font-mono"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-950 dark:text-white focus:outline-none font-mono"
               >
                 <option value="Bosch Professional">Bosch Professional</option>
                 <option value="Makita">Makita</option>
@@ -628,35 +628,35 @@ const RegisterScheduleModal: React.FC<RegisterScheduleModalProps> = ({ onClose, 
             </div>
 
             <div>
-              <label className="block text-zinc-400 mb-1 font-mono">Model Number *</label>
+              <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-mono">Model Number *</label>
               <input
                 type="text"
                 required
                 value={modelNumber}
                 onChange={(e) => setModelNumber(e.target.value)}
                 placeholder="GBH 11 DE"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white font-mono focus:outline-none"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-950 dark:text-white font-mono focus:outline-none"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-zinc-400 mb-1 font-mono">Serial Number SN</label>
+              <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-mono">Serial Number SN</label>
               <div className="flex items-stretch gap-1">
                 <input
                   type="text"
                   value={serialNumber}
                   onChange={(e) => setSerialNumber(e.target.value)}
                   placeholder="SN-3611C36000"
-                  className="w-full min-w-0 bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-2 text-white font-mono focus:outline-none"
+                  className="w-full min-w-0 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-zinc-950 dark:text-white font-mono focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={() => setIsScannerOpen(true)}
                   title="Scan tool serial barcode or QR code"
                   aria-label="Scan tool serial barcode or QR code"
-                  className="px-2.5 py-2 bg-zinc-950 hover:bg-zinc-800 text-emerald-400 border border-emerald-700/60 rounded-lg text-[10px] font-bold flex items-center gap-1 shrink-0"
+                  className="px-2.5 py-2 bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700/60 rounded-lg text-[10px] font-bold flex items-center gap-1 shrink-0"
                 >
                   <ScanBarcode className="w-3.5 h-3.5" />
                   <span>Scan</span>
@@ -665,11 +665,11 @@ const RegisterScheduleModal: React.FC<RegisterScheduleModalProps> = ({ onClose, 
             </div>
 
             <div>
-              <label className="block text-zinc-400 mb-1 font-mono">Maintenance Interval</label>
+              <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-mono">Maintenance Interval</label>
               <select
                 value={intervalMonths}
                 onChange={(e) => setIntervalMonths(parseInt(e.target.value))}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white font-mono focus:outline-none"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-950 dark:text-white font-mono focus:outline-none"
               >
                 <option value={3}>3 Months (Heavy Construction)</option>
                 <option value={6}>6 Months (Standard Contractor)</option>
@@ -679,24 +679,24 @@ const RegisterScheduleModal: React.FC<RegisterScheduleModalProps> = ({ onClose, 
           </div>
 
           <div>
-            <label className="block text-zinc-400 mb-1 font-mono">Recommended Service Scope</label>
+            <label className="block text-zinc-700 dark:text-zinc-400 mb-1 font-mono">Recommended Service Scope</label>
             <input
               type="text"
               value={recommendedServiceScope}
               onChange={(e) => setRecommendedServiceScope(e.target.value)}
               placeholder="Carbon Brush & Gearbox Lubrication Check"
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white font-mono focus:outline-none"
+              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-950 dark:text-white font-mono focus:outline-none"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800 font-mono">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-zinc-400 hover:text-white">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-300 dark:border-zinc-800 font-mono">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white">
               Cancel
             </button>
 
             <button
               type="submit"
-              className="px-5 py-2 font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl"
+              className="px-5 py-2 font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl"
             >
               Register Schedule
             </button>

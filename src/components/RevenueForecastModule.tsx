@@ -6,6 +6,7 @@ import {
   RevenueForecastPoint,
   generateMonthlyRevenueForecast,
 } from '../utils/revenueForecast';
+import { AppTheme } from '../utils/theme';
 import {
   ResponsiveContainer,
   LineChart,
@@ -42,18 +43,18 @@ const ForecastChartTooltip: React.FC<ForecastTooltipProps> = ({
   if (!point) return null;
 
   return (
-    <div className="bg-zinc-950 border border-zinc-700 rounded-xl p-3.5 shadow-2xl font-mono text-xs space-y-2 min-w-[230px]">
-      <div className="flex items-center justify-between gap-4 border-b border-zinc-800 pb-1.5">
-        <span className="text-white font-bold">{point.label}</span>
-        <span className="text-[11px] text-zinc-400">
+    <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 rounded-xl p-3.5 shadow-2xl font-mono text-xs space-y-2 min-w-[230px]">
+      <div className="flex items-center justify-between gap-4 border-b border-zinc-300 dark:border-zinc-800 pb-1.5">
+        <span className="text-zinc-950 dark:text-white font-bold">{point.label}</span>
+        <span className="text-[11px] text-zinc-700 dark:text-zinc-400">
           {point.isForecast ? 'Forecast' : 'Recorded'}
         </span>
       </div>
 
       {point.actualRevenue !== null && (
         <div className="flex items-center justify-between gap-4">
-          <span className="text-zinc-400">Actual Revenue:</span>
-          <span className="text-white font-bold tabular-nums">
+          <span className="text-zinc-700 dark:text-zinc-400">Actual Revenue:</span>
+          <span className="text-zinc-950 dark:text-white font-bold tabular-nums">
             {currencySymbol}
             {point.actualRevenue.toFixed(2)}
           </span>
@@ -62,8 +63,8 @@ const ForecastChartTooltip: React.FC<ForecastTooltipProps> = ({
 
       {point.forecastRevenue !== null && (
         <div className="flex items-center justify-between gap-4">
-          <span className="text-sky-400">Projected Revenue:</span>
-          <span className="text-sky-300 font-bold tabular-nums">
+          <span className="text-sky-700 dark:text-sky-400">Projected Revenue:</span>
+          <span className="text-sky-800 dark:text-sky-300 font-bold tabular-nums">
             {currencySymbol}
             {point.forecastRevenue.toFixed(2)}
           </span>
@@ -74,8 +75,8 @@ const ForecastChartTooltip: React.FC<ForecastTooltipProps> = ({
         point.confidenceLow !== null &&
         point.confidenceHigh !== null && (
           <div className="flex items-center justify-between gap-4 text-[11px]">
-            <span className="text-zinc-400">Confidence Range:</span>
-            <span className="text-zinc-300 tabular-nums">
+            <span className="text-zinc-700 dark:text-zinc-400">Confidence Range:</span>
+            <span className="text-zinc-800 dark:text-zinc-300 tabular-nums">
               {currencySymbol}
               {point.confidenceLow.toFixed(0)} – {currencySymbol}
               {point.confidenceHigh.toFixed(0)}
@@ -83,18 +84,18 @@ const ForecastChartTooltip: React.FC<ForecastTooltipProps> = ({
           </div>
         )}
 
-      <div className="border-t border-zinc-800/80 pt-1.5 space-y-1 text-[11px]">
+      <div className="border-t border-zinc-300/80 dark:border-zinc-800/80 pt-1.5 space-y-1 text-[11px]">
         <div className="flex items-center justify-between gap-4">
-          <span className="text-zinc-400">Seasonal Factor:</span>
-          <span className="text-amber-300 font-semibold tabular-nums">
+          <span className="text-zinc-700 dark:text-zinc-400">Seasonal Factor:</span>
+          <span className="text-amber-900 dark:text-amber-300 font-semibold tabular-nums">
             {point.seasonalIndex.toFixed(2)}x · {point.seasonalFactorLabel}
           </span>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <span className="text-zinc-400">
+          <span className="text-zinc-700 dark:text-zinc-400">
             {point.isForecast ? 'Est. Tickets:' : 'Logged Tickets:'}
           </span>
-          <span className="text-zinc-200 tabular-nums">
+          <span className="text-zinc-900 dark:text-zinc-200 tabular-nums">
             {point.expectedJobs}
             {point.scheduledMaintenanceCount > 0
               ? ` (${point.scheduledMaintenanceCount} fleet due)`
@@ -110,13 +111,26 @@ interface RevenueForecastModuleProps {
   jobCards: JobCard[];
   schedules?: RecurringMaintenance[];
   currencySymbol?: string;
+  theme?: AppTheme;
 }
 
 export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
   jobCards,
   schedules = [],
   currencySymbol = '$',
+  theme = 'dark',
 }) => {
+  const isDark = theme === 'dark';
+  const gridColor = isDark ? '#27272a' : '#d4d4d8';
+  const axisColor = isDark ? '#a1a1aa' : '#3f3f46';
+  const axisLineColor = isDark ? '#3f3f46' : '#a1a1aa';
+  const refLineColor = isDark ? '#52525b' : '#71717a';
+  const actualColor = isDark ? '#f4f4f5' : '#09090b';
+  const forecastColor = isDark ? '#38bdf8' : '#0284c7';
+  const upperColor = isDark ? '#34d399' : '#059669';
+  const lowerColor = isDark ? '#f59e0b' : '#d97706';
+  const dotStroke = isDark ? '#09090b' : '#ffffff';
+
   const [horizonMonths, setHorizonMonths] = useState<ForecastHorizon>(6);
   const [scenario, setScenario] = useState<ForecastScenario>('baseline');
   const [showConfidenceBounds, setShowConfidenceBounds] = useState<boolean>(true);
@@ -136,21 +150,21 @@ export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
   return (
     <section
       aria-labelledby="revenue-forecast-heading"
-      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 sm:p-6 space-y-5 shadow-xl"
+      className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 sm:p-6 space-y-5 shadow-xl"
     >
       {/* Header & Interactive Forecast Controls */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 pb-4 border-b border-zinc-300 dark:border-zinc-800">
         <div>
           <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-sky-400 shrink-0" />
+            <TrendingUp className="w-4 h-4 text-sky-700 dark:text-sky-400 shrink-0" />
             <h3
               id="revenue-forecast-heading"
-              className="text-sm sm:text-base font-bold text-white uppercase tracking-wider font-mono"
+              className="text-sm sm:text-base font-bold text-zinc-950 dark:text-white uppercase tracking-wider font-mono"
             >
               Predictive Monthly Revenue Forecast
             </h3>
           </div>
-          <p className="text-xs text-zinc-400 mt-1">
+          <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-1">
             Projects future monthly workshop revenue from historical job billings, seasonal construction demand indices, and scheduled fleet maintenance.
           </p>
         </div>
@@ -160,7 +174,7 @@ export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
           <div
             role="group"
             aria-label="Forecast horizon"
-            className="flex items-center gap-1 p-1 bg-zinc-950 border border-zinc-800 rounded-lg font-mono"
+            className="flex items-center gap-1 p-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg font-mono"
           >
             {([3, 6, 12] as ForecastHorizon[]).map((h) => (
               <button
@@ -169,8 +183,8 @@ export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
                 onClick={() => setHorizonMonths(h)}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
                   horizonMonths === h
-                    ? 'bg-white text-zinc-950'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950'
+                    : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
                 }`}
               >
                 {h}M Horizon
@@ -182,7 +196,7 @@ export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
           <div
             role="group"
             aria-label="Forecast scenario"
-            className="flex items-center gap-1 p-1 bg-zinc-950 border border-zinc-800 rounded-lg font-mono"
+            className="flex items-center gap-1 p-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg font-mono"
           >
             {(
               [
@@ -198,7 +212,7 @@ export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
                 className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
                   scenario === opt.id
                     ? 'bg-sky-400 text-zinc-950'
-                    : 'text-zinc-400 hover:text-white'
+                    : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
                 }`}
               >
                 {opt.label}
@@ -212,8 +226,8 @@ export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
             onClick={() => setShowConfidenceBounds((prev) => !prev)}
             className={`px-3 py-2 text-xs font-mono font-semibold rounded-lg border transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
               showConfidenceBounds
-                ? 'bg-zinc-950 border-amber-400/50 text-amber-300'
-                : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white'
+                ? 'bg-zinc-50 dark:bg-zinc-950 border-amber-400/50 text-amber-900 dark:text-amber-300'
+                : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-300 dark:border-zinc-800 text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
@@ -223,11 +237,11 @@ export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
       </div>
 
       {!hasJobHistory ? (
-        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-8 text-center space-y-2">
-          <p className="text-sm font-semibold text-white">
+        <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-8 text-center space-y-2">
+          <p className="text-sm font-semibold text-zinc-950 dark:text-white">
             No Job Card History Available for Forecasting
           </p>
-          <p className="text-xs text-zinc-400 max-w-md mx-auto">
+          <p className="text-xs text-zinc-700 dark:text-zinc-400 max-w-md mx-auto">
             Create or import at least 1 service job card to calculate deseasonalized run-rate trends and project monthly revenue.
           </p>
         </div>
@@ -235,34 +249,34 @@ export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
         <>
           {/* 4-Column Forecast KPI Strip */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 font-mono tabular-nums">
-            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-1">
-              <span className="text-[11px] text-zinc-400 uppercase block">
+            <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 space-y-1">
+              <span className="text-[11px] text-zinc-700 dark:text-zinc-400 uppercase block">
                 {horizonMonths}-Month Forecast Total
               </span>
-              <div className="text-2xl font-bold text-sky-400">
+              <div className="text-2xl font-bold text-sky-700 dark:text-sky-400">
                 {currencySymbol}
                 {forecast.projectedTotal.toLocaleString('en-US', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
               </div>
-              <div className="text-[11px] text-zinc-500 font-sans">
+              <div className="text-[11px] text-zinc-600 dark:text-zinc-500 font-sans">
                 {scenario.charAt(0).toUpperCase() + scenario.slice(1)} projection across {horizonMonths} upcoming months
               </div>
             </div>
 
-            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-1">
-              <span className="text-[11px] text-zinc-400 uppercase block">
+            <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 space-y-1">
+              <span className="text-[11px] text-zinc-700 dark:text-zinc-400 uppercase block">
                 Projected Monthly Avg
               </span>
-              <div className="text-2xl font-bold text-white">
+              <div className="text-2xl font-bold text-zinc-950 dark:text-white">
                 {currencySymbol}
                 {forecast.projectedMonthlyAvg.toLocaleString('en-US', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
               </div>
-              <div className="text-[11px] text-zinc-500 font-sans">
+              <div className="text-[11px] text-zinc-600 dark:text-zinc-500 font-sans">
                 Base run-rate {currencySymbol}
                 {forecast.baselineMonthlyRunRate.toFixed(0)} · Trend{' '}
                 {forecast.monthlyTrendPct >= 0
@@ -272,36 +286,36 @@ export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
               </div>
             </div>
 
-            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-1">
-              <span className="text-[11px] text-zinc-400 uppercase block">
+            <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 space-y-1">
+              <span className="text-[11px] text-zinc-700 dark:text-zinc-400 uppercase block">
                 Peak Seasonal Month
               </span>
-              <div className="text-2xl font-bold text-emerald-400">
+              <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
                 {forecast.peakMonth
                   ? `${currencySymbol}${forecast.peakMonth.forecastRevenue.toLocaleString('en-US', {
                       maximumFractionDigits: 0,
                     })}`
                   : '—'}
               </div>
-              <div className="text-[11px] text-zinc-500 font-sans">
+              <div className="text-[11px] text-zinc-600 dark:text-zinc-500 font-sans">
                 {forecast.peakMonth
                   ? `${forecast.peakMonth.label} (${forecast.peakMonth.seasonalIndex.toFixed(2)}x seasonal demand)`
                   : 'Pending forecast window'}
               </div>
             </div>
 
-            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-1">
-              <span className="text-[11px] text-zinc-400 uppercase block">
+            <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 space-y-1">
+              <span className="text-[11px] text-zinc-700 dark:text-zinc-400 uppercase block">
                 Open Job Pipeline
               </span>
-              <div className="text-2xl font-bold text-amber-300">
+              <div className="text-2xl font-bold text-amber-900 dark:text-amber-300">
                 {currencySymbol}
                 {forecast.currentPipelineRevenue.toLocaleString('en-US', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
               </div>
-              <div className="text-[11px] text-zinc-500 font-sans">
+              <div className="text-[11px] text-zinc-600 dark:text-zinc-500 font-sans">
                 {forecast.currentPipelineJobs} active tickets · Avg ticket {currencySymbol}
                 {forecast.avgTicketValue.toFixed(2)}
               </div>
@@ -309,17 +323,17 @@ export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
           </div>
 
           {/* Main Recharts Forecast LineChart */}
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 sm:p-5 space-y-3">
+          <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 sm:p-5 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+                <h4 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider font-mono">
                   Historical Actuals &amp; Seasonal Revenue Projection ({horizonMonths}M)
                 </h4>
-                <p className="text-[11px] text-zinc-400 mt-0.5">
+                <p className="text-[11px] text-zinc-700 dark:text-zinc-400 mt-0.5">
                   Solid line tracks recorded monthly job billings; dashed sky line projects seasonal demand through {forecastOnlyRows[forecastOnlyRows.length - 1]?.label}.
                 </p>
               </div>
-              <div className="text-[11px] font-mono text-zinc-400 whitespace-nowrap shrink-0">
+              <div className="text-[11px] font-mono text-zinc-700 dark:text-zinc-400 whitespace-nowrap shrink-0">
                 Anchor: {forecast.anchorYearMonth}
               </div>
             </div>
@@ -330,18 +344,18 @@ export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
                   data={forecast.series}
                   margin={{ top: 14, right: 16, left: 4, bottom: 4 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                   <XAxis
                     dataKey="shortLabel"
-                    stroke="#a1a1aa"
-                    tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'monospace' }}
-                    axisLine={{ stroke: '#3f3f46' }}
+                    stroke={axisColor}
+                    tick={{ fill: axisColor, fontSize: 11, fontFamily: 'monospace' }}
+                    axisLine={{ stroke: axisLineColor }}
                     tickLine={false}
                     interval={horizonMonths === 12 ? 1 : 0}
                   />
                   <YAxis
-                    stroke="#a1a1aa"
-                    tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'monospace' }}
+                    stroke={axisColor}
+                    tick={{ fill: axisColor, fontSize: 11, fontFamily: 'monospace' }}
                     axisLine={false}
                     tickLine={false}
                     tickFormatter={(val: number) => `${currencySymbol}${val}`}
@@ -362,12 +376,12 @@ export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
                       forecast.series.find((p) => !p.isForecast && p.forecastRevenue !== null)
                         ?.shortLabel
                     }
-                    stroke="#52525b"
+                    stroke={refLineColor}
                     strokeDasharray="3 3"
                     label={{
                       value: 'Forecast Start',
                       position: 'top',
-                      fill: '#a1a1aa',
+                      fill: axisColor,
                       fontSize: 10,
                       fontFamily: 'monospace',
                     }}
@@ -376,21 +390,21 @@ export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
                     type="monotone"
                     dataKey="actualRevenue"
                     name="Actual Monthly Revenue"
-                    stroke="#f4f4f5"
+                    stroke={actualColor}
                     strokeWidth={3}
-                    dot={{ r: 4, fill: '#f4f4f5', stroke: '#09090b', strokeWidth: 2 }}
-                    activeDot={{ r: 6, fill: '#34d399', stroke: '#09090b', strokeWidth: 2 }}
+                    dot={{ r: 4, fill: actualColor, stroke: dotStroke, strokeWidth: 2 }}
+                    activeDot={{ r: 6, fill: upperColor, stroke: dotStroke, strokeWidth: 2 }}
                     connectNulls={false}
                   />
                   <Line
                     type="monotone"
                     dataKey="forecastRevenue"
                     name="Forecasted Revenue (Seasonal)"
-                    stroke="#38bdf8"
+                    stroke={forecastColor}
                     strokeWidth={3}
                     strokeDasharray="6 4"
-                    dot={{ r: 4, fill: '#38bdf8', stroke: '#09090b', strokeWidth: 2 }}
-                    activeDot={{ r: 6, fill: '#ffffff', stroke: '#38bdf8', strokeWidth: 2 }}
+                    dot={{ r: 4, fill: forecastColor, stroke: dotStroke, strokeWidth: 2 }}
+                    activeDot={{ r: 6, fill: dotStroke, stroke: forecastColor, strokeWidth: 2 }}
                     connectNulls={false}
                   />
                   {showConfidenceBounds && (
@@ -398,11 +412,11 @@ export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
                       type="monotone"
                       dataKey="confidenceHigh"
                       name="Upper Bound (+Confidence)"
-                      stroke="#34d399"
+                      stroke={upperColor}
                       strokeWidth={1.5}
                       strokeDasharray="2 4"
                       dot={false}
-                      activeDot={{ r: 3, fill: '#34d399' }}
+                      activeDot={{ r: 3, fill: upperColor }}
                       connectNulls={false}
                     />
                   )}
@@ -411,11 +425,11 @@ export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
                       type="monotone"
                       dataKey="confidenceLow"
                       name="Lower Bound (-Confidence)"
-                      stroke="#f59e0b"
+                      stroke={lowerColor}
                       strokeWidth={1.5}
                       strokeDasharray="2 4"
                       dot={false}
-                      activeDot={{ r: 3, fill: '#f59e0b' }}
+                      activeDot={{ r: 3, fill: lowerColor }}
                       connectNulls={false}
                     />
                   )}
@@ -425,10 +439,10 @@ export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
           </div>
 
           {/* Monthly Forecast & Seasonal Drivers Breakdown Table */}
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-x-auto">
+          <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl overflow-x-auto">
             <table className="w-full text-left text-xs font-mono tabular-nums border-collapse">
               <thead>
-                <tr className="border-b border-zinc-800 text-zinc-400 uppercase text-[10px]">
+                <tr className="border-b border-zinc-300 dark:border-zinc-800 text-zinc-700 dark:text-zinc-400 uppercase text-[10px]">
                   <th className="py-2.5 px-4">Forecast Month</th>
                   <th className="py-2.5 px-3">Seasonal Demand Driver</th>
                   <th className="py-2.5 px-3 text-right">Multiplier</th>
@@ -437,33 +451,33 @@ export const RevenueForecastModule: React.FC<RevenueForecastModuleProps> = ({
                   <th className="py-2.5 px-4 text-right">Forecast Revenue</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/60">
+              <tbody className="divide-y divide-zinc-200/80 dark:divide-zinc-800/60">
                 {forecastOnlyRows.map((row) => (
-                  <tr key={row.yearMonth} className="hover:bg-zinc-900/60 transition-colors">
-                    <td className="py-2.5 px-4 font-bold text-white flex items-center gap-2 whitespace-nowrap">
-                      <Calendar className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                  <tr key={row.yearMonth} className="hover:bg-zinc-100 dark:hover:bg-zinc-900/60 transition-colors">
+                    <td className="py-2.5 px-4 font-bold text-zinc-950 dark:text-white flex items-center gap-2 whitespace-nowrap">
+                      <Calendar className="w-3.5 h-3.5 text-sky-700 dark:text-sky-400 shrink-0" />
                       <span>{row.label}</span>
                     </td>
-                    <td className="py-2.5 px-3 font-sans text-zinc-300 whitespace-nowrap">
+                    <td className="py-2.5 px-3 font-sans text-zinc-800 dark:text-zinc-300 whitespace-nowrap">
                       {row.seasonalFactorLabel}
                       {row.scheduledMaintenanceCount > 0 && (
-                        <span className="text-emerald-400 text-[11px] ml-2">
+                        <span className="text-emerald-700 dark:text-emerald-400 text-[11px] ml-2">
                           · {row.scheduledMaintenanceCount} fleet overhaul due
                         </span>
                       )}
                     </td>
-                    <td className="py-2.5 px-3 text-right text-amber-300 font-semibold">
+                    <td className="py-2.5 px-3 text-right text-amber-900 dark:text-amber-300 font-semibold">
                       {row.seasonalIndex.toFixed(2)}x
                     </td>
-                    <td className="py-2.5 px-3 text-right text-zinc-300">
+                    <td className="py-2.5 px-3 text-right text-zinc-800 dark:text-zinc-300">
                       {row.expectedJobs}
                     </td>
-                    <td className="py-2.5 px-3 text-right text-zinc-400">
+                    <td className="py-2.5 px-3 text-right text-zinc-700 dark:text-zinc-400">
                       {currencySymbol}
                       {(row.confidenceLow ?? 0).toFixed(0)} – {currencySymbol}
                       {(row.confidenceHigh ?? 0).toFixed(0)}
                     </td>
-                    <td className="py-2.5 px-4 text-right font-bold text-sky-400">
+                    <td className="py-2.5 px-4 text-right font-bold text-sky-700 dark:text-sky-400">
                       {currencySymbol}
                       {(row.forecastRevenue ?? 0).toFixed(2)}
                     </td>

@@ -47,19 +47,19 @@ export const FeedbackSmsToast: React.FC<FeedbackSmsToastProps> = ({
       {notices.slice(0, 2).map((notice) => (
         <div
           key={notice.id}
-          className="pointer-events-auto rounded-2xl border border-emerald-600/80 bg-zinc-950/95 p-4 shadow-2xl backdrop-blur font-mono space-y-2.5 animate-in slide-in-from-bottom-4 duration-200"
+          className="pointer-events-auto rounded-2xl border border-emerald-500 dark:border-emerald-600/80 bg-white/95 dark:bg-zinc-950/95 p-4 shadow-2xl backdrop-blur font-mono space-y-2.5 animate-in slide-in-from-bottom-4 duration-200"
         >
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg border bg-emerald-950 text-emerald-300 border-emerald-700">
+              <span className="p-1.5 rounded-lg border bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700">
                 <MessageSquare className="w-4 h-4" />
               </span>
               <div>
-                <div className="text-[11px] font-extrabold uppercase tracking-wider text-white">
+                <div className="text-[11px] font-extrabold uppercase tracking-wider text-zinc-950 dark:text-white">
                   {notice.sentViaTwilio ? 'Feedback SMS Dispatched' : 'Feedback SMS Queued'}
                 </div>
-                <div className="text-[10px] text-zinc-400">
-                  Ticket <strong className="text-white">{notice.jobId}</strong> · {notice.customerPhone}
+                <div className="text-[10px] text-zinc-700 dark:text-zinc-400">
+                  Ticket <strong className="text-zinc-950 dark:text-white">{notice.jobId}</strong> · {notice.customerPhone}
                 </div>
               </div>
             </div>
@@ -67,19 +67,19 @@ export const FeedbackSmsToast: React.FC<FeedbackSmsToastProps> = ({
             <button
               type="button"
               onClick={() => onDismiss(notice.id)}
-              className="text-zinc-500 hover:text-white p-0.5"
+              className="text-zinc-600 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white p-0.5"
               aria-label="Dismiss feedback SMS notification"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="text-xs text-zinc-200 font-sans leading-snug">
-            Automated rating survey sent to <strong className="text-white">{notice.customerName}</strong> ({notice.providerLabel}
+          <div className="text-xs text-zinc-900 dark:text-zinc-200 font-sans leading-snug">
+            Automated rating survey sent to <strong className="text-zinc-950 dark:text-white">{notice.customerName}</strong> ({notice.providerLabel}
             {notice.sid ? ` · SID ${notice.sid}` : ''}).
           </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-[11px] text-zinc-300 font-sans leading-relaxed line-clamp-3">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3 py-2 text-[11px] text-zinc-800 dark:text-zinc-300 font-sans leading-relaxed line-clamp-3">
             {notice.smsMessage}
           </div>
 
@@ -96,12 +96,12 @@ export const FeedbackSmsToast: React.FC<FeedbackSmsToastProps> = ({
             <button
               type="button"
               onClick={() => handleCopyUrl(notice)}
-              className="py-1.5 px-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 font-bold rounded-xl text-[11px] flex items-center gap-1 transition-colors whitespace-nowrap"
+              className="py-1.5 px-2.5 bg-white dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-200 border border-zinc-400 dark:border-zinc-700 font-bold rounded-xl text-[11px] flex items-center gap-1 transition-colors whitespace-nowrap"
               title="Copy customer feedback link"
             >
               {copiedId === notice.id ? (
                 <>
-                  <Check className="w-3 h-3 text-emerald-400" />
+                  <Check className="w-3 h-3 text-emerald-700 dark:text-emerald-400" />
                   <span>Copied</span>
                 </>
               ) : (
@@ -115,7 +115,7 @@ export const FeedbackSmsToast: React.FC<FeedbackSmsToastProps> = ({
             {!notice.sentViaTwilio && (
               <a
                 href={notice.fallbackSmsHref}
-                className="py-1.5 px-2.5 bg-white hover:bg-zinc-200 text-zinc-950 font-bold rounded-xl text-[11px] flex items-center gap-1 transition-colors whitespace-nowrap"
+                className="py-1.5 px-2.5 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 font-bold rounded-xl text-[11px] flex items-center gap-1 transition-colors whitespace-nowrap"
                 title="Open native SMS composer"
               >
                 <Send className="w-3 h-3" />

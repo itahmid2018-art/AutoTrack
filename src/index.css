@@ -7,10 +7,26 @@
   --font-mono: 'JetBrains Mono', monospace;
 }
 
+:root {
+  --app-bg: #f4f4f5;
+  --app-fg: #09090b;
+  --scroll-track: #e4e4e7;
+  --scroll-thumb: #71717a;
+  --scroll-thumb-hover: #3f3f46;
+}
+
+html.dark {
+  --app-bg: #09090b;
+  --app-fg: #f8fafc;
+  --scroll-track: rgba(15, 23, 42, 0.6);
+  --scroll-thumb: rgba(100, 116, 139, 0.45);
+  --scroll-thumb-hover: rgba(148, 163, 184, 0.7);
+}
+
 body {
   font-family: var(--font-sans);
-  background-color: #0f172a;
-  color: #f8fafc;
+  background-color: var(--app-bg);
+  color: var(--app-fg);
 }
 
 /* Custom scrollbars for high-density inventory table */
@@ -20,16 +36,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--scroll-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.4);
+  background: var(--scroll-thumb);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.6);
+  background: var(--scroll-thumb-hover);
 }
 
 @media print {

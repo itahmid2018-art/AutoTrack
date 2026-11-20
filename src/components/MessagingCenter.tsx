@@ -366,16 +366,16 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2 font-mono uppercase">
-                <MessageSquare className="w-5 h-5 text-white" />
+              <h1 className="text-xl font-bold text-zinc-950 dark:text-white tracking-tight flex items-center gap-2 font-mono uppercase">
+                <MessageSquare className="w-5 h-5 text-zinc-950 dark:text-white" />
                 <span>WhatsApp &amp; SMS Customer Dispatch</span>
               </h1>
             </div>
-            <p className="text-xs text-zinc-400 mt-1">
+            <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-1">
               Automated API delivery &amp; 1-click WhatsApp web dispatch for power tool intake, estimates &amp; pickup notices.
             </p>
           </div>
@@ -384,19 +384,19 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
           <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
             <div className={`px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${
               apiStatus.twilioSmsConfigured 
-                ? 'bg-emerald-950/60 border-emerald-700 text-emerald-300' 
-                : 'bg-zinc-950 border-zinc-800 text-zinc-400'
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300' 
+                : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-300 dark:border-zinc-800 text-zinc-700 dark:text-zinc-400'
             }`}>
-              <span className={`w-2 h-2 rounded-full ${apiStatus.twilioSmsConfigured ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-600'}`} />
+              <span className={`w-2 h-2 rounded-full ${apiStatus.twilioSmsConfigured ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-400 dark:bg-zinc-600'}`} />
               <span>Twilio SMS API: {apiStatus.twilioSmsConfigured ? 'Configured' : 'Optional (.env)'}</span>
             </div>
 
             <div className={`px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${
               apiStatus.twilioWhatsAppConfigured || apiStatus.metaWhatsAppConfigured
-                ? 'bg-emerald-950/60 border-emerald-700 text-emerald-300' 
-                : 'bg-zinc-950 border-zinc-800 text-zinc-400'
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300' 
+                : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-300 dark:border-zinc-800 text-zinc-700 dark:text-zinc-400'
             }`}>
-              <span className={`w-2 h-2 rounded-full ${apiStatus.twilioWhatsAppConfigured || apiStatus.metaWhatsAppConfigured ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-600'}`} />
+              <span className={`w-2 h-2 rounded-full ${apiStatus.twilioWhatsAppConfigured || apiStatus.metaWhatsAppConfigured ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-400 dark:bg-zinc-600'}`} />
               <span>WhatsApp API: {apiStatus.twilioWhatsAppConfigured || apiStatus.metaWhatsAppConfigured ? 'Configured' : 'Optional (.env)'}</span>
             </div>
           </div>
@@ -407,12 +407,12 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Left Column: Job Card Selector List */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
-          <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 font-mono">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-4 space-y-3">
+          <h2 className="text-xs font-bold text-zinc-700 dark:text-zinc-400 uppercase tracking-wider mb-2 font-mono">
             Select Service Card ({jobCards.length})
           </h2>
 
-          <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1 divide-y divide-zinc-800/40">
+          <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1 divide-y divide-zinc-200/80 dark:divide-zinc-800/40">
             {jobCards.map((job) => (
               <div
                 key={job.id}
@@ -424,20 +424,20 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                 }}
                 className={`p-3 rounded-xl cursor-pointer transition-all border ${
                   activeJob?.id === job.id
-                    ? 'bg-zinc-950 border-white shadow'
-                    : 'bg-zinc-950/40 border-zinc-800 hover:border-zinc-700'
+                    ? 'bg-zinc-50 dark:bg-zinc-950 border-zinc-950 dark:border-white shadow'
+                    : 'bg-zinc-100/80 dark:bg-zinc-950/40 border-zinc-300 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-700'
                 }`}
               >
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="font-mono font-bold text-white">{job.id}</span>
-                  <span className="text-[10px] px-2 py-0.2 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 font-mono">
+                  <span className="font-mono font-bold text-zinc-950 dark:text-white">{job.id}</span>
+                  <span className="text-[10px] px-2 py-0.2 rounded-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-800 dark:text-zinc-300 font-mono">
                     {job.status}
                   </span>
                 </div>
 
-                <div className="text-xs font-bold text-white truncate">{job.customerName}</div>
-                <div className="text-[11px] text-zinc-400 truncate">{job.tool?.brand} {job.tool?.modelNumber}</div>
-                <div className="text-[10px] text-zinc-500 font-mono mt-1">{job.customerPhone}</div>
+                <div className="text-xs font-bold text-zinc-950 dark:text-white truncate">{job.customerName}</div>
+                <div className="text-[11px] text-zinc-700 dark:text-zinc-400 truncate">{job.tool?.brand} {job.tool?.modelNumber}</div>
+                <div className="text-[10px] text-zinc-600 dark:text-zinc-500 font-mono mt-1">{job.customerPhone}</div>
               </div>
             ))}
           </div>
@@ -450,25 +450,25 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
             {/* AI Response Assistant Panel */}
             <section
               aria-labelledby="ai-response-assistant-heading"
-              className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xl"
+              className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xl"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-300 dark:border-zinc-800 pb-3">
                 <div className="flex items-start gap-2.5">
-                  <div className="p-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-emerald-400 shrink-0">
+                  <div className="p-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-emerald-700 dark:text-emerald-400 shrink-0">
                     <Bot className="w-4 h-4" />
                   </div>
                   <div>
-                    <h2 id="ai-response-assistant-heading" className="text-sm font-bold text-white tracking-tight">
+                    <h2 id="ai-response-assistant-heading" className="text-sm font-bold text-zinc-950 dark:text-white tracking-tight">
                       AI Response Assistant
                     </h2>
-                    <p className="text-xs text-zinc-400 mt-0.5 font-mono tabular-nums">
+                    <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-0.5 font-mono tabular-nums">
                       {activeJob.id} · {activeJob.tool?.brand} {activeJob.tool?.modelNumber} · {activeJob.status} · ${getEffectiveJobBilling(activeJob).totalAmount.toFixed(2)}
                     </p>
                   </div>
                 </div>
 
                 {/* Channel Preference Toggle */}
-                <div className="flex items-center gap-1 p-1 bg-zinc-950 border border-zinc-800 rounded-lg self-start sm:self-auto font-mono">
+                <div className="flex items-center gap-1 p-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg self-start sm:self-auto font-mono">
                   {(['WhatsApp', 'SMS'] as const).map((channel) => (
                     <button
                       key={channel}
@@ -476,8 +476,8 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                       onClick={() => setPreferredChannel(channel)}
                       className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
                         preferredChannel === channel
-                          ? 'bg-white text-zinc-950'
-                          : 'text-zinc-400 hover:text-white'
+                          ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950'
+                          : 'text-zinc-700 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
                       }`}
                     >
                       {channel}
@@ -488,7 +488,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
 
               {/* Quick Common Customer Inquiry Buttons */}
               <div className="space-y-1.5">
-                <span className="block text-[11px] font-semibold text-zinc-400 font-mono">
+                <span className="block text-[11px] font-semibold text-zinc-700 dark:text-zinc-400 font-mono">
                   Common Customer Inquiries (1-Click Draft):
                 </span>
                 <div className="flex flex-wrap gap-2">
@@ -498,7 +498,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                       type="button"
                       disabled={isAssistantLoading}
                       onClick={() => handleGenerateAssistantReplies(preset.prompt)}
-                      className="px-3 py-1.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-xs font-medium text-zinc-200 hover:text-white transition-colors disabled:opacity-50 whitespace-nowrap shrink-0"
+                      className="px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-700 text-xs font-medium text-zinc-900 dark:text-zinc-200 hover:text-zinc-950 dark:hover:text-white transition-colors disabled:opacity-50 whitespace-nowrap shrink-0"
                     >
                       {preset.label}
                     </button>
@@ -519,14 +519,14 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                     }
                   }}
                   placeholder="Paste customer question (e.g. 'Why is the armature replacement $48?' or 'Can I pick it up today?')..."
-                  className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+                  className="flex-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-zinc-950 dark:text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500"
                 />
 
                 <button
                   type="button"
                   onClick={() => handleGenerateAssistantReplies()}
                   disabled={isAssistantLoading || !customerInquiryInput.trim()}
-                  className="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 text-xs font-mono font-bold flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
+                  className="px-4 py-2 rounded-xl bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-40 text-white dark:text-zinc-950 text-xs font-mono font-bold flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
                 >
                   {isAssistantLoading ? (
                     <>
@@ -543,26 +543,26 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
               </div>
 
               {assistantError && (
-                <div className="p-3 bg-rose-950/30 border border-rose-800/70 rounded-xl text-xs font-mono text-rose-200 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-300 dark:border-rose-800/70 rounded-xl text-xs font-mono text-rose-800 dark:text-rose-200 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-700 dark:text-rose-400 shrink-0" />
                   <span>{assistantError}</span>
                 </div>
               )}
 
               {/* Suggested Context-Aware Replies */}
               {assistantResult && (
-                <div className="space-y-3 pt-2 border-t border-zinc-800">
+                <div className="space-y-3 pt-2 border-t border-zinc-300 dark:border-zinc-800">
                   {assistantResult.keyFactsCited.length > 0 && (
-                    <div className="text-[11px] font-mono text-zinc-400">
+                    <div className="text-[11px] font-mono text-zinc-700 dark:text-zinc-400">
                       Ticket facts used: {assistantResult.keyFactsCited.join(' · ')}
                     </div>
                   )}
 
                   {/* Primary Recommended Reply */}
                   {assistantResult.recommendedReply && (
-                    <div className="bg-zinc-950 border border-zinc-700 rounded-xl p-3.5 space-y-2.5">
+                    <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 rounded-xl p-3.5 space-y-2.5">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-bold text-emerald-400">
+                        <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
                           Recommended {preferredChannel} Reply
                         </span>
                         <div className="flex items-center gap-2 shrink-0">
@@ -571,11 +571,11 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                             onClick={() =>
                               handleCopySuggestedReply(assistantResult.recommendedReply, 'primary')
                             }
-                            className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] font-mono text-zinc-300 hover:text-white flex items-center gap-1"
+                            className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-800 text-[11px] font-mono text-zinc-800 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white flex items-center gap-1"
                           >
                             {copiedVariantKey === 'primary' ? (
                               <>
-                                <Check className="w-3 h-3 text-emerald-400" />
+                                <Check className="w-3 h-3 text-emerald-700 dark:text-emerald-400" />
                                 <span>Copied</span>
                               </>
                             ) : (
@@ -588,13 +588,13 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                           <button
                             type="button"
                             onClick={() => handleUseSuggestedReply(assistantResult.recommendedReply)}
-                            className="px-3 py-1 rounded-lg bg-white hover:bg-zinc-200 text-zinc-950 text-[11px] font-mono font-bold whitespace-nowrap"
+                            className="px-3 py-1 rounded-lg bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 text-[11px] font-mono font-bold whitespace-nowrap"
                           >
                             Use in Composer
                           </button>
                         </div>
                       </div>
-                      <p className="text-xs font-mono text-zinc-100 leading-relaxed whitespace-pre-wrap">
+                      <p className="text-xs font-mono text-zinc-950 dark:text-zinc-100 leading-relaxed whitespace-pre-wrap">
                         {assistantResult.recommendedReply}
                       </p>
                     </div>
@@ -608,25 +608,25 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                         return (
                           <div
                             key={copyKey}
-                            className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 flex flex-col justify-between gap-2.5"
+                            className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-3 flex flex-col justify-between gap-2.5"
                           >
                             <div className="space-y-1.5">
-                              <div className="text-[11px] font-semibold text-zinc-400">
+                              <div className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-400">
                                 {variant.label || `Option ${idx + 1}`}
                               </div>
-                              <p className="text-xs font-mono text-zinc-200 leading-relaxed whitespace-pre-wrap">
+                              <p className="text-xs font-mono text-zinc-900 dark:text-zinc-200 leading-relaxed whitespace-pre-wrap">
                                 {variant.text}
                               </p>
                             </div>
-                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-900">
+                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-900">
                               <button
                                 type="button"
                                 onClick={() => handleCopySuggestedReply(variant.text, copyKey)}
-                                className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] font-mono text-zinc-300 hover:text-white flex items-center gap-1"
+                                className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-800 text-[11px] font-mono text-zinc-800 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-white flex items-center gap-1"
                               >
                                 {copiedVariantKey === copyKey ? (
                                   <>
-                                    <Check className="w-3 h-3 text-emerald-400" />
+                                    <Check className="w-3 h-3 text-emerald-700 dark:text-emerald-400" />
                                     <span>Copied</span>
                                   </>
                                 ) : (
@@ -639,7 +639,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleUseSuggestedReply(variant.text)}
-                                className="px-3 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white text-[11px] font-mono font-bold whitespace-nowrap"
+                                className="px-3 py-1 rounded-lg bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 border border-zinc-400 dark:border-zinc-700 text-zinc-950 dark:text-white text-[11px] font-mono font-bold whitespace-nowrap"
                               >
                                 Use Reply
                               </button>
@@ -653,25 +653,25 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
               )}
             </section>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xl">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xl">
               
-              <div className="flex items-center justify-between p-3 bg-zinc-950 rounded-xl border border-zinc-800">
+              <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-950 rounded-xl border border-zinc-300 dark:border-zinc-800">
                 <div className="flex items-center gap-3 text-xs">
-                  <User className="w-4 h-4 text-white shrink-0" />
+                  <User className="w-4 h-4 text-zinc-950 dark:text-white shrink-0" />
                   <div>
-                    <span className="font-bold text-white">{activeJob.customerName}</span>
-                    <span className="text-zinc-500 mx-1.5">·</span>
-                    <span className="font-mono text-zinc-300">{activeJob.customerPhone}</span>
+                    <span className="font-bold text-zinc-950 dark:text-white">{activeJob.customerName}</span>
+                    <span className="text-zinc-600 dark:text-zinc-500 mx-1.5">·</span>
+                    <span className="font-mono text-zinc-800 dark:text-zinc-300">{activeJob.customerPhone}</span>
                   </div>
                 </div>
 
-                <div className="text-xs font-mono font-bold text-white">
+                <div className="text-xs font-mono font-bold text-zinc-950 dark:text-white">
                   {activeJob.id} (${getEffectiveJobBilling(activeJob).totalAmount.toFixed(2)})
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-zinc-400 mb-2 font-mono">Milestone Template</label>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-400 mb-2 font-mono">Milestone Template</label>
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   {[
                     { id: 'Intake', label: '1. Intake Received' },
@@ -688,8 +688,8 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                       }}
                       className={`py-2 px-3 text-xs font-bold rounded-xl transition-all border ${
                         templateType === t.id
-                          ? 'bg-white text-zinc-950 border-white shadow'
-                          : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-white'
+                          ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white shadow'
+                          : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-700 dark:text-zinc-400 border-zinc-300 dark:border-zinc-800 hover:text-zinc-950 dark:hover:text-white'
                       }`}
                     >
                       {t.label}
@@ -703,7 +703,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                   <select
                     value={aiLanguage}
                     onChange={(e) => setAiLanguage(e.target.value)}
-                    className="bg-zinc-950 border border-zinc-800 text-zinc-300 text-xs rounded-lg px-2.5 py-1.5 font-medium focus:outline-none"
+                    className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-800 dark:text-zinc-300 text-xs rounded-lg px-2.5 py-1.5 font-medium focus:outline-none"
                   >
                     <option value="English">English</option>
                     <option value="Spanish">Spanish</option>
@@ -715,7 +715,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                 <button
                   onClick={handleAiPolish}
                   disabled={isAiGenerating}
-                  className="px-3 py-1.5 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-lg shadow transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-3 py-1.5 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-lg shadow transition-all flex items-center gap-1.5 disabled:opacity-50"
                 >
                   <Sparkles className={`w-3.5 h-3.5 ${isAiGenerating ? 'animate-spin' : ''}`} />
                   <span>{isAiGenerating ? 'Generating...' : '✨ AI Polish'}</span>
@@ -727,21 +727,21 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                   rows={4}
                   value={messageText}
                   onChange={(e) => setCustomMessage(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white font-mono leading-relaxed focus:outline-none focus:border-zinc-500"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-3 text-xs text-zinc-950 dark:text-white font-mono leading-relaxed focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500"
                 />
               </div>
 
               {polishError && (
-                <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800/70 text-xs font-mono text-rose-200 flex items-center justify-between gap-2">
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800/70 text-xs font-mono text-rose-800 dark:text-rose-200 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                    <AlertCircle className="w-4 h-4 text-rose-700 dark:text-rose-400 shrink-0" />
                     <span>{polishError}</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setPolishError(null)}
                     aria-label="Dismiss AI polish error"
-                    className="text-rose-300 hover:text-white p-1"
+                    className="text-rose-800 dark:text-rose-300 hover:text-zinc-950 dark:hover:text-white p-1"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -751,24 +751,24 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
               {sendFeedback && (
                 <div className={`p-3 rounded-xl border text-xs font-mono flex items-center gap-2 ${
                   sendFeedback.type === 'success' 
-                    ? 'bg-emerald-950/60 border-emerald-700 text-emerald-300' 
+                    ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300' 
                     : sendFeedback.type === 'error'
-                    ? 'bg-red-950/60 border-red-700 text-red-300'
-                    : 'bg-zinc-950 border-zinc-800 text-zinc-300'
+                    ? 'bg-red-50 dark:bg-red-950/60 border-red-300 dark:border-red-700 text-red-800 dark:text-red-300'
+                    : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-300 dark:border-zinc-800 text-zinc-800 dark:text-zinc-300'
                 }`}>
-                  <span className="font-bold uppercase font-mono text-[10px] px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-700">
+                  <span className="font-bold uppercase font-mono text-[10px] px-1.5 py-0.5 rounded bg-white dark:bg-zinc-900 border border-zinc-400 dark:border-zinc-700">
                     {sendFeedback.type}
                   </span>
                   <span>{sendFeedback.text}</span>
                 </div>
               )}
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-zinc-800">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-zinc-300 dark:border-zinc-800">
                 <button
                   onClick={handleCopy}
-                  className="px-4 py-2 text-xs font-bold text-zinc-300 bg-zinc-950 border border-zinc-800 hover:bg-zinc-800 rounded-xl transition-all flex items-center justify-center gap-1.5"
+                  className="px-4 py-2 text-xs font-bold text-zinc-800 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl transition-all flex items-center justify-center gap-1.5"
                 >
-                  {copied ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4" />}
+                  {copied ? <Check className="w-4 h-4 text-zinc-950 dark:text-white" /> : <Copy className="w-4 h-4" />}
                   <span>{copied ? 'Copied!' : 'Copy Text'}</span>
                 </button>
 
@@ -776,7 +776,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                   <button
                     onClick={handleSendSMS}
                     disabled={isSending}
-                    className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl transition-all disabled:opacity-50"
+                    className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-zinc-900 dark:text-zinc-200 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 border border-zinc-400 dark:border-zinc-700 rounded-xl transition-all disabled:opacity-50"
                   >
                     <span>{isSending ? 'Sending...' : (apiStatus.twilioSmsConfigured ? 'Send Twilio SMS API' : 'Send SMS')}</span>
                   </button>
@@ -784,7 +784,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                   <button
                     onClick={handleSendWhatsApp}
                     disabled={isSending}
-                    className="flex-1 sm:flex-none px-5 py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                    className="flex-1 sm:flex-none px-5 py-2 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
                   >
                     <MessageSquare className="w-4 h-4" />
                     <span>{isSending ? 'Sending...' : (apiStatus.twilioWhatsAppConfigured || apiStatus.metaWhatsAppConfigured ? 'Send WhatsApp API' : 'Open WhatsApp Web')}</span>
@@ -796,26 +796,26 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
             </div>
 
             {/* Logs */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2 font-mono">
-                  <Clock className="w-4 h-4 text-white" />
+                <h3 className="text-xs font-bold text-zinc-700 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-2 font-mono">
+                  <Clock className="w-4 h-4 text-zinc-950 dark:text-white" />
                   <span>Message History Logs ({activeJob.messageLogs.length})</span>
                 </h3>
-                <span className="text-[11px] text-zinc-500 font-mono">
+                <span className="text-[11px] text-zinc-600 dark:text-zinc-500 font-mono">
                   Pending = handed to WhatsApp/SMS client, not confirmed delivered.
                 </span>
               </div>
 
               {activeJob.messageLogs.length === 0 ? (
-                <p className="text-xs text-zinc-500 py-2 text-center font-mono">No messages sent yet.</p>
+                <p className="text-xs text-zinc-600 dark:text-zinc-500 py-2 text-center font-mono">No messages sent yet.</p>
               ) : (
                 <div className="space-y-2">
                   {activeJob.messageLogs.map((log) => (
-                    <div key={log.id} className="p-3 bg-zinc-950 rounded-xl border border-zinc-800 text-xs space-y-1">
-                      <div className="flex items-center justify-between gap-2 text-zinc-400 font-mono">
+                    <div key={log.id} className="p-3 bg-zinc-50 dark:bg-zinc-950 rounded-xl border border-zinc-300 dark:border-zinc-800 text-xs space-y-1">
+                      <div className="flex items-center justify-between gap-2 text-zinc-700 dark:text-zinc-400 font-mono">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-white">{log.channel} ({log.type})</span>
+                          <span className="font-bold text-zinc-950 dark:text-white">{log.channel} ({log.type})</span>
                           <span
                             title={
                               log.status === 'Sent'
@@ -824,16 +824,16 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                             }
                             className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
                               log.status === 'Sent'
-                                ? 'bg-emerald-950/70 text-emerald-300 border-emerald-700/70'
-                                : 'bg-amber-950/70 text-amber-300 border-amber-700/70'
+                                ? 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700/70'
+                                : 'bg-amber-50 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-700/70'
                             }`}
                           >
                             {log.status || 'Pending'}
                           </span>
                         </div>
-                        <span className="text-[11px] text-zinc-500">{log.timestamp}</span>
+                        <span className="text-[11px] text-zinc-600 dark:text-zinc-500">{log.timestamp}</span>
                       </div>
-                      <p className="text-zinc-300 leading-relaxed text-[11px] font-mono">{log.text}</p>
+                      <p className="text-zinc-800 dark:text-zinc-300 leading-relaxed text-[11px] font-mono">{log.text}</p>
                     </div>
                   ))}
                 </div>

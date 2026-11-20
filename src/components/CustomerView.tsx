@@ -23,7 +23,10 @@ import {
   Star,
   MessageSquare,
   Send,
+  Sun,
+  Moon,
 } from 'lucide-react';
+import type { AppTheme } from '../utils/theme';
 
 export interface PublicJobStatusSummary {
   id: string;
@@ -71,6 +74,8 @@ interface CustomerViewProps {
   centerPhone?: string;
   onSubmitFeedback?: (jobId: string, feedback: CustomerFeedback) => void;
   onExitCustomerView?: () => void;
+  theme?: AppTheme;
+  onToggleTheme?: () => void;
 }
 
 const CUSTOMER_MILESTONES: {
@@ -126,16 +131,16 @@ const CUSTOMER_MILESTONES: {
 const getStatusBadgeStyle = (status: JobStatus): string => {
   switch (status) {
     case 'Ready for Pickup':
-      return 'bg-emerald-950 text-emerald-300 border-emerald-600';
+      return 'bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-500 dark:border-emerald-600';
     case 'Completed':
-      return 'bg-zinc-900 text-emerald-400 border-emerald-800';
+      return 'bg-white dark:bg-zinc-900 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800';
     case 'Awaiting Parts':
     case 'Awaiting Approval':
-      return 'bg-amber-950 text-amber-300 border-amber-700';
+      return 'bg-amber-50 dark:bg-amber-950 text-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-700';
     case 'Cancelled':
-      return 'bg-rose-950 text-rose-300 border-rose-700';
+      return 'bg-rose-50 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-700';
     default:
-      return 'bg-zinc-900 text-white border-zinc-700';
+      return 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white border-zinc-400 dark:border-zinc-700';
   }
 };
 
@@ -204,6 +209,8 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
   centerPhone = '+1 (555) 019-2831',
   onSubmitFeedback,
   onExitCustomerView,
+  theme = 'dark',
+  onToggleTheme,
 }) => {
   const [lookupInput, setLookupInput] = useState(initialQuery);
   const [phoneLast4Input, setPhoneLast4Input] = useState('');
@@ -585,35 +592,59 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
     : -1;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-zinc-100 flex flex-col font-sans">
       {/* Isolated Customer Portal Header (No Internal Nav, Inventory, or Staff Controls) */}
-      <header className="bg-zinc-950/95 border-b border-zinc-800 sticky top-0 z-30 backdrop-blur">
+      <header className="bg-white/95 dark:bg-zinc-950/95 border-b border-zinc-300 dark:border-zinc-800 sticky top-0 z-30 backdrop-blur">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-700 flex items-center justify-center text-white">
+            <div className="w-9 h-9 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-400 dark:border-zinc-700 flex items-center justify-center text-zinc-950 dark:text-white">
               <Wrench className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-sm font-bold text-white font-mono uppercase tracking-tight">
+              <div className="text-sm font-bold text-zinc-950 dark:text-white font-mono uppercase tracking-tight">
                 {centerName}
               </div>
-              <div className="text-[11px] text-zinc-400 flex items-center gap-1.5">
-                <Lock className="w-3 h-3 text-emerald-400" />
+              <div className="text-[11px] text-zinc-700 dark:text-zinc-400 flex items-center gap-1.5">
+                <Lock className="w-3 h-3 text-emerald-700 dark:text-emerald-400" />
                 <span>Customer Self-Service Status Tracker</span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5">
-            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-mono text-zinc-400 bg-zinc-900 px-3 py-1.5 rounded-xl border border-zinc-800">
-              <Phone className="w-3.5 h-3.5 text-emerald-400" />
+            {onToggleTheme && (
+              <button
+                type="button"
+                onClick={onToggleTheme}
+                aria-pressed={theme === 'light'}
+                aria-label={
+                  theme === 'dark' ? 'Switch to high-contrast light theme' : 'Switch to dark theme'
+                }
+                className="px-2.5 py-1.5 text-xs font-bold font-mono text-zinc-900 dark:text-zinc-200 bg-white dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-400 dark:border-zinc-700 rounded-xl flex items-center gap-1.5 transition-colors"
+              >
+                {theme === 'dark' ? (
+                  <>
+                    <Sun className="w-3.5 h-3.5 text-amber-500" />
+                    <span className="hidden sm:inline">Light</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon className="w-3.5 h-3.5 text-zinc-900" />
+                    <span className="hidden sm:inline">Dark</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-mono text-zinc-700 dark:text-zinc-400 bg-white dark:bg-zinc-900 px-3 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-800">
+              <Phone className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
               <span>{centerPhone}</span>
             </span>
 
             {onExitCustomerView && (
               <button
                 onClick={onExitCustomerView}
-                className="px-3 py-1.5 text-xs font-bold font-mono text-zinc-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-xl flex items-center gap-1.5 transition-colors"
+                className="px-3 py-1.5 text-xs font-bold font-mono text-zinc-900 dark:text-zinc-200 bg-white dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-400 dark:border-zinc-700 rounded-xl flex items-center gap-1.5 transition-colors"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Staff Dashboard</span>
@@ -626,25 +657,25 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
       {/* Main Centered Customer Self-Service Container */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Lookup Search Card */}
-        <section className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <section className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
           <div className="space-y-1">
-            <h1 className="text-lg sm:text-xl font-extrabold text-white font-mono uppercase tracking-tight">
+            <h1 className="text-lg sm:text-xl font-extrabold text-zinc-950 dark:text-white font-mono uppercase tracking-tight">
               Check Your Tool Repair Status
             </h1>
-            <p className="text-xs sm:text-sm text-zinc-400">
+            <p className="text-xs sm:text-sm text-zinc-700 dark:text-zinc-400">
               Enter your Job Card number (printed on your intake slip) or private status token to view live service progress.
             </p>
           </div>
 
           <form onSubmit={handleLookupSubmit} className="grid grid-cols-1 sm:grid-cols-12 gap-3 font-mono">
             <div className="sm:col-span-6 relative">
-              <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3" />
+              <Search className="w-4 h-4 text-zinc-600 dark:text-zinc-500 absolute left-3.5 top-3" />
               <input
                 type="text"
                 value={lookupInput}
                 onChange={(e) => setLookupInput(e.target.value)}
                 placeholder="Job Card ID (e.g. BOSCH-2026-0041) or Token"
-                className="w-full bg-zinc-950 border border-zinc-800 focus:border-white rounded-xl pl-10 pr-3 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 focus:border-zinc-950 dark:focus:border-white rounded-xl pl-10 pr-3 py-2.5 text-xs text-zinc-950 dark:text-white placeholder-zinc-500 focus:outline-none"
                 required
               />
             </div>
@@ -656,13 +687,13 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                 value={phoneLast4Input}
                 onChange={(e) => setPhoneLast4Input(e.target.value.replace(/\D/g, '').slice(0, 4))}
                 placeholder="Phone Last 4 (Required for ID)"
-                className="w-full bg-zinc-950 border border-zinc-800 focus:border-white rounded-xl px-3 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 focus:border-zinc-950 dark:focus:border-white rounded-xl px-3 py-2.5 text-xs text-zinc-950 dark:text-white placeholder-zinc-500 focus:outline-none"
               />
             </div>
 
             <button
               type="submit"
-              className="sm:col-span-3 py-2.5 px-4 bg-white hover:bg-zinc-200 text-zinc-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow"
+              className="sm:col-span-3 py-2.5 px-4 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow"
             >
               <Search className="w-4 h-4" />
               <span>Track Repair</span>
@@ -671,7 +702,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
 
           {sampleJobIds.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-mono">
-              <span className="text-zinc-500">Quick Demo Lookup:</span>
+              <span className="text-zinc-600 dark:text-zinc-500">Quick Demo Lookup:</span>
               {sampleJobIds.slice(0, 4).map((sampleId) => (
                 <button
                   key={sampleId}
@@ -679,8 +710,8 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                   onClick={() => handleQuickSampleLookup(sampleId)}
                   className={`px-2.5 py-1 rounded-lg border transition-colors ${
                     matchedSummary?.id === sampleId
-                      ? 'bg-white text-zinc-950 border-white font-bold'
-                      : 'bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-zinc-600'
+                      ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white font-bold'
+                      : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-300 border-zinc-300 dark:border-zinc-800 hover:border-zinc-500 dark:hover:border-zinc-600'
                   }`}
                 >
                   {sampleId}
@@ -692,14 +723,14 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
 
         {/* Verification Required / Invalid Phone / Not Found Feedback */}
         {hasSearched && !matchedSummary && lookupNotice && (lookupNotice.type === 'needs-verification' || lookupNotice.type === 'invalid-phone') && (
-          <div className="bg-zinc-900 border border-amber-700/70 rounded-2xl p-6 text-center space-y-2 shadow-lg">
-            <Lock className="w-7 h-7 text-amber-400 mx-auto" />
-            <h2 className="text-sm font-bold text-white font-mono uppercase">
+          <div className="bg-white dark:bg-zinc-900 border border-amber-300 dark:border-amber-700/70 rounded-2xl p-6 text-center space-y-2 shadow-lg">
+            <Lock className="w-7 h-7 text-amber-700 dark:text-amber-400 mx-auto" />
+            <h2 className="text-sm font-bold text-zinc-950 dark:text-white font-mono uppercase">
               {lookupNotice.type === 'invalid-phone'
                 ? 'Phone Verification Digits Do Not Match'
                 : 'Phone Verification Required'}
             </h2>
-            <p className="text-xs text-zinc-300 max-w-md mx-auto">
+            <p className="text-xs text-zinc-800 dark:text-zinc-300 max-w-md mx-auto">
               {lookupNotice.type === 'invalid-phone'
                 ? `The last 4 digits entered do not match the client phone number on ticket ${lookupNotice.jobId || lookupInput}. Re-enter the correct 4 digits or use your private tracking token link.`
                 : `Ticket ${lookupNotice.jobId || lookupInput} exists. Enter the last 4 digits of the client phone number in the field above to unlock repair progress and PDF receipt download.`}
@@ -708,13 +739,13 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
         )}
 
         {hasSearched && !matchedSummary && (!lookupNotice || lookupNotice.type === 'not-found') && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center space-y-2 shadow-lg">
-            <AlertCircle className="w-8 h-8 text-amber-400 mx-auto" />
-            <h2 className="text-sm font-bold text-white font-mono uppercase">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-8 text-center space-y-2 shadow-lg">
+            <AlertCircle className="w-8 h-8 text-amber-700 dark:text-amber-400 mx-auto" />
+            <h2 className="text-sm font-bold text-zinc-950 dark:text-white font-mono uppercase">
               No Matching Service Ticket Found
             </h2>
-            <p className="text-xs text-zinc-400 max-w-md mx-auto">
-              Verify your Job Card ID (for example <code className="text-zinc-200">BOSCH-2026-0041</code>) and private token or phone last 4 digits.
+            <p className="text-xs text-zinc-700 dark:text-zinc-400 max-w-md mx-auto">
+              Verify your Job Card ID (for example <code className="text-zinc-900 dark:text-zinc-200">BOSCH-2026-0041</code>) and private token or phone last 4 digits.
             </p>
           </div>
         )}
@@ -723,11 +754,11 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
         {matchedSummary && (
           <div className="space-y-5 animate-in fade-in duration-200">
             {/* Status Header Banner */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-6 shadow-xl space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-300 dark:border-zinc-800 pb-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="text-xl font-extrabold text-white font-mono">
+                    <span className="text-xl font-extrabold text-zinc-950 dark:text-white font-mono">
                       {matchedSummary.id}
                     </span>
                     <span
@@ -740,8 +771,8 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                     <span
                       className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold border inline-flex items-center gap-1 ${
                         matchedSummary.warrantyFlag === 'In-Warranty'
-                          ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
-                          : 'bg-amber-950/70 text-amber-300 border-amber-700/70'
+                          ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+                          : 'bg-amber-50 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-700/70'
                       }`}
                     >
                       {matchedSummary.warrantyFlag === 'In-Warranty' ? (
@@ -752,8 +783,8 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                       <span>{matchedSummary.warrantyFlag}</span>
                     </span>
                   </div>
-                  <p className="text-xs text-zinc-400 mt-1.5 font-mono">
-                    Customer: <strong className="text-zinc-200">{matchedSummary.customerFirstName}</strong> ({matchedSummary.maskedPhone})
+                  <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-1.5 font-mono">
+                    Customer: <strong className="text-zinc-900 dark:text-zinc-200">{matchedSummary.customerFirstName}</strong> ({matchedSummary.maskedPhone})
                     {matchedSummary.customerCompany ? ` · ${matchedSummary.customerCompany}` : ''}
                   </p>
                 </div>
@@ -765,7 +796,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                     className={`px-4 py-2 font-bold rounded-xl text-xs font-mono flex items-center gap-1.5 shadow transition-all ${
                       matchedSummary.verifiedByTokenOrPhone
                         ? 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95'
-                        : 'bg-zinc-800 text-zinc-400 cursor-not-allowed opacity-70'
+                        : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-400 cursor-not-allowed opacity-70'
                     }`}
                   >
                     <Download className="w-4 h-4" />
@@ -782,10 +813,10 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
 
               {/* Ready for Pickup Highlight Banner */}
               {matchedSummary.status === 'Ready for Pickup' && (
-                <div className="p-4 rounded-xl bg-emerald-950/50 border border-emerald-700 flex items-center gap-3 text-emerald-200">
-                  <PackageCheck className="w-6 h-6 text-emerald-400 shrink-0" />
+                <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-700 flex items-center gap-3 text-emerald-800 dark:text-emerald-200">
+                  <PackageCheck className="w-6 h-6 text-emerald-700 dark:text-emerald-400 shrink-0" />
                   <div className="text-xs space-y-0.5">
-                    <div className="font-bold text-sm text-emerald-300 font-mono">
+                    <div className="font-bold text-sm text-emerald-800 dark:text-emerald-300 font-mono">
                       Your power tool is ready for counter pickup!
                     </div>
                     <div>
@@ -797,17 +828,17 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
 
               {/* Cancelled Notice */}
               {matchedSummary.status === 'Cancelled' ? (
-                <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-xs text-rose-200 font-mono">
+                <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200 font-mono">
                   This service ticket has been marked as <strong>Cancelled</strong>. Please contact {centerPhone} if you have questions.
                 </div>
               ) : (
                 /* Repair Progress Stepper */
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs font-mono text-zinc-400">
-                    <span className="uppercase tracking-wider font-bold text-zinc-300">
+                  <div className="flex items-center justify-between text-xs font-mono text-zinc-700 dark:text-zinc-400">
+                    <span className="uppercase tracking-wider font-bold text-zinc-800 dark:text-zinc-300">
                       Live Repair Milestone Progress
                     </span>
-                    <span>Promised Completion: <strong className="text-white">{matchedSummary.promisedCompletion}</strong></span>
+                    <span>Promised Completion: <strong className="text-zinc-950 dark:text-white">{matchedSummary.promisedCompletion}</strong></span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-7 gap-2">
@@ -819,10 +850,10 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                           key={step.key}
                           className={`p-3 rounded-xl border transition-all flex flex-col justify-between gap-1.5 ${
                             isCurrent
-                              ? 'bg-white text-zinc-950 border-white shadow-lg'
+                              ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white shadow-lg'
                               : isDone
-                              ? 'bg-emerald-950/40 text-emerald-200 border-emerald-800/80'
-                              : 'bg-zinc-950 text-zinc-500 border-zinc-800'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800/80'
+                              : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-600 dark:text-zinc-500 border-zinc-300 dark:border-zinc-800'
                           }`}
                         >
                           <div className="flex items-center justify-between">
@@ -830,7 +861,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                               STEP {idx + 1}
                             </span>
                             {isDone ? (
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                             ) : isCurrent ? (
                               <Sparkles className="w-3.5 h-3.5 text-zinc-950" />
                             ) : (
@@ -840,7 +871,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                           <div className="text-xs font-bold leading-tight">{step.label}</div>
                           <div
                             className={`text-[10px] leading-snug ${
-                              isCurrent ? 'text-zinc-700' : isDone ? 'text-emerald-300/80' : 'text-zinc-500'
+                              isCurrent ? 'text-zinc-700' : isDone ? 'text-emerald-800 dark:text-emerald-300/80' : 'text-zinc-600 dark:text-zinc-500'
                             }`}
                           >
                             {step.description}
@@ -855,85 +886,85 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
 
             {/* Tool Information & Service Summary Cards (No Internal Inventory Access) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3 shadow-lg">
-                <h2 className="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2 border-b border-zinc-800 pb-2.5">
-                  <Wrench className="w-4 h-4 text-white" />
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-3 shadow-lg">
+                <h2 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider font-mono flex items-center gap-2 border-b border-zinc-300 dark:border-zinc-800 pb-2.5">
+                  <Wrench className="w-4 h-4 text-zinc-950 dark:text-white" />
                   <span>Tool &amp; Intake Details</span>
                 </h2>
 
                 <div className="space-y-2 text-xs font-mono">
                   <div className="flex justify-between">
-                    <span className="text-zinc-400">Tool Model:</span>
-                    <span className="text-white font-bold text-right">
+                    <span className="text-zinc-700 dark:text-zinc-400">Tool Model:</span>
+                    <span className="text-zinc-950 dark:text-white font-bold text-right">
                       {matchedSummary.toolBrand} {matchedSummary.toolModel}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-zinc-400">Category:</span>
-                    <span className="text-zinc-200">{matchedSummary.toolCategory}</span>
+                    <span className="text-zinc-700 dark:text-zinc-400">Category:</span>
+                    <span className="text-zinc-900 dark:text-zinc-200">{matchedSummary.toolCategory}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-zinc-400">Serial Number:</span>
-                    <span className="text-zinc-200">{matchedSummary.toolSerialMasked}</span>
+                    <span className="text-zinc-700 dark:text-zinc-400">Serial Number:</span>
+                    <span className="text-zinc-900 dark:text-zinc-200">{matchedSummary.toolSerialMasked}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-zinc-400">Reported Issue:</span>
-                    <span className="text-zinc-200 text-right">{matchedSummary.grievanceCategory}</span>
+                    <span className="text-zinc-700 dark:text-zinc-400">Reported Issue:</span>
+                    <span className="text-zinc-900 dark:text-zinc-200 text-right">{matchedSummary.grievanceCategory}</span>
                   </div>
-                  <div className="pt-2 border-t border-zinc-800/80">
-                    <span className="text-zinc-400 block mb-1">Accessories Checked In:</span>
+                  <div className="pt-2 border-t border-zinc-300/80 dark:border-zinc-800/80">
+                    <span className="text-zinc-700 dark:text-zinc-400 block mb-1">Accessories Checked In:</span>
                     <div className="flex flex-wrap gap-1.5">
                       {matchedSummary.accessoriesReceived.length > 0 ? (
                         matchedSummary.accessoriesReceived.map((acc) => (
                           <span
                             key={acc}
-                            className="px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-[11px] text-zinc-300"
+                            className="px-2 py-0.5 rounded bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-[11px] text-zinc-800 dark:text-zinc-300"
                           >
                             {acc}
                           </span>
                         ))
                       ) : (
-                        <span className="text-zinc-500">Bare tool only</span>
+                        <span className="text-zinc-600 dark:text-zinc-500">Bare tool only</span>
                       )}
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3 shadow-lg flex flex-col justify-between">
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-3 shadow-lg flex flex-col justify-between">
                 <div className="space-y-3">
-                  <h2 className="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2 border-b border-zinc-800 pb-2.5">
-                    <FileText className="w-4 h-4 text-white" />
+                  <h2 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider font-mono flex items-center gap-2 border-b border-zinc-300 dark:border-zinc-800 pb-2.5">
+                    <FileText className="w-4 h-4 text-zinc-950 dark:text-white" />
                     <span>Schedule &amp; Billing Summary</span>
                   </h2>
 
                   <div className="space-y-2 text-xs font-mono">
                     <div className="flex justify-between">
-                      <span className="text-zinc-400 flex items-center gap-1">
+                      <span className="text-zinc-700 dark:text-zinc-400 flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5" /> Intake Date:
                       </span>
-                      <span className="text-zinc-200">{matchedSummary.intakeDate}</span>
+                      <span className="text-zinc-900 dark:text-zinc-200">{matchedSummary.intakeDate}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-zinc-400">Promised Target:</span>
-                      <span className="text-white font-bold">{matchedSummary.promisedCompletion}</span>
+                      <span className="text-zinc-700 dark:text-zinc-400">Promised Target:</span>
+                      <span className="text-zinc-950 dark:text-white font-bold">{matchedSummary.promisedCompletion}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-zinc-400">Warranty Classification:</span>
-                      <span className="text-zinc-200">{matchedSummary.warrantyFlag}</span>
+                      <span className="text-zinc-700 dark:text-zinc-400">Warranty Classification:</span>
+                      <span className="text-zinc-900 dark:text-zinc-200">{matchedSummary.warrantyFlag}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-zinc-400">Replacement Parts Used:</span>
-                      <span className="text-zinc-200">{matchedSummary.partsCount} line item(s)</span>
+                      <span className="text-zinc-700 dark:text-zinc-400">Replacement Parts Used:</span>
+                      <span className="text-zinc-900 dark:text-zinc-200">{matchedSummary.partsCount} line item(s)</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-zinc-800 flex items-center justify-between font-mono">
-                  <span className="text-xs text-zinc-400 uppercase font-bold">
+                <div className="mt-4 pt-3 border-t border-zinc-300 dark:border-zinc-800 flex items-center justify-between font-mono">
+                  <span className="text-xs text-zinc-700 dark:text-zinc-400 uppercase font-bold">
                     Estimated / Billed Total
                   </span>
-                  <span className="text-xl font-extrabold text-white">
+                  <span className="text-xl font-extrabold text-zinc-950 dark:text-white">
                     ${matchedSummary.estimatedTotal.toFixed(2)}
                   </span>
                 </div>
@@ -944,32 +975,32 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
             <section
               ref={feedbackSectionRef}
               aria-labelledby="customer-feedback-heading"
-              className={`bg-zinc-900 rounded-2xl p-6 shadow-xl space-y-4 border ${
+              className={`bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-xl space-y-4 border ${
                 initialShowFeedback || matchedSummary.status === 'Completed'
-                  ? 'border-emerald-700/80'
-                  : 'border-zinc-800'
+                  ? 'border-emerald-300 dark:border-emerald-700/80'
+                  : 'border-zinc-300 dark:border-zinc-800'
               }`}
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-300 dark:border-zinc-800 pb-3">
                 <div className="flex items-start gap-2.5">
-                  <div className="p-2 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 shrink-0">
+                  <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-amber-700 dark:text-amber-400 shrink-0">
                     <Star className="w-4 h-4 fill-amber-400" />
                   </div>
                   <div>
                     <h2
                       id="customer-feedback-heading"
-                      className="text-sm font-bold text-white font-mono uppercase tracking-wider"
+                      className="text-sm font-bold text-zinc-950 dark:text-white font-mono uppercase tracking-wider"
                     >
                       Rate Your Service Experience
                     </h2>
-                    <p className="text-xs text-zinc-400 mt-0.5">
+                    <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-0.5">
                       Share a 1–5 star rating and quick comment for Job Card {matchedSummary.id}. Feedback is saved directly on your service record.
                     </p>
                   </div>
                 </div>
 
                 {matchedSummary.customerFeedback && !isEditingFeedback && (
-                  <span className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1.5 shrink-0">
+                  <span className="text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 shrink-0">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Feedback Recorded</span>
                   </span>
@@ -977,21 +1008,21 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
               </div>
 
               {feedbackSuccessMsg && (
-                <div className="p-3 rounded-xl bg-emerald-950/50 border border-emerald-700 text-xs font-mono text-emerald-200 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-700 text-xs font-mono text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
                   <span>{feedbackSuccessMsg}</span>
                 </div>
               )}
 
               {feedbackError && (
-                <div className="p-3 rounded-xl bg-rose-950/50 border border-rose-800 text-xs font-mono text-rose-200 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 text-xs font-mono text-rose-800 dark:text-rose-200 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-700 dark:text-rose-400 shrink-0" />
                   <span>{feedbackError}</span>
                 </div>
               )}
 
               {matchedSummary.customerFeedback && !isEditingFeedback ? (
-                <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+                <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1" aria-label={`Rated ${matchedSummary.customerFeedback.rating} out of 5 stars`}>
@@ -1000,36 +1031,36 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                             key={star}
                             className={`w-5 h-5 ${
                               star <= (matchedSummary.customerFeedback?.rating || 0)
-                                ? 'text-amber-400 fill-amber-400'
+                                ? 'text-amber-500 dark:text-amber-400 fill-amber-400'
                                 : 'text-zinc-700'
                             }`}
                           />
                         ))}
                       </div>
-                      <span className="text-sm font-bold text-white font-mono tabular-nums ml-1">
+                      <span className="text-sm font-bold text-zinc-950 dark:text-white font-mono tabular-nums ml-1">
                         {matchedSummary.customerFeedback.rating}.0 / 5.0
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-3 text-[11px] font-mono text-zinc-400">
+                    <div className="flex items-center gap-3 text-[11px] font-mono text-zinc-700 dark:text-zinc-400">
                       <span>
                         Submitted:{' '}
-                        <strong className="text-zinc-200">
+                        <strong className="text-zinc-900 dark:text-zinc-200">
                           {matchedSummary.customerFeedback.submittedAt.slice(0, 16).replace('T', ' ')}
                         </strong>
                       </span>
                       <button
                         type="button"
                         onClick={() => setIsEditingFeedback(true)}
-                        className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 font-bold transition-colors"
+                        className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-400 dark:border-zinc-700 text-zinc-900 dark:text-zinc-200 font-bold transition-colors"
                       >
                         Edit Review
                       </button>
                     </div>
                   </div>
 
-                  <div className="text-xs text-zinc-200 bg-zinc-900/70 border border-zinc-800/80 rounded-xl p-3 leading-relaxed flex items-start gap-2">
-                    <MessageSquare className="w-4 h-4 text-zinc-500 shrink-0 mt-0.5" />
+                  <div className="text-xs text-zinc-900 dark:text-zinc-200 bg-zinc-50 dark:bg-zinc-900/70 border border-zinc-300/80 dark:border-zinc-800/80 rounded-xl p-3 leading-relaxed flex items-start gap-2">
+                    <MessageSquare className="w-4 h-4 text-zinc-600 dark:text-zinc-500 shrink-0 mt-0.5" />
                     <span>
                       {matchedSummary.customerFeedback.comment || 'No additional written comments left.'}
                     </span>
@@ -1038,7 +1069,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
               ) : (
                 <form onSubmit={handleFeedbackSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <span className="block text-xs font-mono font-bold text-zinc-300 uppercase">
+                    <span className="block text-xs font-mono font-bold text-zinc-800 dark:text-zinc-300 uppercase">
                       Select Rating (1 to 5 Stars)
                     </span>
                     <div className="flex flex-wrap items-center gap-2">
@@ -1059,13 +1090,13 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                             aria-pressed={ratingDraft === starValue}
                             className={`min-h-[44px] min-w-[44px] px-3 py-2 rounded-xl border transition-all flex items-center justify-center gap-1.5 font-mono text-xs font-bold ${
                               isFilled
-                                ? 'bg-amber-950/50 border-amber-500 text-amber-300'
-                                : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-600'
+                                ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-500 dark:border-amber-500 text-amber-900 dark:text-amber-300'
+                                : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-300 dark:border-zinc-800 text-zinc-700 dark:text-zinc-400 hover:border-zinc-500 dark:hover:border-zinc-600'
                             }`}
                           >
                             <Star
                               className={`w-4 h-4 ${
-                                isFilled ? 'text-amber-400 fill-amber-400' : 'text-zinc-600'
+                                isFilled ? 'text-amber-500 dark:text-amber-400 fill-amber-400' : 'text-zinc-600'
                               }`}
                             />
                             <span className="tabular-nums">{starValue}</span>
@@ -1074,7 +1105,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                       })}
 
                       {(hoverRating || ratingDraft) > 0 && (
-                        <span className="text-xs font-mono text-zinc-300 ml-1">
+                        <span className="text-xs font-mono text-zinc-800 dark:text-zinc-300 ml-1">
                           {RATING_LABELS[hoverRating || ratingDraft]}
                         </span>
                       )}
@@ -1083,10 +1114,10 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
 
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs font-mono">
-                      <label htmlFor="customer-feedback-comment" className="font-bold text-zinc-300 uppercase">
+                      <label htmlFor="customer-feedback-comment" className="font-bold text-zinc-800 dark:text-zinc-300 uppercase">
                         Service Comments (Optional)
                       </label>
-                      <span className="text-[11px] text-zinc-500 tabular-nums">
+                      <span className="text-[11px] text-zinc-600 dark:text-zinc-500 tabular-nums">
                         {commentDraft.length}/1000
                       </span>
                     </div>
@@ -1097,7 +1128,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                       value={commentDraft}
                       onChange={(e) => setCommentDraft(e.target.value)}
                       placeholder="How was the repair turnaround, tool performance, and pickup communication?"
-                      className="w-full bg-zinc-950 border border-zinc-800 focus:border-white rounded-xl p-3 text-xs text-white placeholder-zinc-500 focus:outline-none leading-relaxed"
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 focus:border-zinc-950 dark:focus:border-white rounded-xl p-3 text-xs text-zinc-950 dark:text-white placeholder-zinc-500 focus:outline-none leading-relaxed"
                     />
                   </div>
 
@@ -1110,7 +1141,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                           setCommentDraft(matchedSummary.customerFeedback?.comment || '');
                           setIsEditingFeedback(false);
                         }}
-                        className="px-4 py-2.5 bg-zinc-950 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 font-bold rounded-xl text-xs font-mono"
+                        className="px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-300 border border-zinc-400 dark:border-zinc-700 font-bold rounded-xl text-xs font-mono"
                       >
                         Cancel
                       </button>
@@ -1119,7 +1150,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                     <button
                       type="submit"
                       disabled={isSubmittingFeedback || ratingDraft < 1}
-                      className="px-5 py-2.5 bg-white hover:bg-zinc-200 disabled:opacity-40 text-zinc-950 font-bold rounded-xl text-xs font-mono flex items-center gap-2 transition-all active:scale-95 shadow"
+                      className="px-5 py-2.5 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-40 text-white dark:text-zinc-950 font-bold rounded-xl text-xs font-mono flex items-center gap-2 transition-all active:scale-95 shadow"
                     >
                       <Send className="w-3.5 h-3.5" />
                       <span>
@@ -1138,7 +1169,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
         )}
       </main>
 
-      <footer className="border-t border-zinc-900 py-4 text-center text-[11px] text-zinc-500 font-mono">
+      <footer className="border-t border-zinc-200 dark:border-zinc-900 py-4 text-center text-[11px] text-zinc-600 dark:text-zinc-500 font-mono">
         <div className="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>{centerName} · Read-Only Customer Status Portal</span>
           <span>Need assistance? Call {centerPhone}</span>
