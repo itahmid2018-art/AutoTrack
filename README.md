@@ -147,7 +147,7 @@ Clone the repository and install all dependencies:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/autotrack-bosch-service.git
+git clone https://github.com/itahmid2018-art/AutoTrack.git
 cd autotrack-bosch-service
 
 # Install dependencies
