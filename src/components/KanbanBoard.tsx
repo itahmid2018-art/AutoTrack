@@ -4,6 +4,11 @@ import { SHOP_TECHNICIANS } from '../data/mockTechnicians';
 import { adjudicateWarranty } from '../utils/warrantyAdjudicator';
 import { getEffectiveJobBilling } from '../utils/billing';
 import { CloudSyncState } from '../utils/cloudSyncStatus';
+import {
+  JOB_PRIORITY_LEVELS,
+  getPriorityBadgeClasses,
+  normalizeJobPriority,
+} from '../utils/priority';
 import { 
   Search, 
   Wrench, 
@@ -33,6 +38,7 @@ import { motion, AnimatePresence } from 'motion/react';
 interface KanbanBoardProps {
   jobCards: JobCard[];
   onQuickStatusChange: (jobId: string, newStatus: JobStatus) => void;
+  onQuickPriorityChange?: (jobId: string, newPriority: JobPriority) => void;
   onUpdateJobCard: (updatedJob: JobCard) => void;
   onSelectJob: (job: JobCard) => void;
   onPrintJobCard: (job: JobCard) => void;
@@ -177,6 +183,7 @@ export const calculateTimeSpentPerStatus = (job: JobCard, nowMs: number): Status
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   jobCards,
   onQuickStatusChange,
+  onQuickPriorityChange,
   onUpdateJobCard,
   onSelectJob,
   onPrintJobCard,
@@ -191,7 +198,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTechFilter, setSelectedTechFilter] = useState<string>('All');
-  const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<string>('All');
+  const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<'All' | JobPriority>('All');
   const [showSlaBreachesOnly, setShowSlaBreachesOnly] = useState(false);
   const [showSlaConfig, setShowSlaConfig] = useState(false);
   const [stageThresholds, setStageThresholds] = useState<Record<JobStatus, number>>(DEFAULT_STAGE_SLA_DAYS);
@@ -277,7 +284,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       job.serviceReq.grievanceCategory.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesTech = selectedTechFilter === 'All' || job.technician === selectedTechFilter;
-    const matchesPriority = selectedPriorityFilter === 'All' || job.priority === selectedPriorityFilter;
+    const matchesPriority =
+      selectedPriorityFilter === 'All' || normalizeJobPriority(job.priority) === selectedPriorityFilter;
     const matchesSla = !showSlaBreachesOnly || getTimeInStage(job).isOverdue;
 
     return matchesSearch && matchesTech && matchesPriority && matchesSla;
@@ -325,14 +333,19 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   };
 
   const getPriorityBadgeClass = (priority: JobPriority) => {
-    switch (priority) {
-      case 'Emergency':
-        return 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 font-extrabold animate-pulse';
-      case 'Urgent':
-        return 'bg-zinc-200 text-zinc-950 font-bold';
-      default:
-        return 'bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-400 font-mono';
+    return getPriorityBadgeClasses(priority);
+  };
+
+  const handleKanbanPriorityChange = (job: JobCard, nextPriority: JobPriority) => {
+    if (onQuickPriorityChange) {
+      onQuickPriorityChange(job.id, nextPriority);
+      return;
     }
+    onUpdateJobCard({
+      ...job,
+      priority: nextPriority,
+      updatedAt: new Date().toISOString(),
+    });
   };
 
   const slaConfigurableStatuses: { status: JobStatus; label: string }[] = [
@@ -392,13 +405,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             {/* Filter by Priority */}
             <select
               value={selectedPriorityFilter}
-              onChange={(e) => setSelectedPriorityFilter(e.target.value)}
+              onChange={(e) => setSelectedPriorityFilter(e.target.value as 'All' | JobPriority)}
+              aria-label="Filter Kanban by Priority"
               className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-zinc-700 dark:focus:border-zinc-500 font-mono"
             >
               <option value="All">All Priorities</option>
-              <option value="Routine">Routine</option>
-              <option value="Urgent">Urgent</option>
-              <option value="Emergency">Emergency</option>
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
             </select>
 
             {/* SLA / >5d Bottleneck Quick Filter */}
@@ -700,9 +714,28 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                   <span>{job.customerFeedback.rating}/5</span>
                                 </span>
                               )}
-                              <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded ${getPriorityBadgeClass(job.priority)}`}>
-                                {job.priority}
-                              </span>
+                              <select
+                                value={normalizeJobPriority(job.priority)}
+                                onChange={(e) =>
+                                  handleKanbanPriorityChange(job, e.target.value as JobPriority)
+                                }
+                                onClick={(e) => e.stopPropagation()}
+                                aria-label={`Priority for ${job.id}`}
+                                data-testid={`kanban-priority-${job.id}`}
+                                className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded border cursor-pointer focus:outline-none ${getPriorityBadgeClass(
+                                  normalizeJobPriority(job.priority)
+                                )}`}
+                              >
+                                {JOB_PRIORITY_LEVELS.map((level) => (
+                                  <option
+                                    key={level}
+                                    value={level}
+                                    className="bg-white dark:bg-zinc-900 text-zinc-950 dark:text-zinc-100"
+                                  >
+                                    {level}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                           </div>
 

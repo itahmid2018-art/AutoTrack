@@ -124,7 +124,7 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
       intakeDate: nowIso.slice(0, 16).replace('T', ' '),
       promisedCompletion: new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 16).replace('T', ' '),
       status: 'Intake',
-      priority: 'Routine',
+      priority: 'Low',
       technician: 'David Miller (Bosch Tech)',
       laborHours: 1.0,
       laborRate: settings.laborRate,

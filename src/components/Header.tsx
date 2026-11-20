@@ -34,6 +34,10 @@ import {
 } from 'lucide-react';
 import { AppTheme } from '../utils/theme';
 import {
+  normalizeJobPriority,
+  getPriorityBadgeClasses,
+} from '../utils/priority';
+import {
   loadRecentJobIds,
   saveRecentJobIds,
   recordRecentJobId,
@@ -1015,8 +1019,10 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               ) : (
                 <div className="p-2 space-y-1 divide-y divide-zinc-200/70 dark:divide-zinc-900">
-                  {recentJobEntries.map((entry) =>
-                    entry.job ? (
+                  {recentJobEntries.map((entry) => {
+                    if (entry.job) {
+                      const priority = normalizeJobPriority(entry.job.priority);
+                      return (
                       <div
                         key={entry.id}
                         className="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors flex items-center justify-between gap-2 group"
@@ -1027,9 +1033,18 @@ export const Header: React.FC<HeaderProps> = ({
                           className="flex-1 min-w-0 text-left flex items-center justify-between gap-2"
                         >
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-zinc-950 dark:text-white bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-300 dark:border-zinc-800 text-[11px]">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-bold text-zinc-950 dark:text-white bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-300 dark:border-zinc-800 text-[11px] shrink-0">
                                 {entry.job.id}
+                              </span>
+                              <span
+                                data-testid={`recent-priority-badge-${entry.job.id}`}
+                                aria-label={`Priority: ${priority}`}
+                                className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${getPriorityBadgeClasses(
+                                  priority
+                                )}`}
+                              >
+                                {priority}
                               </span>
                               <span className="text-xs font-bold text-zinc-900 dark:text-zinc-200 truncate">
                                 {entry.job.customerName}
@@ -1064,7 +1079,9 @@ export const Header: React.FC<HeaderProps> = ({
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                    ) : (
+                      );
+                    }
+                    return (
                       <div
                         key={entry.id}
                         className="p-2 rounded-xl flex items-center justify-between gap-2 text-zinc-600 dark:text-zinc-500"
@@ -1084,8 +1101,8 @@ export const Header: React.FC<HeaderProps> = ({
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                    )
-                  )}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1106,16 +1123,27 @@ export const Header: React.FC<HeaderProps> = ({
                         <span>Job Cards ({matchingJobs.length})</span>
                         <span>Select to open</span>
                       </div>
-                      {matchingJobs.map((job) => (
+                      {matchingJobs.map((job) => {
+                        const priority = normalizeJobPriority(job.priority);
+                        return (
                         <div
                           key={job.id}
                           onClick={() => handleSelectJobResult(job)}
                           className="p-2.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer transition-colors flex items-center justify-between gap-2 group"
                         >
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-zinc-950 dark:text-white bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-300 dark:border-zinc-800 text-[11px]">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-bold text-zinc-950 dark:text-white bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-300 dark:border-zinc-800 text-[11px] shrink-0">
                                 {job.id}
+                              </span>
+                              <span
+                                data-testid={`search-priority-badge-${job.id}`}
+                                aria-label={`Priority: ${priority}`}
+                                className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${getPriorityBadgeClasses(
+                                  priority
+                                )}`}
+                              >
+                                {priority}
                               </span>
                               <span className="text-xs font-bold text-zinc-900 dark:text-zinc-200 truncate">{job.customerName}</span>
                             </div>
@@ -1133,7 +1161,8 @@ export const Header: React.FC<HeaderProps> = ({
                             <ChevronRight className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-600 group-hover:text-zinc-950 dark:group-hover:text-white transition-colors" />
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 

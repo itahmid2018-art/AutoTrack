@@ -43,7 +43,7 @@ export type JobStatus =
   | 'Completed' 
   | 'Cancelled';
 
-export type JobPriority = 'Routine' | 'Urgent' | 'Emergency';
+export type JobPriority = 'Low' | 'Medium' | 'High';
 
 export type WarrantyFlag = 'In-Warranty' | 'Out-of-Warranty';
 

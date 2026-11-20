@@ -65,7 +65,7 @@ function makeSampleJob(overrides: Partial<JobCard> = {}): JobCard {
     intakeDate: '2026-10-10',
     promisedCompletion: '2026-10-16',
     status: 'Completed',
-    priority: 'Routine',
+    priority: 'Low',
     technician: 'David Miller',
     laborHours: 2,
     laborRate: 75,

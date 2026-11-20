@@ -58,7 +58,7 @@
           "type": "string",
           "enum": ["Intake", "Diagnosis", "Awaiting Approval", "Awaiting Parts", "In Repair", "In Service", "Ready for Pickup", "Completed", "Cancelled"]
         },
-        "priority": { "type": "string", "enum": ["Routine", "Urgent", "Emergency"] },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High"] },
         "technician": { "type": "string", "minLength": 1, "maxLength": 120 },
         "diagnosticNotes": { "type": "string", "maxLength": 8000 },
         "recommendedActions": { "type": "array", "description": "Up to 20 recommended repair actions." },

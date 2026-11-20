@@ -374,7 +374,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
               intakeDate: update.intakeDate || prev?.intakeDate || '',
               promisedCompletion: update.promisedCompletion || prev?.promisedCompletion || '',
               status: nextStatus,
-              priority: prev?.priority || 'Routine',
+              priority: prev?.priority || 'Low',
               estimatedTotal:
                 typeof update.estimatedTotal === 'number'
                   ? update.estimatedTotal
@@ -488,7 +488,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
       intakeDate: matchedSummary.intakeDate,
       promisedCompletion: matchedSummary.promisedCompletion,
       status: matchedSummary.status,
-      priority: 'Routine',
+      priority: 'Low',
       technician: 'Service Bench',
       laborHours: 0,
       laborRate: 0,

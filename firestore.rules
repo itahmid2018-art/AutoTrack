@@ -132,7 +132,7 @@ service cloud.firestore {
         && data.intakeDate is string && data.intakeDate.size() >= 4 && data.intakeDate.size() <= 40
         && data.promisedCompletion is string && data.promisedCompletion.size() >= 4 && data.promisedCompletion.size() <= 40
         && data.status in ['Intake', 'Diagnosis', 'Awaiting Approval', 'Awaiting Parts', 'In Repair', 'In Service', 'Ready for Pickup', 'Completed', 'Cancelled']
-        && data.priority in ['Routine', 'Urgent', 'Emergency']
+        && data.priority in ['Low', 'Medium', 'High']
         && data.technician is string && data.technician.size() >= 1 && data.technician.size() <= 120
         && data.laborHours is number && data.laborHours >= 0 && data.laborHours <= 1000
         && data.laborRate is number && data.laborRate >= 0 && data.laborRate <= 10000

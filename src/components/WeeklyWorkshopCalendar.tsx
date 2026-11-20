@@ -589,8 +589,8 @@ export const WeeklyWorkshopCalendar: React.FC<WeeklyWorkshopCalendarProps> = ({
   };
 
   const priorityTagStyle = (priority: JobCard['priority']) => {
-    if (priority === 'Emergency') return 'text-red-700 dark:text-red-400';
-    if (priority === 'Urgent') return 'text-amber-700 dark:text-amber-400';
+    if (priority === 'High') return 'text-red-700 dark:text-red-400';
+    if (priority === 'Medium') return 'text-amber-700 dark:text-amber-400';
     return 'text-zinc-700 dark:text-zinc-400';
   };
 

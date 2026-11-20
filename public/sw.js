@@ -1,4 +1,4 @@
-const STATIC_CACHE = 'autotrack-static-v2';
+const STATIC_CACHE = 'autotrack-static-v3';
 const DATA_CACHE = 'autotrack-data-v1';
 
 const APP_SHELL_URLS = [
@@ -6,9 +6,21 @@ const APP_SHELL_URLS = [
   '/index.html',
   '/manifest.webmanifest',
   '/icon.svg',
-  '/pwa-192x192.png',
-  '/pwa-512x512.png',
+  '/icon-maskable.svg',
+  '/favicon.ico',
+  '/favicon-16x16.png',
+  '/favicon-32x32.png',
+  '/favicon-48x48.png',
+  '/favicon-96x96.png',
   '/apple-touch-icon.png',
+  '/apple-touch-icon-120x120.png',
+  '/apple-touch-icon-152x152.png',
+  '/apple-touch-icon-167x167.png',
+  '/pwa-192x192.png',
+  '/pwa-maskable-192x192.png',
+  '/pwa-384x384.png',
+  '/pwa-512x512.png',
+  '/pwa-maskable-512x512.png',
 ];
 
 const DATA_ENDPOINTS = {

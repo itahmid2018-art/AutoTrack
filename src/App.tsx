@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { JobCard, InventoryItem, BusinessSettings, CriticalQuestionnaire, MessageLog, JobStatus, RecurringMaintenance, CustomField, CustomerFeedback } from './types';
+import { JobCard, JobPriority, InventoryItem, BusinessSettings, CriticalQuestionnaire, MessageLog, JobStatus, RecurringMaintenance, CustomField, CustomerFeedback } from './types';
 import { INITIAL_JOB_CARDS } from './data/initialJobCards';
 import { INITIAL_INVENTORY } from './data/mockInventory';
 import { INITIAL_RECURRING_MAINTENANCE } from './data/initialRecurringMaintenance';
@@ -10,6 +10,7 @@ import { DEFAULT_ANALYTICS_METRICS } from './utils/analyticsConfig';
 import { autoAdjudicateJobCard } from './utils/warrantyAdjudicator';
 import { buildCustomerFeedbackUrl, ensurePublicAccessToken } from './utils/customerPortalUrl';
 import { nextJobCardId } from './utils/jobId';
+import { applyPriorityChangeToJobs, normalizeJobPriority } from './utils/priority';
 import { applyStockLifecycleTransition, InventoryDelta } from './utils/stockDeduction';
 import { resolveApiUrl } from './utils/apiBase';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
@@ -96,8 +97,10 @@ const normalizeJobCard = (job: JobCard): JobCard => {
     ? adjudicated.attachments
     : [];
   const publicAccessToken = ensurePublicAccessToken(adjudicated);
+  const priority = normalizeJobPriority(adjudicated.priority);
   return {
     ...adjudicated,
+    priority,
     attachments,
     publicAccessToken,
     stageEnteredAt,
@@ -803,6 +806,22 @@ export default function App() {
     }
   };
 
+  const handleQuickPriorityChange = (jobId: string, newPriority: JobPriority) => {
+    const { updatedJobs, changedJob } = applyPriorityChangeToJobs(jobCards, jobId, newPriority);
+    if (!changedJob) return;
+
+    const normalizedUpdated = updatedJobs.map((j) =>
+      j.id === jobId ? normalizeJobCard(j) : j
+    );
+    const normalizedChanged = normalizedUpdated.find((j) => j.id === jobId) || normalizeJobCard(changedJob);
+
+    setJobCards(normalizedUpdated);
+    if (selectedJob && selectedJob.id === jobId) {
+      setSelectedJob(normalizedChanged);
+    }
+    syncJobToCloud(normalizedChanged);
+  };
+
   const handleBulkStatusChange = (jobIds: string[], newStatus: JobStatus) => {
     const idSet = new Set(jobIds);
     if (idSet.size === 0) return;
@@ -1045,7 +1064,7 @@ export default function App() {
       intakeDate: nowIso.slice(0, 16).replace('T', ' '),
       promisedCompletion: new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 16).replace('T', ' '),
       status: 'Intake',
-      priority: 'Routine',
+      priority: 'Low',
       technician: 'David Miller (Bosch Master Certified)',
       laborHours: 1.0,
       laborRate: settings.laborRate,
@@ -1224,6 +1243,7 @@ export default function App() {
                 onSelectJob={(job) => setSelectedJob(job)}
                 onOpenNewJobModal={() => setIsNewJobModalOpen(true)}
                 onQuickStatusChange={handleQuickStatusChange}
+                onQuickPriorityChange={handleQuickPriorityChange}
                 onBulkStatusChange={handleBulkStatusChange}
                 onOpenWhatsApp={handleOpenWhatsAppForJob}
                 onPrintJobCard={(jobToPrint) => setPrintableJob(jobToPrint)}
@@ -1236,6 +1256,7 @@ export default function App() {
               <KanbanBoard
                 jobCards={jobCards}
                 onQuickStatusChange={handleQuickStatusChange}
+                onQuickPriorityChange={handleQuickPriorityChange}
                 onUpdateJobCard={handleUpdateJobCard}
                 onSelectJob={(job) => {
                   setSelectedJob(job);

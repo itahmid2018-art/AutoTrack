@@ -28,7 +28,7 @@ function makeBaseJob(overrides: Partial<JobCard> = {}): JobCard {
     intakeDate: '2026-06-01',
     promisedCompletion: '2026-06-03',
     status: 'Intake',
-    priority: 'Routine',
+    priority: 'Low',
     technician: 'Marco Rossi',
     laborHours: 2,
     laborRate: 85,

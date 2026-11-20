@@ -281,6 +281,8 @@ Both SQL demonstration scripts provision starter staff accounts in `users` using
    * Module-by-module unit test coverage (`25` suites / `63` tests across all `26` `src/utils/` modules and `src/data/`), build/security gate outputs, and live API key health probes.
 8. **[AI Model Configuration & Messaging Sandbox Testing Guide](docs/AI_MODEL_AND_MESSAGING_SANDBOX_GUIDE.md)**:
    * Step-by-step instructions to set explicit `GEMINI_TEXT_MODEL` / `GEMINI_AUDIO_MODEL` IDs in AI Studio Secrets for zero fallback delay and run internal sandbox tests on Twilio SMS/WhatsApp and Email routes.
+9. **[End-User UAT Guide & Excel Feedback Sheet](testing_docs/UAT_END_USER_GUIDE.md)**:
+   * Plain-English end-user manual (`UAT-01` to `UAT-32`) paired with [`UAT_FEEDBACK_TEMPLATE.xlsx`](testing_docs/UAT_FEEDBACK_TEMPLATE.xlsx) containing `Pass`, `Fail`, `Needs Improvement`, and `Other` status dropdowns.
 
 ---
 

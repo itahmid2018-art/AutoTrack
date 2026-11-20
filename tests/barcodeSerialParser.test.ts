@@ -51,7 +51,7 @@ const sampleJobs: JobCard[] = [
     intakeDate: '2026-05-10',
     promisedCompletion: '2026-05-12',
     status: 'Completed',
-    priority: 'Routine',
+    priority: 'Low',
     technician: 'Marco Rossi',
     laborHours: 1,
     laborRate: 85,

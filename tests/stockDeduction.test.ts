@@ -31,7 +31,7 @@ function makeJobWithParts(): JobCard {
     intakeDate: '2026-06-01',
     promisedCompletion: '2026-06-03',
     status: 'Diagnosis',
-    priority: 'Routine',
+    priority: 'Low',
     technician: 'Marco Rossi',
     laborHours: 1,
     laborRate: 85,

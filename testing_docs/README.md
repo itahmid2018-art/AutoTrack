@@ -12,6 +12,8 @@ This folder contains verified test results across all application modules, build
 1. [Module-by-Module Test Report](./MODULE_TEST_REPORT.md) — Unit tests across all 26 `src/utils/` modules (`63 / 63` tests passed across `25` suites), 5 `src/data/` datasets, 30 UI components, hooks, libs, and auth middleware.
 2. [API Key & Service Health Report](./API_KEY_AND_SERVICE_HEALTH_REPORT.md) — Live validity, latency, and permission probes for Gemini AI (`200 OK`), Firebase Web API Key, Cloud Firestore, Firebase Admin ADC, messaging/email configuration, and local database daemons.
 3. [Integration, Security, SQL & Build Report](./INTEGRATION_AND_BUILD_REPORT.md) — Results for `tsc --noEmit`, Vite build, esbuild server bundle, production smoke test, SQL validation, Firestore rules lint/tests, and gate scripts.
+4. [End-User UAT Manual & Testing Guide](./UAT_END_USER_GUIDE.md) — Non-technical, plain-English walkthrough (`UAT-01` to `UAT-32`) covering every feature across workshop counter, bench, inventory, portal, analytics, and settings screens.
+5. [End-User UAT Feedback Excel Template](./UAT_FEEDBACK_TEMPLATE.xlsx) — Ready-to-share `.xlsx` workbook with `Summary_Instructions`, `UAT_Feedback` (`Pass`, `Fail`, `Needs Improvement`, `Other` status dropdowns), and `Status_Options` tabs.
 
 ---
 

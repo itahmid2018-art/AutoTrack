@@ -24,6 +24,7 @@ import {
 } from '../types';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { ensurePublicAccessToken } from './customerPortalUrl';
+import { normalizeJobPriority } from './priority';
 import { PublicJobStatusSummary } from '../components/CustomerView';
 
 export const BOOTSTRAPPED_ADMIN_EMAIL = 'gurujiytube@gmail.com';
@@ -255,8 +256,7 @@ export function buildJobCardCreatePayload(
       new Date(Date.now() + 86400000).toISOString().slice(0, 16).replace('T', ' ')
     ),
     status: cleanStatus,
-    priority:
-      job.priority === 'Urgent' || job.priority === 'Emergency' ? job.priority : 'Routine',
+    priority: normalizeJobPriority(job.priority),
     technician: clampString(job.technician, 120, 'Workshop Technician'),
     laborHours: clampNumber(job.laborHours, 0, 1000, 0),
     laborRate: clampNumber(job.laborRate, 0, 10000, 45),
@@ -320,8 +320,7 @@ export function buildJobCardUpdatePatch(job: JobCard, staffUids: string[]) {
 
   const patch: Record<string, unknown> = {
     status: cleanStatus,
-    priority:
-      job.priority === 'Urgent' || job.priority === 'Emergency' ? job.priority : 'Routine',
+    priority: normalizeJobPriority(job.priority),
     technician: clampString(job.technician, 120, 'Workshop Technician'),
     laborHours: clampNumber(job.laborHours, 0, 1000, 0),
     laborRate: clampNumber(job.laborRate, 0, 10000, 45),
@@ -734,8 +733,10 @@ function docToJobCard(raw: Record<string, unknown>): JobCard {
       ? raw.updatedAtIso
       : timestampToIso(raw.updatedAt, createdAt);
 
+  const rawObj = raw as unknown as JobCard;
   return {
-    ...(raw as unknown as JobCard),
+    ...rawObj,
+    priority: normalizeJobPriority(rawObj.priority),
     createdAt,
     updatedAt,
   };
