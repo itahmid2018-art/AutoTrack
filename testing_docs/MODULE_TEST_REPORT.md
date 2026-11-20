@@ -1,14 +1,14 @@
 # Module-by-Module Test & Verification Report
 
-**Run Timestamp:** 2026-11-20T06:25:52Z  
+**Run Timestamp:** 2026-11-20T09:32:33Z  
 **Unit Test Runner:** `npm test` (`npx tsx --test tests/*.test.ts`)  
-**Total Unit Results:** **57 / 57 tests passed** across **24 suites** (`4,305.91 ms`, `0` failures)  
+**Total Unit Results:** **63 / 63 tests passed** across **25 suites** (`3,895.21 ms`, `0` failures)  
 **Static Type Check:** `npm run lint` (`tsc --noEmit`) — **PASS (0 errors)**  
 **Component & Lib Import Verification:** **34 / 34 modules imported cleanly via `tsx`**
 
 ---
 
-## 1. Utility Modules (`src/utils/` — 24 / 24 Modules Tested)
+## 1. Utility Modules (`src/utils/` — 26 / 26 Modules Tested)
 
 Every utility module under `src/utils/` has active unit test coverage in `tests/*.test.ts`:
 
@@ -33,11 +33,13 @@ Every utility module under `src/utils/` has active unit test coverage in `tests/
 | 17 | `mysqlExport.ts` | `tests/inventoryAndDb.test.ts` | DDL generation + SQL dump quote escaping across seeded tables | **PASS** |
 | 18 | `offlineCache.ts` | `tests/inventoryAndDb.test.ts` | Graceful SSR fallback & Cache API read/write envelope sync | **PASS** |
 | 19 | `pdfBrandMeta.ts` | `tests/portalPdfAndSync.test.ts` | Branding metadata construction & `portalOrigin` preservation | **PASS** |
-| 20 | `revenueForecast.ts` | `tests/analyticsAndConfig.test.ts` | 12-month seasonality, pipeline calculation, scenario ordering | **PASS** |
-| 21 | `stockDeduction.ts` | `tests/stockDeduction.test.ts` | Policy triggers, idempotent deduction, delta additions, Cancelled restore | **PASS** |
-| 22 | `technicianPerformance.ts` | `tests/analyticsAndConfig.test.ts` | Tech matching, generic operator exclusion, turnaround & revenue rollups | **PASS** |
-| 23 | `warrantyAdjudicator.ts` | `tests/warrantyAdjudicator.test.ts` | Serial/Bosch FD decoding, term adjudication, cable-cut exclusions | **PASS** |
-| 24 | `workshopSchedule.ts` | `tests/analyticsAndConfig.test.ts` | Week date math, shift durations, overlap detection, capacity badges | **PASS** |
+| 20 | `recentSearches.ts` | `tests/recentSearches.test.ts` | Last-5 unique job ID capping, promotion on reuse, normalization, removal, storage persistence | **PASS** |
+| 21 | `revenueForecast.ts` | `tests/analyticsAndConfig.test.ts` | 12-month seasonality, pipeline calculation, scenario ordering | **PASS** |
+| 22 | `stockDeduction.ts` | `tests/stockDeduction.test.ts` | Policy triggers, idempotent deduction, delta additions, Cancelled restore | **PASS** |
+| 23 | `technicianPerformance.ts` | `tests/analyticsAndConfig.test.ts` | Tech matching, generic operator exclusion, turnaround & revenue rollups | **PASS** |
+| 24 | `theme.ts` | `tests/theme.test.ts` | Dark/light toggle helpers, storage round-trip, `.dark` class, `colorScheme` & `<meta theme-color>` | **PASS** |
+| 25 | `warrantyAdjudicator.ts` | `tests/warrantyAdjudicator.test.ts` | Serial/Bosch FD decoding, term adjudication, cable-cut exclusions | **PASS** |
+| 26 | `workshopSchedule.ts` | `tests/analyticsAndConfig.test.ts` | Week date math, shift durations, overlap detection, capacity badges | **PASS** |
 
 ---
 
@@ -61,7 +63,7 @@ All 30 components in `src/components/`, `src/hooks/useOnlineStatus.ts`, `src/lib
 
 | Category | Count | Result | Notable Exported Modules Verified |
 | :--- | :---: | :---: | :--- |
-| **React Components (`src/components/*.tsx`)** | 30 | **PASS** | `AnalyticsDashboard`, `KanbanBoard`, `InventoryManager`, `CustomerView`, `JobCardDetail`, `MessagingCenter`, `RevenueForecastModule`, `WeeklyWorkshopCalendar`, `OfflineIndicator`, `PWAInstallButton`, plus all 20 supporting modals/views |
+| **React Components (`src/components/*.tsx`)** | 30 | **PASS** | `Header` (theme toggle, full-width search, last-5 recent job IDs dropdown), `AnalyticsDashboard`, `KanbanBoard`, `InventoryManager`, `CustomerView`, `JobCardDetail`, `MessagingCenter`, `RevenueForecastModule`, `WeeklyWorkshopCalendar`, `OfflineIndicator`, `PWAInstallButton`, plus all 19 supporting modals/views (verified `0` unpaired dark-only lines across dual-theme UIs) |
 | **React Hooks (`src/hooks/useOnlineStatus.ts`)** | 1 | **PASS** | `useOnlineStatus` |
 | **Firebase SDK (`src/lib/firebase.ts`, `firebase-admin.ts`)** | 2 | **PASS** (Module Load) | Client SDK + `adminAuth`/`adminDb` initialize cleanly; runtime `adminDb` calls depend on IAM credentials (see `API_KEY_AND_SERVICE_HEALTH_REPORT.md`) |
 | **Express Auth Middleware (`src/middleware/auth.ts`)** | 1 | **PASS** | `requireAuth` verified returning HTTP `401` on unauthenticated admin API calls |

@@ -9,7 +9,7 @@ This folder contains verified test results across all application modules, build
 
 ## Report Index
 
-1. [Module-by-Module Test Report](./MODULE_TEST_REPORT.md) — Unit tests across all 24 `src/utils/` modules (`57 / 57` tests passed), 5 `src/data/` datasets, 30 UI components, hooks, libs, and auth middleware.
+1. [Module-by-Module Test Report](./MODULE_TEST_REPORT.md) — Unit tests across all 26 `src/utils/` modules (`63 / 63` tests passed across `25` suites), 5 `src/data/` datasets, 30 UI components, hooks, libs, and auth middleware.
 2. [API Key & Service Health Report](./API_KEY_AND_SERVICE_HEALTH_REPORT.md) — Live validity, latency, and permission probes for Gemini AI (`200 OK`), Firebase Web API Key, Cloud Firestore, Firebase Admin ADC, messaging/email configuration, and local database daemons.
 3. [Integration, Security, SQL & Build Report](./INTEGRATION_AND_BUILD_REPORT.md) — Results for `tsc --noEmit`, Vite build, esbuild server bundle, production smoke test, SQL validation, Firestore rules lint/tests, and gate scripts.
 
@@ -19,9 +19,9 @@ This folder contains verified test results across all application modules, build
 
 | Area | Scope | Outcome | Summary |
 | :--- | :--- | :---: | :--- |
-| **Utility Unit Suites** | 24 modules, 24 suites, 57 tests | **PASS** | 57 / 57 passed (`0` failures) in `4.31s` |
+| **Utility Unit Suites** | 26 modules, 25 suites, 63 tests | **PASS** | 63 / 63 passed (`0` failures) in `~3.9s` |
 | **UI, Hooks, Libs & Auth** | 34 files (`src/components`, `hooks`, `lib`, `middleware`) | **PASS** | 34 / 34 imported cleanly; `tsc --noEmit` 0 errors |
-| **Build & Production Smoke** | `vite build`, `esbuild`, `smoke_prod.mjs` | **PASS** | Client (`2,792` modules, `5.76s`) + `dist-server/server.cjs` (`85.0 kB`) built & booted |
+| **Build & Production Smoke** | `vite build`, `esbuild`, `smoke_prod.mjs` | **PASS** | Client + `dist-server/server.cjs` built & booted cleanly |
 | **Security & Ledger Gates** | `verify_*`, `eslint`, `firestore.rules.test.ts` | **PASS** | All 52 script checks + Dirty Dozen + rules lint passed |
 | **SQL Schema Validation** | `database.sql`, `database.postgres.sql` | **PASS** | 37 MySQL + 46 Postgres statements balanced |
 | **Firebase Web API Key** | Identity Toolkit & Firestore REST | **PASS** | Valid key (`200 OK` Auth `363ms`, `403` rules active `363ms`) |
@@ -31,20 +31,24 @@ This folder contains verified test results across all application modules, build
 
 ---
 
-## Requirement Traceability Matrix (Prompts 1–12)
+## Requirement Traceability Matrix (Prompts 1–16)
 
 | Requirement / Prompt Topic | Implementation Status | Primary Implementation Files | Verified Tests & Documentation |
 | :--- | :---: | :--- | :--- |
 | **Duplicate React / Invalid Hook Call Fix** | Implemented | `src/hooks/useOnlineStatus.ts`, `src/hooks/usePWAInstall.ts`, `src/components/OfflineIndicator.tsx`, `src/components/PWAInstallButton.tsx` | `tsc --noEmit`, `vite build`, clean 34-module ESM load |
 | **Consumption-Based Reorder Points** | Implemented | `src/utils/inventoryNotifications.ts` (`analyzeInventoryReorderPoints`), `src/components/InventoryManager.tsx` | `tests/inventoryAndDb.test.ts`, `docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md` (Feature 18) |
-| **Draft Purchase Order (PO) PDF on Low Stock** | Implemented | `src/components/InventoryManager.tsx`, `src/components/AiReorderRecommendations.tsx`, `src/utils/generatePdf.ts` | `tests/portalPdfAndSync.test.ts`, `docs/USER_MANUAL_AND_TRAINING_GUIDE.md` (§4.10) |
+| **Draft Purchase Order (PO) PDF on Low Stock** | Implemented | `src/components/InventoryManager.tsx`, `src/components/AiReorderRecommendations.tsx`, `src/utils/generatePdf.ts` | `tests/portalPdfAndSync.test.ts`, `docs/USER_MANUAL_AND_TRAINING_GUIDE.md` (§4.5) |
 | **30-Day Operational Expenses vs. Labor Income Chart** | Implemented | `src/components/AnalyticsDashboard.tsx`, `src/utils/billing.ts` | `tests/billing.test.ts`, `docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md` (Feature 18) |
 | **D3.js Monthly Consumption Trends Chart** | Implemented | `src/components/AnalyticsDashboard.tsx` (`D3ConsumptionTrendChart`), `src/utils/inventoryNotifications.ts` (`computeMonthlyPartConsumptionTrends`) | `tests/inventoryAndDb.test.ts`, `README.md` (Feature 21) |
 | **Kanban Cloud Sync Status Indicator** | Implemented | `src/components/KanbanBoard.tsx`, `src/utils/cloudSyncStatus.ts`, `src/App.tsx` | `tests/cloudSyncStatus.test.ts`, `docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md` (Feature 19) |
 | **Average Time to Replenish KPI Card** | Implemented | `src/components/AnalyticsDashboard.tsx`, `src/utils/inventoryReplenishment.ts` | `tests/inventoryReplenishment.test.ts`, `docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md` (Feature 20) |
-| **Module Tests, API Health Checks & `/testing_docs/`** | Implemented | `tests/*.test.ts`, `scripts/verify_*.ts`, `testing_docs/*.md` | `57/57` unit tests, `52/52` gate checks, `testing_docs/API_KEY_AND_SERVICE_HEALTH_REPORT.md` |
+| **Module Tests, API Health Checks & `/testing_docs/`** | Implemented | `tests/*.test.ts`, `scripts/verify_*.ts`, `testing_docs/*.md` | `63/63` unit tests, `52/52` gate checks, `testing_docs/API_KEY_AND_SERVICE_HEALTH_REPORT.md` |
 | **Gemini Model ID Fix & `/api/ai/diagnose` Re-Test** | Implemented | `server.ts` (`normalizeGeminiModelAlias`, `isRetriableModelError`, `/api/ai/status`) | `GET /api/ai/status` (`200 OK`), `POST /api/ai/diagnose` + all 5 sibling AI routes (`200 OK`) |
-| **Updated Documentation Across Guides** | Implemented | `README.md`, `docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md`, `docs/USER_MANUAL_AND_TRAINING_GUIDE.md`, `docs/SETUP_AND_MAINTENANCE_GUIDE.md` | Feature guides, QA steps, CLI verification commands, architecture notes |
+| **AI Model & Messaging Sandbox Guide** | Implemented | `docs/AI_MODEL_AND_MESSAGING_SANDBOX_GUIDE.md` | Linked in `README.md`; covers AI Studio Secrets + Twilio/Email sandbox curl checks |
+| **High-Contrast Light & Dark Theme Toggle** | Implemented | `src/utils/theme.ts`, `index.html`, `src/index.css`, `src/App.tsx`, `src/components/Header.tsx`, `src/components/CustomerView.tsx`, 28 component files | `tests/theme.test.ts`, `0` unpaired dark-only lines across components, `docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md` (Feature 21) |
+| **Full-Width Global Search Bar Under Top Header** | Implemented | `src/components/Header.tsx` (`<section aria-label="Global workshop search">`) | `tsc --noEmit`, `vite build`, `docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md` (Feature 22) |
+| **Recent Searches Dropdown (Last 5 Job IDs)** | Implemented | `src/utils/recentSearches.ts`, `src/components/Header.tsx` | `tests/recentSearches.test.ts` (3/3 assertions), `docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md` (Feature 22) |
+| **Updated Documentation Across Guides** | Implemented | `README.md`, `testing_docs/*.md`, `docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md`, `docs/USER_MANUAL_AND_TRAINING_GUIDE.md`, `docs/SETUP_AND_MAINTENANCE_GUIDE.md` | Feature guides, QA steps, CLI verification commands, architecture notes |
 
 ---
 

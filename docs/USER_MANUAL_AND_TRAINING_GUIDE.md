@@ -80,7 +80,7 @@ It digitizes tool servicing across leading brands—including **Bosch Profession
 
 #### Technical Stack Breakdown:
 - **Frontend Framework**: React 19 SPA built with Vite 8 and strict TypeScript.
-- **Styling Architecture**: Tailwind CSS v4 (`@import "tailwindcss";`) in high-contrast monochrome industrial theme.
+- **Styling Architecture**: Tailwind CSS v4 (`@import "tailwindcss";`) supporting both Dark and High-Contrast Light industrial themes (`localStorage` persisted).
 - **Backend Runtime**: Node 22 Express server (`server.ts`) running on Port 3000 with Firebase Admin JWT verification, CORS support, and 300 req/min rate limiting.
 - **Artificial Intelligence Engine**: `@google/genai` server proxy (`GEMINI_API_KEY`) for diagnosis, part matching, voice notes, chat, and barcode label vision.
 - **Data Storage & Persistence**:
@@ -126,11 +126,13 @@ It digitizes tool servicing across leading brands—including **Bosch Profession
 10. **Technician Repair Sign-Off**: Once repairs conclude, bench technicians sign off using the HTML5 canvas signature pad before marking tickets `Completed`.
 11. **Unique QR Code Receipts**: Printed PDF job cards embed a QR matrix linking directly to `/?view=customer&token=...`.
 
-#### 4.2 Grouped Navigation, Global Real-Time Search & Multi-Client Sync
-Located in the top two header rows:
-- **Global Search**: Real-time instant search across all Job Cards and 1,000 Inventory Spare Parts SKUs by Client Name, Mobile Phone Number, Job Ticket ID, Part SKU, Model Number, or Serial Number.
-- **Grouped Feature Menus**: Beneath the search bar, 5 dropdown groups (**Jobs & Intake**, **Inventory & Servicing**, **Messaging & Portal**, **Analytics & Team**, **Settings & Tools**) organize every workspace view with live badge counts.
-- **Global Barcode / QR Button**: Opens the camera scanner anywhere in the app and routes matches to `GlobalScanResultModal` (jump directly to the ticket or spare part).
+#### 4.2 Grouped Navigation, Full-Width Global Search, Recent Searches & Theme Toggle
+Located in the top bar (`Header`) and the dedicated full-width search band directly beneath it:
+- **Full-Width Global Search**: Spans the entire page width directly under the top header bar for instant filtering across Job Cards and 1,000 Spare Parts SKUs by Client Name, Mobile Phone Number, Job Ticket ID, Part SKU, Model Number, or Serial Number. Press `Enter` to open the top matched Job Card immediately.
+- **Recent Searches Dropdown (Last 5 Job IDs)**: Focusing the empty search bar displays the last 5 opened Job Card IDs (`autotrack_recent_job_searches_v1`) so operators can jump back to recent records in one click, dismiss individual IDs (`X`), or clear history.
+- **Grouped Feature Menus**: Row 2 of the top header bar organizes **Jobs & Intake**, **Inventory & Servicing**, **Messaging & Portal**, **Analytics & Team**, and **Settings & Tools** with live badge counts.
+- **High-Contrast Light / Dark Theme Toggle**: Click the **Light** (`Sun`) or **Dark** (`Moon`) button in the top-right header utility bar (or inside the Client Portal header) to switch themes; preference saves automatically in `autotrack_theme_mode_v1` while printed A4 Job Cards stay on crisp white paper.
+- **Global Barcode / QR Button**: Opens the camera scanner inside the search bar and routes matches to `GlobalScanResultModal`.
 - **Bulk Job Status Update (`Service Cards`)**: Select multiple cards via row checkboxes or **Select All**, pick a target status, and click **Bulk Update Status** to update statuses, audit logs, and inventory stock deductions together.
 - **Google Sign-In Sync**: Sign in with Google to synchronize live intakes, inventory stock counts, settings, and delivery statuses across every active operator browser and tablet within seconds.
 
@@ -279,12 +281,13 @@ See [`docs/DATABASE_SETUP_AND_INTEGRATION_GUIDE.md`](DATABASE_SETUP_AND_INTEGRAT
 
 ### 9. QUALITY ASSURANCE & TESTING ACCEPTANCE GUIDE
 
-For complete test matrices covering Features 1–20, security rules tests, SQL/CSV validation scripts, live API health reports, and E2E verification checklists, refer to:
+For complete test matrices covering Features 1–22, security rules tests, SQL/CSV validation scripts, live API health reports, and E2E verification checklists, refer to:
 
 - **[`docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md`](TESTING_AND_QA_ACCEPTANCE_GUIDE.md)**
 - **[`docs/DATABASE_SETUP_AND_INTEGRATION_GUIDE.md`](DATABASE_SETUP_AND_INTEGRATION_GUIDE.md)**
 - **[`docs/SETUP_AND_MAINTENANCE_GUIDE.md`](SETUP_AND_MAINTENANCE_GUIDE.md)**
+- **[`docs/AI_MODEL_AND_MESSAGING_SANDBOX_GUIDE.md`](AI_MODEL_AND_MESSAGING_SANDBOX_GUIDE.md)**
 - **[`testing_docs/README.md`](../testing_docs/README.md)**
 
 ---
-*Manual compiled and maintained for Bosch Authorised Service Hub Operations (v4.3).*
+*Manual compiled and maintained for Bosch Authorised Service Hub Operations (v4.4).*

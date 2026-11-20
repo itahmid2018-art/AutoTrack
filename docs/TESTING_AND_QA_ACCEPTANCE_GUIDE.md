@@ -1,6 +1,6 @@
 # Quality Assurance & Testing Acceptance Guide
 
-This guide defines acceptance tests for the AutoTrack Pro service center application. It covers 20 core features, multi-client database synchronization, offline Service Worker resilience, Kanban cloud sync indicators, and automated dev-team verification suites.
+This guide defines acceptance tests for the AutoTrack Pro service center application. It covers 22 core features, multi-client database synchronization, offline Service Worker resilience, Kanban cloud sync indicators, and automated dev-team verification suites.
 
 ---
 
@@ -23,10 +23,13 @@ This guide defines acceptance tests for the AutoTrack Pro service center applica
 16. [Feature 15: Automated Customer Feedback SMS & CSAT Ratings](#16-feature-15-automated-customer-feedback-sms--csat-ratings)
 17. [Feature 16: Job Card Email Notifications & Portal Links](#17-feature-16-job-card-email-notifications--portal-links)
 18. [Feature 17: Grouped Header Menus, Bulk Status Update & Intake Signature Calibration](#18-feature-17-grouped-header-menus-bulk-status-update--intake-signature-calibration)
-19. [Feature 18: Draft Purchase Order PDF, 30-Day Op Expenses vs. Labor Chart & D3.js Consumption Trends](#19-feature-18-draft-purchase-order-pdf-30-day-op-expenses-vs-labor-chart--d3js-consumption-trends)
+19. [Feature 18: Consumption-Based Reorder Points, Draft PO PDFs, 30-Day Op Expenses vs. Labor Chart & D3.js Consumption Trends](#19-feature-18-consumption-based-reorder-points-draft-po-pdfs-30-day-op-expenses-vs-labor-chart--d3js-consumption-trends)
 20. [Feature 19: Kanban Board Cloud Sync Status Indicator & Offline Queue Recovery](#20-feature-19-kanban-board-cloud-sync-status-indicator--offline-queue-recovery)
-21. [Database & Dummy Dataset Verification Matrix](#21-database--dummy-dataset-verification-matrix)
-22. [End-to-End Regression Test Script & Dev-Team Automation](#22-end-to-end-regression-test-script--dev-team-automation)
+21. [Feature 20: Average Time to Replenish Summary Card (`AnalyticsDashboard`)](#21-feature-20-average-time-to-replenish-summary-card-analyticsdashboard)
+22. [Feature 21: High-Contrast Light & Dark Theme Toggle (`Header` & `CustomerView`)](#22-feature-21-high-contrast-light--dark-theme-toggle-header--customerview)
+23. [Feature 22: Full-Width Global Search Bar & Last-5 Recent Job Searches (`Header`)](#23-feature-22-full-width-global-search-bar--last-5-recent-job-searches-header)
+24. [Database & Dummy Dataset Verification Matrix](#24-database--dummy-dataset-verification-matrix)
+25. [End-to-End Regression Test Script & Dev-Team Automation](#25-end-to-end-regression-test-script--dev-team-automation)
 
 ---
 
@@ -839,7 +842,54 @@ Top navigation bar (`Header.tsx`), `Service Cards` list (`JobCardList.tsx`), and
 
 ---
 
-## 22. Database & Dummy Dataset Verification Matrix
+## 22. Feature 21: High-Contrast Light & Dark Theme Toggle (`Header` & `CustomerView`)
+
+### Location
+Top-right utility bar in `Header.tsx` (`data-testid="theme-toggle"`), Client Portal header (`CustomerView.tsx`), pre-paint loader in `index.html`, and helpers in `src/utils/theme.ts`.
+
+### Test Cases
+
+#### TC-THEME-01: Toggling Between Dark & High-Contrast Light Themes with Reload Persistence
+- **Preconditions**: Application open in default Dark theme (`document.documentElement.classList.contains('dark') === true`).
+- **Steps**:
+  1. Click the **Light** (`Sun`) button in the Header utility bar.
+  2. Navigate across `Intake Form`, `Service Cards`, `Kanban Board`, `Analytics` (checking Recharts tooltips and D3.js trend chart), and `Print Tag` (`PrintableJobCardModal`).
+  3. Reload the browser (`F5`), then open `Client Portal` and inspect its header toggle.
+- **Expected Outcome**:
+  - `.dark` class clears from `<html>`, `localStorage['autotrack_theme_mode_v1']` stores `'light'`, and `<meta name="theme-color">` updates to `#ffffff`.
+  - Cards, inputs, text, inverted buttons (`bg-zinc-950 text-white`), and chart strokes render cleanly in high-contrast daylight colors, while `#printable-job-card` remains crisp white A4 paper (`bg-white text-black`).
+  - Reloading preserves the selected light theme immediately with zero pre-paint dark flash.
+
+---
+
+## 23. Feature 22: Full-Width Global Search Bar & Last-5 Recent Job Searches (`Header`)
+
+### Location
+Full-width search bar (`<section aria-label="Global workshop search">`) placed directly beneath the top header bar (`Header.tsx`), backed by `src/utils/recentSearches.ts` (`autotrack_recent_job_searches_v1`).
+
+### Test Cases
+
+#### TC-SEARCH-01: Full-Width Search Filtering & Keyboard `Enter` Shortcut
+- **Steps**:
+  1. Inspect desktop (`1440px`), tablet (`768px`), and mobile (`390px`) layouts. Confirm the global search bar spans the full page width directly under `<header>` without crowding Row 1 brand/utility buttons.
+  2. Type `BOSCH-2026-0041` (or a client phone/serial/SKU) and inspect results; repeat with a single matching ticket and press `Enter`.
+- **Expected Outcome**:
+  - Search bar occupies full horizontal page width (`w-full`) with centered search, clear (`X`), and QR/Barcode icons.
+  - Pressing `Enter` opens the top matched job card immediately and clears the query.
+
+#### TC-SEARCH-02: Recent Searches Dropdown (Last 5 Job IDs) & Persistence
+- **Steps**:
+  1. Search and open 6 distinct Job Cards sequentially from the global search bar.
+  2. Click inside the empty search input to focus it (`recent-searches-dropdown`).
+  3. Select the 3rd listed Job ID, then test individual item dismissal (`X`) and **Clear history**.
+- **Expected Outcome**:
+  - Focusing the empty search bar opens the Recent Searches dropdown displaying only the last **5** opened Job IDs (`5/5 Job IDs`), ordered newest-first.
+  - Selecting an ID opens that job card immediately and promotes its ID to position 1 without creating duplicates; the preference persists across reloads in `autotrack_recent_job_searches_v1`.
+  - Clicking `X` removes only that ID; clicking **Clear history** empties `autotrack_recent_job_searches_v1` cleanly.
+
+---
+
+## 24. Database & Dummy Dataset Verification Matrix
 
 All 3 database engines and sample CSV files are shipped with deterministic demonstration data for immediate QA testing. Refer to [`DATABASE_SETUP_AND_INTEGRATION_GUIDE.md`](DATABASE_SETUP_AND_INTEGRATION_GUIDE.md) for installation commands.
 
@@ -853,9 +903,9 @@ All 3 database engines and sample CSV files are shipped with deterministic demon
 
 ---
 
-## 23. End-to-End Regression Test Script & Dev-Team Automation
+## 25. End-to-End Regression Test Script & Dev-Team Automation
 
-### 23.1 Automated Dev-Team Verification Suite
+### 25.1 Automated Dev-Team Verification Suite
 Run the full automated suite before every release or PR merge (recorded results are also maintained in [`../testing_docs/README.md`](../testing_docs/README.md)):
 
 ```bash
@@ -866,7 +916,7 @@ scripts\uat_local_setup.bat           # Windows
 # Or execute individual checks:
 node scripts/check_local_services.mjs # Probe PostgreSQL, MySQL, SQLite, Redis, Mongo, Firebase, Docker, port 3000
 npm run lint                          # Strict TypeScript check (tsc --noEmit)
-npm test                              # All 24 utility + seed unit suites (57+ tests covering all src/utils/* modules)
+npm test                              # All 25 utility + seed unit suites (63 tests covering all 26 src/utils/* modules)
 npm run validate:sql                  # State-machine lexer over database.sql & database.postgres.sql
 npx eslint firestore.rules            # Firestore rules security static analysis
 npx tsx firestore.rules.test.ts       # Dirty Dozen & schema boundary rules checks
@@ -878,10 +928,12 @@ npm run build                         # Build Vite client + dist-server/server.c
 npm run smoke                         # Boot built server on port 3199 & verify /, customer portal, /api/messaging/status
 ```
 
-### 23.2 Manual E2E Flow (15-Minute Regression)
+### 25.2 Manual E2E Flow (15-Minute Regression)
 
-1. **Authentication, Grouped Navigation & Multi-Client Sync**:
-   - Sign in with Google on Browser A and Browser B (`localhost:3000`) and verify the 5 grouped menus beneath the search bar (`Jobs & Intake`, `Inventory & Servicing`, `Messaging & Portal`, `Analytics & Team`, `Settings & Tools`).
+1. **Theme Toggle, Full-Width Search, Recent Searches & Multi-Client Sync**:
+   - Switch between Dark and Light modes via the Header **Light/Dark** button, reload, and confirm zero flash.
+   - Search and open 2 job cards from the full-width search bar beneath `<header>`, focus the empty search box to reopen one via **Recent Searches**, and verify the 5 grouped menus (`Jobs & Intake`, `Inventory & Servicing`, `Messaging & Portal`, `Analytics & Team`, `Settings & Tools`).
+   - Sign in with Google on Browser A and Browser B (`localhost:3000`) to confirm live Firestore sync.
 2. **Camera Barcode/QR & Calibrated Signature Intake**:
    - Open `+ Intake Form`, click `Scan Serial / QR`, register tool `Bosch GBH 11 DE`, verify the signature stroke aligns under cursor at any viewport width, and submit `BOSCH-2026-004X`.
    - Confirm the new card syncs to Browser B within 2 seconds.
@@ -910,7 +962,7 @@ npm run smoke                         # Boot built server on port 3199 & verify 
 ---
 
 ## Document Control
-- **Document Version**: 4.3.0
+- **Document Version**: 4.4.0
 - **Audience**: QA Engineers, Software Developers, Workshop Supervisors, Implementation Leads
 - **Classification**: Internal Technical Specification
 

@@ -98,7 +98,15 @@ A One-page, high-efficiency **Job Card tracking, ~1,000-item spare parts invento
 
 23. **⏱️ Average Time to Replenish KPI & Full Module Test Reports (`/testing_docs/`)**:
     * Tracks low-stock timestamp transitions (`lowStockTimestamp`) against `lastRestocked` dates (`calculateAverageReplenishMetrics`) to display an **Average Time to Replenish** summary card (days, hours, restocked vs. awaiting counts) inside **Analytics**.
-    * Ships automated unit tests across all 24 `src/utils/` modules and 5 seed datasets alongside live API health and build verification reports in [`testing_docs/README.md`](testing_docs/README.md).
+    * Ships automated unit tests across all 26 `src/utils/` modules and 5 seed datasets alongside live API health and build verification reports in [`testing_docs/README.md`](testing_docs/README.md).
+
+24. **🌓 High-Contrast Light & Dark Theme Toggle (`Header`, `CustomerView`, `src/utils/theme.ts`)**:
+    * Switches all 30 workshop components, charts (`Recharts`/`D3`), modals, and the client portal between the default dark theme and a high-contrast daylight theme while keeping A4 printable job cards (`#printable-job-card`) locked to white paper.
+    * Stores user preference in `localStorage` (`autotrack_theme_mode_v1`) and loads `.dark` pre-paint in `index.html` to prevent reload flicker.
+
+25. **🔎 Full-Width Search Bar & Last-5 Recent Job Searches (`Header`, `src/utils/recentSearches.ts`)**:
+    * Places the global search bar directly beneath the top header bar spanning full page width (`w-full`) with `Enter`-key quick open, clear button, and QR/Barcode scanner shortcut.
+    * Displays a **Recent Searches** dropdown when focusing an empty search box showing the last 5 searched Job IDs (`autotrack_recent_job_searches_v1`) with single-item remove and clear-history controls.
 
 ---
 
@@ -260,9 +268,9 @@ Both SQL demonstration scripts provision starter staff accounts in `users` using
 1. **[Database Setup, Integration & Dummy Data Guide](docs/DATABASE_SETUP_AND_INTEGRATION_GUIDE.md)**:
    * Step-by-step guides for Cloud Firestore live sync, PostgreSQL 16 (`/database.postgres.sql`), MySQL 8.0 (`/database.sql`), Service Worker offline cache, Android/tablet `VITE_API_BASE_URL` + Bearer APIs, and 5 ready-to-use dummy datasets.
 2. **[Testing & QA Acceptance Guide](docs/TESTING_AND_QA_ACCEPTANCE_GUIDE.md)**:
-   * Test matrices, steps, pre-conditions, and expected results covering Features 1–20: Voice Notes, AI Diagnosis, Calendar, Sign-Offs, Bulk CSV & Excel Inventory Import, Analytics Toggles, Revenue Forecast, D3.js Consumption Trends, 30-Day Expense vs. Labor Chart, Draft PO PDFs, Email Dispatch, Bulk Status Updates, Kanban Cloud Sync Status, Intake Signature Calibration, Customer Feedback SMS, and Multi-Client Firebase Sync + Security Rules tests.
+   * Test matrices, steps, pre-conditions, and expected results covering Features 1–22: Voice Notes, AI Diagnosis, Calendar, Sign-Offs, Bulk CSV & Excel Inventory Import, Analytics Toggles, Revenue Forecast, D3.js Consumption Trends, 30-Day Expense vs. Labor Chart, Draft PO PDFs, Email Dispatch, Bulk Status Updates, Kanban Cloud Sync Status, Intake Signature Calibration, Average Time to Replenish, High-Contrast Light/Dark Theme Toggle, Full-Width Search & Recent Searches, Customer Feedback SMS, and Multi-Client Firebase Sync + Security Rules tests.
 3. **[End-User Operating Manual & Training Guide](docs/USER_MANUAL_AND_TRAINING_GUIDE.md)**:
-   * Counter intake protocols, camera barcode/QR scanning, Predictive Revenue charts, offline Service Worker behavior, live Google Auth sync, Client delivery portal (`/?view=customer&token=...`) & feedback survey usage, and staff checklists.
+   * Counter intake protocols, full-width search & recent job searches, Light/Dark theme switching, camera barcode/QR scanning, Predictive Revenue charts, offline Service Worker behavior, live Google Auth sync, Client delivery portal (`/?view=customer&token=...`) & feedback survey usage, and staff checklists.
 4. **[Setup, Security & Maintenance Guide](docs/SETUP_AND_MAINTENANCE_GUIDE.md)**:
    * Architecture reality, deployment limits, PII sanitization policies, Cancelled stock reversal policy, API rate limits, Firebase security rules (`security_spec.md`), Service Worker caching, and SQL setup.
 5. **[Remediation Plan Archive](docs/REMEDIATION_PLAN.md)** & **[Engineering Guide](AGENTS.md)**:
@@ -270,7 +278,7 @@ Both SQL demonstration scripts provision starter staff accounts in `users` using
 6. **[Sample CSV Datasets Directory](docs/samples/README.md)**:
    * Pre-formatted CSV import fixtures for maintenance schedules, inventory items (including Excel/TSV & CSV bulk paste), and service tickets.
 7. **[Module & API Verification Reports](testing_docs/README.md)**:
-   * Module-by-module unit test coverage (`24` suites across `src/utils/` and `src/data/`), build/security gate outputs, and live API key health probes.
+   * Module-by-module unit test coverage (`25` suites / `63` tests across all `26` `src/utils/` modules and `src/data/`), build/security gate outputs, and live API key health probes.
 8. **[AI Model Configuration & Messaging Sandbox Testing Guide](docs/AI_MODEL_AND_MESSAGING_SANDBOX_GUIDE.md)**:
    * Step-by-step instructions to set explicit `GEMINI_TEXT_MODEL` / `GEMINI_AUDIO_MODEL` IDs in AI Studio Secrets for zero fallback delay and run internal sandbox tests on Twilio SMS/WhatsApp and Email routes.
 
