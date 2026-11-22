@@ -476,10 +476,19 @@ export const SerialBarcodeScannerModal: React.FC<SerialBarcodeScannerModalProps>
             {/* Target Reticle Overlay */}
             {cameraReady && (
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-8">
-                <div className="w-full max-w-sm h-28 border-2 border-emerald-400/70 rounded-xl relative shadow-[0_0_0_9999px_rgba(9,9,11,0.45)]">
-                  <div className="absolute inset-x-3 top-1/2 h-0.5 bg-emerald-400/80 shadow-[0_0_8px_#34d399]" />
-                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-emerald-800 dark:text-emerald-300 bg-white/95 dark:bg-zinc-950/90 px-2.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-700/60 whitespace-nowrap">
-                    {hardwareDetectorActive ? 'AUTO-SCAN ACTIVE' : 'ALIGN BARCODE INSIDE FRAME'}
+                <div className="w-full max-w-sm h-36 border-2 border-emerald-400/80 rounded-2xl relative shadow-[0_0_0_9999px_rgba(9,9,11,0.5)] flex items-center justify-center">
+                  {/* Corner Targeting Brackets */}
+                  <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-emerald-300 rounded-tl-lg" />
+                  <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-emerald-300 rounded-tr-lg" />
+                  <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-emerald-300 rounded-bl-lg" />
+                  <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-emerald-300 rounded-br-lg" />
+
+                  {/* Pulsing Scanning Beam Indicator */}
+                  <div className="absolute inset-x-4 top-1/2 h-0.5 bg-gradient-to-r from-transparent via-emerald-300 to-transparent animate-pulse shadow-[0_0_10px_#34d399]" />
+
+                  {/* Alignment Label */}
+                  <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] font-bold text-emerald-800 dark:text-emerald-300 bg-white/95 dark:bg-zinc-950/90 px-3 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-700/60 whitespace-nowrap tracking-wide font-mono">
+                    {hardwareDetectorActive ? 'POSITION QR / BARCODE IN TARGET AREA' : 'ALIGN LABEL INSIDE FRAME'}
                   </span>
                 </div>
               </div>
