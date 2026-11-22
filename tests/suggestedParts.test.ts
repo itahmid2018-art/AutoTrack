@@ -4,6 +4,7 @@ import {
   extractBrandKeywords,
   extractModelTokens,
   getSuggestedPartsForTool,
+  searchInventoryAutoSuggestions,
 } from '../src/utils/suggestedParts';
 import { INITIAL_INVENTORY } from '../src/data/mockInventory';
 import { InventoryItem } from '../src/types';
@@ -105,4 +106,72 @@ test('getSuggestedPartsForTool supports category filtering cleanly', () => {
 
   assert.ok(brushesOnly.length >= 1);
   assert.ok(brushesOnly.every((m) => m.item.category === 'Carbon Brushes & Caps'));
+});
+
+test('searchInventoryAutoSuggestions ranks parts matching job brand and tool category on focus and while typing', () => {
+  const catalog: InventoryItem[] = [
+    makeItem({
+      id: 'i-unrelated',
+      sku: 'BAT-001',
+      name: 'DeWalt DCB184 Battery Pack',
+      category: 'Batteries & Chargers',
+      brand: 'DeWalt Service Parts',
+      compatibleModels: 'DeWalt DCD796',
+    }),
+    makeItem({
+      id: 'i-cat-only',
+      sku: 'CHK-002',
+      name: 'Generic SDS-Plus Chuck Assembly',
+      category: 'SDS Chucks & Tool Holders',
+      brand: 'Metabo Service Parts',
+      compatibleModels: 'Universal SDS',
+    }),
+    makeItem({
+      id: 'i-brand-cat',
+      sku: 'BRSH-003',
+      name: 'Bosch Carbon Brush Pair',
+      category: 'Carbon Brushes & Caps',
+      brand: 'Bosch Genuine Spare Parts',
+      compatibleModels: 'Bosch GBH 2-26',
+    }),
+    makeItem({
+      id: 'i-brand-only',
+      sku: 'HSG-004',
+      name: 'Bosch Blower Nozzle',
+      category: 'Housing Covers & Handles',
+      brand: 'Bosch Heavy Duty OEM',
+      compatibleModels: 'Bosch GBL 800',
+    }),
+  ];
+
+  // Empty-query focus auto-suggestions exclude unrelated brand/category and rank Brand + Category match first
+  const focusResults = searchInventoryAutoSuggestions(
+    { brand: 'Bosch Professional', category: 'Rotary Hammer / SDS', modelNumber: 'GBH 2-26' },
+    catalog,
+    ''
+  );
+  assert.equal(focusResults[0].item.sku, 'BRSH-003');
+  assert.equal(focusResults[0].isBrandMatch, true);
+  assert.equal(focusResults[0].isCategoryMatch, true);
+  assert.equal(focusResults[0].matchLabel, 'Brand & Category Match');
+  assert.ok(!focusResults.some((r) => r.item.sku === 'BAT-001'));
+
+  // Typing a broad query ranks exact Brand + Category relevance above other brand matches
+  const angleGrinderCatalogResults = searchInventoryAutoSuggestions(
+    { brand: 'DeWalt', category: 'Cordless Drill / Driver', modelNumber: 'DCD796' },
+    catalog,
+    'battery'
+  );
+  assert.equal(angleGrinderCatalogResults.length, 1);
+  assert.equal(angleGrinderCatalogResults[0].item.sku, 'BAT-001');
+  assert.equal(angleGrinderCatalogResults[0].matchLabel, 'Brand & Category Match');
+
+  // Direct SKU lookup surfaces the exact item first
+  const skuLookup = searchInventoryAutoSuggestions(
+    { brand: 'Bosch Professional', category: 'Rotary Hammer / SDS', modelNumber: 'GBH 2-26' },
+    catalog,
+    'CHK-002'
+  );
+  assert.equal(skuLookup.length, 1);
+  assert.equal(skuLookup[0].item.sku, 'CHK-002');
 });

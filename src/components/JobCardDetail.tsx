@@ -14,7 +14,10 @@ import {
   findMatchingInventoryItem,
   parseProductQrPayload,
 } from '../utils/barcodeSerialParser';
-import { getSuggestedPartsForTool } from '../utils/suggestedParts';
+import {
+  getSuggestedPartsForTool,
+  searchInventoryAutoSuggestions,
+} from '../utils/suggestedParts';
 import { 
   ArrowLeft, Sparkles, Printer, MessageSquare, Plus, Trash2, 
   CheckCircle2, FileText, User, Phone, Wrench, Search, AlertCircle, PenTool, Check, UserCheck,
@@ -196,8 +199,10 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
   const [partSearch, setPartSearch] = useState('');
   const [showPartDropdown, setShowPartDropdown] = useState(false);
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null);
+  const [highlightedPartIndex, setHighlightedPartIndex] = useState(0);
   const [partQty, setPartQty] = useState(1);
   const [suggestedCategoryFilter, setSuggestedCategoryFilter] = useState<string>('All');
+  const partSearchRef = useRef<HTMLDivElement | null>(null);
 
   // Operational Expenses (non-part costs) form state
   const [expenseCategory, setExpenseCategory] = useState<OperationalExpenseCategory>('Outsourced Labor');
@@ -312,9 +317,24 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
     setSignOffNotes(job.technicianSignOffNotes || '');
     setSignOffError(null);
     setSuggestedCategoryFilter('All');
+    setPartSearch('');
+    setSelectedInventoryItem(null);
+    setShowPartDropdown(false);
+    setHighlightedPartIndex(0);
     signOffStrokesRef.current = [];
     setHasSignOffStroke(false);
   }, [job]);
+
+  useEffect(() => {
+    const handleOutsidePartClick = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (partSearchRef.current && target && !partSearchRef.current.contains(target)) {
+        setShowPartDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsidePartClick);
+    return () => document.removeEventListener('mousedown', handleOutsidePartClick);
+  }, []);
 
   useEffect(() => {
     currentJobRef.current = currentJob;
@@ -676,12 +696,20 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
-  const searchedInventory = inventory.filter((item) =>
-    item.name.toLowerCase().includes(partSearch.toLowerCase()) ||
-    item.sku.toLowerCase().includes(partSearch.toLowerCase()) ||
-    item.barcode.toLowerCase().includes(partSearch.toLowerCase()) ||
-    item.category.toLowerCase().includes(partSearch.toLowerCase())
-  ).slice(0, 10);
+  const autoSuggestedParts = useMemo(
+    () =>
+      searchInventoryAutoSuggestions(currentJob.tool, inventory, partSearch, {
+        limit: 10,
+      }),
+    [currentJob.tool, inventory, partSearch]
+  );
+
+  const handleSelectAutoSuggestedPart = (item: InventoryItem) => {
+    setSelectedInventoryItem(item);
+    setPartSearch(item.name);
+    setShowPartDropdown(false);
+    setHighlightedPartIndex(0);
+  };
 
   const allSuggestedParts = useMemo(
     () => getSuggestedPartsForTool(currentJob.tool, inventory, { limit: 24 }),
@@ -3344,22 +3372,86 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
                 )}
               </div>
 
-              <span className="block text-xs font-semibold text-zinc-700 dark:text-zinc-400 font-mono">Link Genuine Spare Parts (~1,000 Catalog):</span>
-              
-              <div className="relative flex flex-wrap sm:flex-nowrap items-center gap-2 font-mono">
+              <span className="block text-xs font-semibold text-zinc-700 dark:text-zinc-400 font-mono">
+                Link Genuine Spare Parts ({currentJob.tool.brand} · {currentJob.tool.category}):
+              </span>
+
+              <div ref={partSearchRef} className="relative flex flex-wrap sm:flex-nowrap items-center gap-2 font-mono">
                 <div className="relative flex-1 min-w-[200px]">
-                  <Search className="w-4 h-4 text-zinc-600 dark:text-zinc-500 absolute left-3 top-2.5" />
+                  <Search className="w-4 h-4 text-zinc-600 dark:text-zinc-500 absolute left-3 top-2.5 pointer-events-none" />
                   <input
                     type="text"
+                    role="combobox"
+                    aria-expanded={showPartDropdown}
+                    aria-autocomplete="list"
+                    aria-controls="job-part-autosuggest-list"
+                    aria-label="Search and auto-suggest spare parts"
+                    data-testid="part-autosuggest-input"
                     value={partSearch}
                     onChange={(e) => {
                       setPartSearch(e.target.value);
+                      setSelectedInventoryItem(null);
+                      setHighlightedPartIndex(0);
                       setShowPartDropdown(true);
                     }}
-                    onFocus={() => setShowPartDropdown(true)}
-                    placeholder="Search 1,000 parts by SKU, Barcode (e.g. BRSH-1002)..."
-                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-xs text-zinc-950 dark:text-white focus:outline-none"
+                    onFocus={() => {
+                      setHighlightedPartIndex(0);
+                      setShowPartDropdown(true);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setShowPartDropdown(false);
+                        return;
+                      }
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        if (!showPartDropdown) {
+                          setShowPartDropdown(true);
+                          setHighlightedPartIndex(0);
+                        } else if (autoSuggestedParts.length > 0) {
+                          setHighlightedPartIndex((prev) =>
+                            prev + 1 >= autoSuggestedParts.length ? 0 : prev + 1
+                          );
+                        }
+                        return;
+                      }
+                      if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        if (showPartDropdown && autoSuggestedParts.length > 0) {
+                          setHighlightedPartIndex((prev) =>
+                            prev - 1 < 0 ? autoSuggestedParts.length - 1 : prev - 1
+                          );
+                        }
+                        return;
+                      }
+                      if (e.key === 'Enter') {
+                        if (showPartDropdown && autoSuggestedParts[highlightedPartIndex]) {
+                          e.preventDefault();
+                          handleSelectAutoSuggestedPart(autoSuggestedParts[highlightedPartIndex].item);
+                        } else if (selectedInventoryItem) {
+                          e.preventDefault();
+                          handleAddPart();
+                        }
+                      }
+                    }}
+                    placeholder={`Search or pick suggested ${currentJob.tool.brand} parts...`}
+                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 focus:border-zinc-950 dark:focus:border-white rounded-xl pl-9 pr-8 py-2 text-xs text-zinc-950 dark:text-white focus:outline-none"
                   />
+                  {partSearch && (
+                    <button
+                      type="button"
+                      aria-label="Clear spare part search"
+                      onClick={() => {
+                        setPartSearch('');
+                        setSelectedInventoryItem(null);
+                        setHighlightedPartIndex(0);
+                        setShowPartDropdown(true);
+                      }}
+                      className="absolute right-2.5 top-2 text-zinc-500 hover:text-zinc-950 dark:hover:text-white p-0.5"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
 
                 <button
@@ -3375,38 +3467,91 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
                 <input
                   type="number"
                   min={1}
+                  aria-label="Spare part quantity"
                   value={partQty}
-                  onChange={(e) => setPartQty(parseInt(e.target.value) || 1)}
-                  className="w-16 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl py-2 text-center text-xs text-zinc-950 dark:text-white focus:outline-none"
+                  onChange={(e) => setPartQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                  className="w-16 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl py-2 text-center text-xs text-zinc-950 dark:text-white focus:outline-none tabular-nums"
                 />
 
                 <button
+                  type="button"
                   onClick={handleAddPart}
                   disabled={!selectedInventoryItem}
+                  data-testid="add-selected-part-btn"
                   className="px-4 py-2 text-xs font-bold text-white dark:text-zinc-950 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-40 rounded-xl transition-colors shrink-0"
                 >
                   + Add
                 </button>
 
-                {showPartDropdown && partSearch.trim() !== '' && (
-                  <div className="absolute left-0 right-0 top-11 z-30 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl shadow-2xl max-h-56 overflow-y-auto divide-y divide-zinc-200 dark:divide-zinc-800">
-                    {searchedInventory.map((item) => (
-                      <div
-                        key={item.id}
-                        onClick={() => {
-                          setSelectedInventoryItem(item);
-                          setPartSearch(item.name);
-                          setShowPartDropdown(false);
-                        }}
-                        className="p-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer flex items-center justify-between text-xs transition-colors"
-                      >
-                        <div>
-                          <div className="font-bold text-zinc-950 dark:text-white">{item.name}</div>
-                          <div className="text-[11px] text-zinc-700 dark:text-zinc-400 font-mono">SKU: {item.sku} · Bin: {item.binLocation}</div>
-                        </div>
-                        <div className="text-right font-mono font-bold text-zinc-950 dark:text-white">${item.unitPrice.toFixed(2)}</div>
+                {showPartDropdown && (
+                  <div
+                    id="job-part-autosuggest-list"
+                    role="listbox"
+                    aria-label="Suggested spare parts"
+                    data-testid="part-autosuggest-dropdown"
+                    className="absolute left-0 right-0 top-11 z-30 bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl shadow-2xl max-h-72 overflow-y-auto divide-y divide-zinc-200 dark:divide-zinc-800"
+                  >
+                    <div className="px-3 py-2 bg-zinc-50 dark:bg-zinc-900/80 text-[11px] font-sans text-zinc-600 dark:text-zinc-400 flex items-center justify-between gap-2">
+                      <span>
+                        {partSearch.trim() === ''
+                          ? `Auto-suggested for ${currentJob.tool.brand} · ${currentJob.tool.category}`
+                          : `Matches for "${partSearch.trim()}" · Ranked for ${currentJob.tool.brand} · ${currentJob.tool.category}`}
+                      </span>
+                      <span className="font-mono tabular-nums shrink-0">
+                        {autoSuggestedParts.length} result{autoSuggestedParts.length === 1 ? '' : 's'}
+                      </span>
+                    </div>
+
+                    {autoSuggestedParts.length === 0 ? (
+                      <div className="px-3 py-4 text-xs font-sans text-zinc-600 dark:text-zinc-400">
+                        No spare parts matched &quot;{partSearch.trim()}&quot;. Clear text to view {currentJob.tool.brand} suggestions.
                       </div>
-                    ))}
+                    ) : (
+                      autoSuggestedParts.map(({ item, matchLabel, isBrandMatch, isCategoryMatch }, idx) => {
+                        const isHighlighted = idx === highlightedPartIndex;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            role="option"
+                            aria-selected={isHighlighted}
+                            data-testid={`part-autosuggest-option-${item.sku}`}
+                            onMouseEnter={() => setHighlightedPartIndex(idx)}
+                            onClick={() => handleSelectAutoSuggestedPart(item)}
+                            className={`w-full text-left p-2.5 flex items-center justify-between gap-3 text-xs transition-colors ${
+                              isHighlighted
+                                ? 'bg-zinc-100 dark:bg-zinc-900'
+                                : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/60'
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-bold text-zinc-950 dark:text-white truncate">
+                                  {item.name}
+                                </span>
+                                <span
+                                  className={`text-[11px] font-sans font-semibold ${
+                                    isBrandMatch && isCategoryMatch
+                                      ? 'text-emerald-700 dark:text-emerald-400'
+                                      : isBrandMatch || isCategoryMatch
+                                      ? 'text-sky-700 dark:text-sky-400'
+                                      : 'text-zinc-500 dark:text-zinc-400'
+                                  }`}
+                                >
+                                  · {matchLabel}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-zinc-600 dark:text-zinc-400 font-mono truncate mt-0.5 tabular-nums">
+                                SKU: {item.sku} · {item.brand} · {item.category} · {item.stockQty} in stock · {item.binLocation}
+                              </div>
+                            </div>
+                            <div className="text-right font-mono font-bold text-zinc-950 dark:text-white tabular-nums shrink-0">
+                              ${item.unitPrice.toFixed(2)}
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
                   </div>
                 )}
               </div>

@@ -1,4 +1,4 @@
-import { InventoryItem, ToolDetails } from '../types';
+import { InventoryItem, ToolCategory, ToolDetails } from '../types';
 
 export type SuggestedPartMatchReason =
   | 'Exact Model & Brand'
@@ -17,6 +17,138 @@ export interface SuggestedPartsOptions {
   limit?: number;
   categoryFilter?: string;
   deduplicateVariants?: boolean;
+}
+
+export interface AutoSuggestPartMatch {
+  item: InventoryItem;
+  score: number;
+  isBrandMatch: boolean;
+  isCategoryMatch: boolean;
+  isModelMatch: boolean;
+  matchLabel: string;
+}
+
+export interface AutoSuggestSearchOptions {
+  limit?: number;
+  deduplicateVariants?: boolean;
+}
+
+interface ToolCategoryPartProfile {
+  categories: string[];
+  keywords: string[];
+}
+
+const TOOL_CATEGORY_PART_PROFILES: Record<ToolCategory, ToolCategoryPartProfile> = {
+  'Rotary Hammer / SDS': {
+    categories: [
+      'SDS Chucks & Tool Holders',
+      'Carbon Brushes & Caps',
+      'Armatures & Rotors 230V/18V',
+      'Gears, Pinions & Grease',
+      'Bearings & Bushings',
+    ],
+    keywords: ['sds', 'chuck', 'piston', 'striker', 'hammer', 'carbon brush', 'armature', 'grease'],
+  },
+  'Angle Grinder': {
+    categories: [
+      'Gears, Pinions & Grease',
+      'Armatures & Rotors 230V/18V',
+      'Stators & Field Coils',
+      'Switches & Speed Modules',
+      'Carbon Brushes & Caps',
+    ],
+    keywords: ['grinder', 'bevel gear', 'paddle', 'carbon brush', 'armature', 'field coil'],
+  },
+  'Cordless Drill / Driver': {
+    categories: [
+      'Batteries & Chargers',
+      'SDS Chucks & Tool Holders',
+      'Switches & Speed Modules',
+      'Armatures & Rotors 230V/18V',
+      'Gears, Pinions & Grease',
+    ],
+    keywords: ['keyless', 'drill', 'battery', 'charger', '18v', 'brushless', 'trigger'],
+  },
+  'Impact Wrench / Driver': {
+    categories: [
+      'Batteries & Chargers',
+      'Gears, Pinions & Grease',
+      'Switches & Speed Modules',
+      'Bearings & Bushings',
+    ],
+    keywords: ['impact', '18v', 'battery', 'brushless', 'gear', 'bearing', 'selector'],
+  },
+  'Circular / Miter Saw': {
+    categories: [
+      'Armatures & Rotors 230V/18V',
+      'Switches & Speed Modules',
+      'Bearings & Bushings',
+      'Power Cords & Strain Relief',
+      'Carbon Brushes & Caps',
+    ],
+    keywords: ['saw', 'armature', 'bearing', 'cord', 'carbon brush', 'toggle switch'],
+  },
+  'Demolition Breaker': {
+    categories: [
+      'SDS Chucks & Tool Holders',
+      'Gears, Pinions & Grease',
+      'Armatures & Rotors 230V/18V',
+      'Stators & Field Coils',
+      'Housing Covers & Handles',
+    ],
+    keywords: ['breaker', 'sds-max', 'piston', 'striker', 'grease', 'o-ring', 'vibration'],
+  },
+  'Heat Gun / Blower': {
+    categories: [
+      'Switches & Speed Modules',
+      'Power Cords & Strain Relief',
+      'Housing Covers & Handles',
+    ],
+    keywords: ['switch', 'electronic', 'cord', 'strain relief', 'handle'],
+  },
+  'High Pressure Washer': {
+    categories: [
+      'Gears, Pinions & Grease',
+      'Power Cords & Strain Relief',
+      'Switches & Speed Modules',
+    ],
+    keywords: ['o-ring', 'seal', 'switch', 'cord', 'power cord'],
+  },
+  'Laser & Measuring': {
+    categories: [
+      'Batteries & Chargers',
+      'Housing Covers & Handles',
+      'Switches & Speed Modules',
+    ],
+    keywords: ['battery', 'charger', 'carrying case', 'switch'],
+  },
+  'Lawn & Garden / Outdoor': {
+    categories: [
+      'Batteries & Chargers',
+      'Power Cords & Strain Relief',
+      'Switches & Speed Modules',
+      'Housing Covers & Handles',
+    ],
+    keywords: ['battery', 'charger', 'cord', 'switch', 'handle'],
+  },
+};
+
+export function getCategoryMatchProfile(category?: string): ToolCategoryPartProfile {
+  if (!category) {
+    return { categories: [], keywords: [] };
+  }
+  const direct = TOOL_CATEGORY_PART_PROFILES[category as ToolCategory];
+  if (direct) return direct;
+
+  const fallbackTokens = category
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((t) => t.length >= 3);
+  return {
+    categories: [],
+    keywords: fallbackTokens,
+  };
 }
 
 const GENERIC_BRAND_STOPWORDS = new Set([
@@ -264,6 +396,147 @@ export function getSuggestedPartsForTool(
   }
 
   const uniqueResults: SuggestedPartMatch[] = [];
+  const seenBaseNames = new Set<string>();
+  for (const match of scored) {
+    const baseName = normalizeVariantBaseName(match.item.name);
+    if (seenBaseNames.has(baseName)) continue;
+    seenBaseNames.add(baseName);
+    uniqueResults.push(match);
+    if (uniqueResults.length >= limit) break;
+  }
+
+  return uniqueResults;
+}
+
+export function searchInventoryAutoSuggestions(
+  tool: Pick<ToolDetails, 'brand' | 'category' | 'modelNumber'>,
+  inventory: InventoryItem[],
+  query: string = '',
+  options: AutoSuggestSearchOptions = {}
+): AutoSuggestPartMatch[] {
+  const cleanQuery = query.trim().toLowerCase();
+  const queryTokens = cleanQuery.split(/\s+/).filter(Boolean);
+  const limit = options.limit ?? 10;
+  const deduplicateVariants = options.deduplicateVariants ?? cleanQuery === '';
+
+  const brandKeywords = extractBrandKeywords(tool.brand || '');
+  const modelTokens = extractModelTokens(tool.modelNumber || '');
+  const categoryProfile = getCategoryMatchProfile(tool.category);
+
+  const scored: AutoSuggestPartMatch[] = [];
+
+  for (const item of inventory) {
+    const itemBrand = (item.brand || '').toLowerCase();
+    const itemName = (item.name || '').toLowerCase();
+    const itemCategory = (item.category || '').toLowerCase();
+    const itemModels = (item.compatibleModels || '').toLowerCase();
+    const itemSku = (item.sku || '').toLowerCase();
+    const itemBarcode = (item.barcode || '').toLowerCase();
+    const searchable = `${itemName} ${itemSku} ${itemBarcode} ${itemCategory} ${itemBrand} ${itemModels}`;
+
+    let queryScore = 0;
+    if (queryTokens.length > 0) {
+      const allTokensPresent = queryTokens.every((token) => searchable.includes(token));
+      if (!allTokensPresent) continue;
+
+      if (itemSku === cleanQuery || itemBarcode === cleanQuery) {
+        queryScore = 120;
+      } else if (itemSku.startsWith(cleanQuery) || itemBarcode.startsWith(cleanQuery)) {
+        queryScore = 85;
+      } else if (itemName.startsWith(cleanQuery)) {
+        queryScore = 65;
+      } else {
+        queryScore = 40;
+      }
+    }
+
+    const modelAndName = `${itemModels} ${itemName}`;
+    const compactModelAndName = modelAndName.replace(/[^a-z0-9]/g, '');
+
+    let brandScore = 0;
+    for (const brandKey of brandKeywords) {
+      if (hasWordMatch(itemBrand, brandKey)) {
+        brandScore = Math.max(brandScore, 34);
+      } else if (hasWordMatch(modelAndName, brandKey)) {
+        brandScore = Math.max(brandScore, 18);
+      }
+    }
+    const isBrandMatch = brandScore > 0;
+
+    let categoryScore = 0;
+    if (categoryProfile.categories.includes(item.category)) {
+      categoryScore = 26;
+    } else if (
+      categoryProfile.keywords.some(
+        (kw) => itemName.includes(kw) || itemCategory.includes(kw) || itemModels.includes(kw)
+      )
+    ) {
+      categoryScore = 18;
+    } else if (
+      categoryProfile.keywords.some((kw) => itemName.includes(kw) || itemCategory.includes(kw))
+    ) {
+      categoryScore = 12;
+    }
+    const isCategoryMatch = categoryScore > 0;
+
+    let modelScore = 0;
+    if (
+      modelTokens.full.length >= 3 &&
+      (hasWordMatch(modelAndName, modelTokens.full) ||
+        (modelTokens.compact.length >= 4 && compactModelAndName.includes(modelTokens.compact)))
+    ) {
+      modelScore = 40;
+    } else {
+      for (const token of modelTokens.coreTokens) {
+        if (hasWordMatch(modelAndName, token)) {
+          modelScore = Math.max(modelScore, 24);
+        }
+      }
+    }
+    const isModelMatch = modelScore > 0;
+
+    // When no search text is typed, only suggest parts relevant to the job's tool brand, category, or model
+    if (cleanQuery === '' && !isBrandMatch && !isCategoryMatch && !isModelMatch) {
+      continue;
+    }
+
+    const stockBonus = item.stockQty > 0 ? 4 : 0;
+    const totalScore = queryScore + brandScore + categoryScore + modelScore + stockBonus;
+
+    let matchLabel = 'Catalog Match';
+    if (isBrandMatch && isCategoryMatch) {
+      matchLabel = 'Brand & Category Match';
+    } else if (isModelMatch) {
+      matchLabel = 'Model Match';
+    } else if (isBrandMatch) {
+      matchLabel = 'Brand Match';
+    } else if (isCategoryMatch) {
+      matchLabel = 'Category Match';
+    }
+
+    scored.push({
+      item,
+      score: totalScore,
+      isBrandMatch,
+      isCategoryMatch,
+      isModelMatch,
+      matchLabel,
+    });
+  }
+
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if ((b.item.stockQty > 0) !== (a.item.stockQty > 0)) {
+      return b.item.stockQty > 0 ? 1 : -1;
+    }
+    return a.item.sku.localeCompare(b.item.sku);
+  });
+
+  if (!deduplicateVariants) {
+    return scored.slice(0, limit);
+  }
+
+  const uniqueResults: AutoSuggestPartMatch[] = [];
   const seenBaseNames = new Set<string>();
   for (const match of scored) {
     const baseName = normalizeVariantBaseName(match.item.name);
