@@ -6,7 +6,13 @@ import { calculateJobBilling } from '../utils/billing';
 import { applyStockLifecycleTransition, InventoryDelta } from '../utils/stockDeduction';
 import { generateJobCardPdf } from '../utils/generatePdf';
 import { buildPdfBrandMeta } from '../utils/pdfBrandMeta';
-import { buildCustomerFeedbackUrl, buildCustomerPortalUrl } from '../utils/customerPortalUrl';
+import {
+  buildCustomerFeedbackUrl,
+  buildCustomerPortalUrl,
+  buildJobCardQrPayload,
+  buildQrMatrix,
+  ensurePublicAccessToken,
+} from '../utils/customerPortalUrl';
 import { resolveApiUrl } from '../utils/apiBase';
 import { SerialBarcodeScannerModal } from './SerialBarcodeScannerModal';
 import {
@@ -229,6 +235,7 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
   const [pdfFeedback, setPdfFeedback] = useState<string | null>(null);
   const [customerLinkCopied, setCustomerLinkCopied] = useState(false);
   const [feedbackLinkCopied, setFeedbackLinkCopied] = useState(false);
+  const [qrLinkCopied, setQrLinkCopied] = useState(false);
   const [lightboxItem, setLightboxItem] = useState<{
     dataUrl: string;
     stageLabel: 'Pre-Repair' | 'Post-Repair';
@@ -1957,6 +1964,53 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
     } catch {
       setFeedbackLinkCopied(false);
     }
+  };
+
+  const jobQrPayload = useMemo(
+    () => buildJobCardQrPayload(currentJob),
+    [currentJob.id, currentJob.createdAt, currentJob.publicAccessToken]
+  );
+
+  const jobQrMatrix = useMemo(() => buildQrMatrix(jobQrPayload), [jobQrPayload]);
+
+  const handleCopyJobQrPayload = async () => {
+    try {
+      await navigator.clipboard.writeText(jobQrPayload);
+      setQrLinkCopied(true);
+      setTimeout(() => setQrLinkCopied(false), 3000);
+    } catch {
+      setQrLinkCopied(false);
+    }
+  };
+
+  const handleDownloadJobQrPng = () => {
+    const scale = 8;
+    const quietZone = 2;
+    const dim = (jobQrMatrix.size + quietZone * 2) * scale;
+    const canvas = document.createElement('canvas');
+    canvas.width = dim;
+    canvas.height = dim;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, dim, dim);
+    ctx.fillStyle = '#09090b';
+    jobQrMatrix.rows.forEach((row, rIdx) => {
+      row.forEach((dark, cIdx) => {
+        if (dark) {
+          ctx.fillRect((cIdx + quietZone) * scale, (rIdx + quietZone) * scale, scale, scale);
+        }
+      });
+    });
+
+    const url = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${currentJob.id}-qr-code.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -3802,6 +3856,89 @@ export const JobCardDetail: React.FC<JobCardDetailProps> = ({
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Job Card QR Code Card (Role-Scoped Global Scanner Access) */}
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-5 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between border-b border-zinc-300 dark:border-zinc-800 pb-2 gap-2">
+              <h2 className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-2 font-mono">
+                <QrCode className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                <span>Job Card QR Code</span>
+              </h2>
+              <span className="text-[11px] font-mono font-bold text-zinc-700 dark:text-zinc-300 tabular-nums">
+                {currentJob.id}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="bg-white p-2 rounded-xl border border-zinc-300 dark:border-zinc-700 shrink-0">
+                <svg
+                  width="104"
+                  height="104"
+                  viewBox={`0 0 ${jobQrMatrix.size} ${jobQrMatrix.size}`}
+                  shapeRendering="crispEdges"
+                  role="img"
+                  aria-label={`Scannable QR code for job card ${currentJob.id}`}
+                >
+                  <rect width={jobQrMatrix.size} height={jobQrMatrix.size} fill="#ffffff" />
+                  {jobQrMatrix.rows.map((row, rIdx) =>
+                    row.map((dark, cIdx) =>
+                      dark ? (
+                        <rect
+                          key={`${rIdx}-${cIdx}`}
+                          x={cIdx}
+                          y={rIdx}
+                          width={1}
+                          height={1}
+                          fill="#09090b"
+                        />
+                      ) : null
+                    )
+                  )}
+                </svg>
+              </div>
+
+              <div className="min-w-0 space-y-2 text-[11px] font-sans">
+                <div className="text-zinc-900 dark:text-zinc-100 font-semibold">
+                  Scan via Global Scanner or phone camera
+                </div>
+                <div className="space-y-1 text-zinc-700 dark:text-zinc-400 leading-snug">
+                  <div>
+                    <strong className="text-zinc-950 dark:text-white">Client:</strong> View-only progress &amp; respond to {currentJob.id}
+                  </div>
+                  <div>
+                    <strong className="text-zinc-950 dark:text-white">Admin:</strong> Open full repair card &amp; parts controls
+                  </div>
+                </div>
+                <div className="font-mono text-[10px] text-zinc-600 dark:text-zinc-500 truncate">
+                  Token: {ensurePublicAccessToken(currentJob)}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 font-mono">
+              <button
+                type="button"
+                onClick={handleCopyJobQrPayload}
+                className="py-2 px-3 rounded-xl bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-zinc-200 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                {qrLinkCopied ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
+                <span>{qrLinkCopied ? 'QR Link Copied' : 'Copy QR Link'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDownloadJobQrPng}
+                className="py-2 px-3 rounded-xl bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download QR PNG</span>
+              </button>
+            </div>
           </div>
 
           {/* Labor & Service Cost Summary Card */}

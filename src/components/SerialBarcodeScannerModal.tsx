@@ -62,6 +62,7 @@ export const SerialBarcodeScannerModal: React.FC<SerialBarcodeScannerModalProps>
   const [torchEnabled, setTorchEnabled] = useState(false);
   const [hardwareDetectorActive, setHardwareDetectorActive] = useState(false);
   const [isAnalyzingSnapshot, setIsAnalyzingSnapshot] = useState(false);
+  const [manualCode, setManualCode] = useState('');
   const [statusMessage, setStatusMessage] = useState('Requesting camera permission...');
 
   const stopCameraResources = useCallback(() => {
@@ -418,6 +419,15 @@ export const SerialBarcodeScannerModal: React.FC<SerialBarcodeScannerModalProps>
     onClose();
   };
 
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleaned = manualCode.trim();
+    if (!cleaned) return;
+    setCameraError(null);
+    const resObj = buildResultFromRaw(cleaned, 'QR_CODE', 'Hardware BarcodeDetector');
+    finishWithDetection(resObj);
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 bg-zinc-950/60 dark:bg-zinc-950/85 backdrop-blur-sm flex items-center justify-center p-4"
@@ -577,6 +587,24 @@ export const SerialBarcodeScannerModal: React.FC<SerialBarcodeScannerModalProps>
               )}
             </div>
           </div>
+
+          {/* Direct QR URL / Job Card ID Fallback Input */}
+          <form onSubmit={handleManualSubmit} className="pt-3 border-t border-zinc-300 dark:border-zinc-800 flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              value={manualCode}
+              onChange={(e) => setManualCode(e.target.value)}
+              placeholder="Paste QR URL, token, Job ID (e.g. BOSCH-2026-0041), or SKU"
+              className="flex-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 focus:border-zinc-950 dark:focus:border-white rounded-xl px-3 py-2 text-xs text-zinc-950 dark:text-white placeholder-zinc-500 font-sans focus:outline-none"
+            />
+            <button
+              type="submit"
+              disabled={!manualCode.trim() || isAnalyzingSnapshot}
+              className="px-3.5 py-2 text-xs font-bold bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-400 dark:border-zinc-700 text-zinc-950 dark:text-white rounded-xl disabled:opacity-40 whitespace-nowrap"
+            >
+              Lookup Code
+            </button>
+          </form>
         </div>
       </div>
     </div>

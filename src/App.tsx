@@ -108,6 +108,7 @@ import {
   findMatchingInventoryItem,
   findMatchingToolHistory,
 } from './utils/barcodeSerialParser';
+import { QrScannerRole } from './utils/qrRoleAccess';
 
 const normalizeJobCard = (job: JobCard): JobCard => {
   const adjudicated = autoAdjudicateJobCard(job);
@@ -185,6 +186,7 @@ export default function App() {
   const [aiDiagnosisJob, setAiDiagnosisJob] = useState<JobCard | null>(null);
   const [isGlobalScannerOpen, setIsGlobalScannerOpen] = useState(false);
   const [globalScanResult, setGlobalScanResult] = useState<BarcodeScanResult | null>(null);
+  const [globalScannerRole, setGlobalScannerRole] = useState<QrScannerRole>('internal_admin');
   const [intakeScanPrefill, setIntakeScanPrefill] = useState<{ result: BarcodeScanResult; nonce: number } | null>(null);
   const [inventoryExternalLookup, setInventoryExternalLookup] = useState<{ code: string; nonce: number } | null>(null);
 
@@ -798,6 +800,54 @@ export default function App() {
     }
   };
 
+  const handleSubmitClientResponse = (
+    jobId: string,
+    payload: { responseType: string; message: string; persistedToCloud: boolean }
+  ) => {
+    const nowIso = new Date().toISOString();
+    const timestampLabel = nowIso.slice(0, 16).replace('T', ' ');
+    let updatedForCloud: JobCard | null = null;
+
+    setJobCards((prev) =>
+      prev.map((j) => {
+        if (j.id !== jobId) return j;
+        const responseLog: MessageLog = {
+          id: `msg-client-${Date.now()}`,
+          timestamp: timestampLabel,
+          type: 'Custom',
+          recipientPhone: j.customerPhone,
+          text: `[Client Portal · ${payload.responseType}] ${payload.message}`,
+          channel: 'SMS',
+          status: payload.persistedToCloud ? 'Sent' : 'Pending',
+        };
+        const auditEntry = {
+          id: `aud-client-resp-${Date.now()}`,
+          timestamp: timestampLabel,
+          userName: (j.customerName || 'Client').split(' ')[0],
+          userRole: 'Client Portal',
+          action: 'CLIENT_PORTAL_RESPONSE',
+          newState: `${payload.responseType}: "${payload.message.slice(0, 90)}"`,
+        };
+        updatedForCloud = normalizeJobCard({
+          ...j,
+          messageLogs: [responseLog, ...(j.messageLogs || [])],
+          auditLogs: [...(j.auditLogs || []), auditEntry],
+          updatedAt: nowIso,
+        });
+        return updatedForCloud;
+      })
+    );
+
+    setSelectedJob((curr) => {
+      if (!curr || curr.id !== jobId) return curr;
+      return updatedForCloud || curr;
+    });
+
+    if (updatedForCloud) {
+      syncJobToCloud(updatedForCloud);
+    }
+  };
+
   const handleUpdateJobCard = (updatedJob: JobCard) => {
     const existing = jobCards.find(j => j.id === updatedJob.id);
     const transitionedToCompleted = Boolean(
@@ -1379,6 +1429,7 @@ export default function App() {
         centerName={settings.centerName}
         centerPhone={settings.phone}
         onSubmitFeedback={handleSubmitCustomerFeedback}
+        onSubmitClientResponse={handleSubmitClientResponse}
         theme={theme}
         onToggleTheme={handleToggleTheme}
         onExitCustomerView={
@@ -1792,6 +1843,10 @@ export default function App() {
             schedules,
             findMatchingInventoryItem(globalScanResult.rawValue, inventory)?.sku
           )}
+          jobCards={jobCards}
+          role={globalScannerRole}
+          allowRoleSwitch={!isLockedCustomerUrl}
+          onRoleChange={setGlobalScannerRole}
           onClose={() => setGlobalScanResult(null)}
           onRescan={() => {
             setGlobalScanResult(null);
@@ -1813,6 +1868,11 @@ export default function App() {
             setGlobalScanResult(null);
             setSelectedJob(job);
             setActiveTab('jobs');
+          }}
+          onOpenClientPortalJob={(jobId, token) => {
+            setGlobalScanResult(null);
+            setCustomerPortalTarget({ query: token || jobId, showFeedback: false });
+            setIsCustomerViewActive(true);
           }}
         />
       )}

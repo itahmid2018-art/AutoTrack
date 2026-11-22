@@ -25,8 +25,11 @@ import {
   Send,
   Sun,
   Moon,
+  QrCode,
 } from 'lucide-react';
 import type { AppTheme } from '../utils/theme';
+import { SerialBarcodeScannerModal } from './SerialBarcodeScannerModal';
+import { parseProductQrPayload } from '../utils/barcodeSerialParser';
 
 export interface PublicJobStatusSummary {
   id: string;
@@ -73,6 +76,10 @@ interface CustomerViewProps {
   centerName?: string;
   centerPhone?: string;
   onSubmitFeedback?: (jobId: string, feedback: CustomerFeedback) => void;
+  onSubmitClientResponse?: (
+    jobId: string,
+    payload: { responseType: string; message: string; persistedToCloud: boolean }
+  ) => void;
   onExitCustomerView?: () => void;
   theme?: AppTheme;
   onToggleTheme?: () => void;
@@ -208,6 +215,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
   centerName = 'BOSCH Authorised Service Center',
   centerPhone = '+1 (555) 019-2831',
   onSubmitFeedback,
+  onSubmitClientResponse,
   onExitCustomerView,
   theme = 'dark',
   onToggleTheme,
@@ -246,6 +254,12 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [feedbackSuccessMsg, setFeedbackSuccessMsg] = useState<string | null>(null);
+  const [isClientScannerOpen, setIsClientScannerOpen] = useState(false);
+  const [responseTypeDraft, setResponseTypeDraft] = useState<string>('Approve Estimate');
+  const [responseMsgDraft, setResponseMsgDraft] = useState<string>('');
+  const [isSubmittingResponse, setIsSubmittingResponse] = useState(false);
+  const [responseError, setResponseError] = useState<string | null>(null);
+  const [responseSuccessMsg, setResponseSuccessMsg] = useState<string | null>(null);
   const feedbackSectionRef = useRef<HTMLElement | null>(null);
   const didAutoScrollFeedbackRef = useRef(false);
 
@@ -319,6 +333,9 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
     setIsEditingFeedback(!existing);
     setFeedbackError(null);
     setFeedbackSuccessMsg(null);
+    setResponseError(null);
+    setResponseSuccessMsg(null);
+    setResponseMsgDraft('');
   }, [matchedSummary?.id, matchedSummary?.customerFeedback?.submittedAt]);
 
   // Scroll straight to the feedback survey when opened from an SMS feedback link (?feedback=1)
@@ -587,6 +604,61 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
     setIsSubmittingFeedback(false);
   };
 
+  const handleClientResponseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!matchedSummary || !matchedSummary.verifiedByTokenOrPhone) return;
+
+    const trimmedMsg = responseMsgDraft.trim().slice(0, 1000);
+    if (!trimmedMsg) {
+      setResponseError('Write a brief response before sending.');
+      return;
+    }
+
+    setIsSubmittingResponse(true);
+    setResponseError(null);
+    setResponseSuccessMsg(null);
+
+    let persistedToCloud = false;
+    try {
+      const lookupKey =
+        activeToken ||
+        matchedSummary.publicAccessToken ||
+        matchedSummary.id;
+
+      const res = await fetch(resolveApiUrl('/api/customer-portal/response'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: lookupKey,
+          responseType: responseTypeDraft,
+          message: trimmedMsg,
+          phoneLast4: phoneLast4Input.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 403) {
+        setResponseError(data?.error || 'Phone verification digits do not match this ticket.');
+        setIsSubmittingResponse(false);
+        return;
+      }
+      persistedToCloud = Boolean(res.ok && data?.success);
+    } catch {
+      persistedToCloud = false;
+    }
+
+    onSubmitClientResponse?.(matchedSummary.id, {
+      responseType: responseTypeDraft,
+      message: trimmedMsg,
+      persistedToCloud,
+    });
+
+    setResponseMsgDraft('');
+    setResponseSuccessMsg(
+      `Response logged on Job Card ${matchedSummary.id} (${responseTypeDraft}).`
+    );
+    setIsSubmittingResponse(false);
+  };
+
   const currentStepIndex = matchedSummary
     ? CUSTOMER_MILESTONES.findIndex((m) => m.matches.includes(matchedSummary.status))
     : -1;
@@ -668,7 +740,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
           </div>
 
           <form onSubmit={handleLookupSubmit} className="grid grid-cols-1 sm:grid-cols-12 gap-3 font-mono">
-            <div className="sm:col-span-6 relative">
+            <div className="sm:col-span-5 relative">
               <Search className="w-4 h-4 text-zinc-600 dark:text-zinc-500 absolute left-3.5 top-3" />
               <input
                 type="text"
@@ -693,10 +765,20 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
 
             <button
               type="submit"
-              className="sm:col-span-3 py-2.5 px-4 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow"
+              className="sm:col-span-2 py-2.5 px-3 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow"
             >
               <Search className="w-4 h-4" />
-              <span>Track Repair</span>
+              <span>Track</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsClientScannerOpen(true)}
+              className="sm:col-span-2 py-2.5 px-3 bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-400 dark:border-zinc-700 text-zinc-950 dark:text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all"
+              title="Scan Job Card QR Code (view-only ticket scope)"
+            >
+              <QrCode className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+              <span>Scan QR</span>
             </button>
           </form>
 
@@ -971,6 +1053,87 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
               </div>
             </div>
 
+            {/* Client Response / Approval Note Card (Scoped to matched Job ID) */}
+            <section
+              aria-labelledby="client-response-heading"
+              className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-300 dark:border-zinc-800 pb-3">
+                <div className="flex items-start gap-2.5">
+                  <div className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 text-emerald-700 dark:text-emerald-400 shrink-0">
+                    <MessageSquare className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2
+                      id="client-response-heading"
+                      className="text-sm font-bold text-zinc-950 dark:text-white font-mono uppercase tracking-wider"
+                    >
+                      Respond to Service Desk
+                    </h2>
+                    <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-0.5">
+                      Send an approval, callback request, or pickup message for Job Card {matchedSummary.id}.
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[11px] font-mono text-zinc-600 dark:text-zinc-400">
+                  Client Scope: {matchedSummary.id}
+                </span>
+              </div>
+
+              {responseSuccessMsg && (
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-700 text-xs font-mono text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
+                  <span>{responseSuccessMsg}</span>
+                </div>
+              )}
+
+              {responseError && (
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 text-xs font-mono text-rose-800 dark:text-rose-200 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-700 dark:text-rose-400 shrink-0" />
+                  <span>{responseError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleClientResponseSubmit} className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2 font-mono">
+                  {(['Approve Estimate', 'Schedule Callback', 'Confirm Pickup Time', 'General Question'] as const).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setResponseTypeDraft(option)}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-colors ${
+                        responseTypeDraft === option
+                          ? 'bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white'
+                          : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-300 border-zinc-300 dark:border-zinc-800 hover:border-zinc-500'
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+
+                <textarea
+                  rows={2}
+                  maxLength={1000}
+                  value={responseMsgDraft}
+                  onChange={(e) => setResponseMsgDraft(e.target.value)}
+                  placeholder={`Write your message for Job Card ${matchedSummary.id}...`}
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 focus:border-zinc-950 dark:focus:border-white rounded-xl p-3 text-xs text-zinc-950 dark:text-white placeholder-zinc-500 focus:outline-none leading-relaxed"
+                />
+
+                <div className="flex items-center justify-end">
+                  <button
+                    type="submit"
+                    disabled={isSubmittingResponse || !responseMsgDraft.trim() || !matchedSummary.verifiedByTokenOrPhone}
+                    className="px-4 py-2 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-40 text-white dark:text-zinc-950 font-bold rounded-xl text-xs font-mono flex items-center gap-2 transition-colors"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{isSubmittingResponse ? 'Sending...' : 'Send Response'}</span>
+                  </button>
+                </div>
+              </form>
+            </section>
+
             {/* Customer Feedback Rating & Comment Survey Card */}
             <section
               ref={feedbackSectionRef}
@@ -1171,10 +1334,29 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
 
       <footer className="border-t border-zinc-200 dark:border-zinc-900 py-4 text-center text-[11px] text-zinc-600 dark:text-zinc-500 font-mono">
         <div className="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>{centerName} · Read-Only Customer Status Portal</span>
+          <span>{centerName} · Read-Only Client Status Portal</span>
           <span>Need assistance? Call {centerPhone}</span>
         </div>
       </footer>
+
+      {isClientScannerOpen && (
+        <SerialBarcodeScannerModal
+          title="Scan Your Job Card QR Code"
+          subtitle="Client access opens read-only progress and response controls for your specific Job ID"
+          prioritizeQr
+          onDetected={(result) => {
+            setIsClientScannerOpen(false);
+            const parsed = parseProductQrPayload(result.rawValue);
+            const targetQuery = parsed.token || parsed.jobId || result.rawValue.trim();
+            if (targetQuery) {
+              setLookupInput(targetQuery);
+              setPhoneLast4Input('');
+              void runLookup(targetQuery);
+            }
+          }}
+          onClose={() => setIsClientScannerOpen(false)}
+        />
+      )}
     </div>
   );
 };

@@ -2163,6 +2163,157 @@ app.post('/api/customer-portal/feedback', async (req, res) => {
   }
 });
 
+// Public Client Portal Response Submission (records verified client message/approval onto jobCard)
+app.post('/api/customer-portal/response', async (req, res) => {
+  try {
+    const rawQuery = typeof req.body?.query === 'string' ? req.body.query.trim() : '';
+    const responseType =
+      typeof req.body?.responseType === 'string' && req.body.responseType.trim()
+        ? req.body.responseType.trim().slice(0, 60)
+        : 'General Update';
+    const rawMessage = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+    const phoneLast4 = typeof req.body?.phoneLast4 === 'string'
+      ? req.body.phoneLast4.replace(/\D/g, '').slice(-4)
+      : '';
+
+    if (!rawQuery) {
+      return res.status(400).json({ error: 'Job ID or public access token is required.' });
+    }
+    if (!rawMessage) {
+      return res.status(400).json({ error: 'Response message is required.' });
+    }
+    if (rawMessage.length > 1000) {
+      return res.status(400).json({ error: 'Response message must be 1000 characters or fewer.' });
+    }
+
+    const cleanId = sanitizeDocId(rawQuery);
+    let targetJobSnap: FirebaseFirestore.DocumentSnapshot | null = null;
+    let verifiedByToken = false;
+
+    const tokenDocSnap = await adminDb.collection('publicDeliveries').doc(cleanId).get();
+    if (tokenDocSnap.exists) {
+      const pub = tokenDocSnap.data()!;
+      if (pub.jobId) {
+        const linkedJob = await adminDb.collection('jobCards').doc(String(pub.jobId)).get();
+        if (linkedJob.exists) {
+          targetJobSnap = linkedJob;
+          verifiedByToken = true;
+        }
+      }
+    }
+
+    if (!targetJobSnap) {
+      const byAccessToken = await adminDb
+        .collection('jobCards')
+        .where('publicAccessToken', '==', rawQuery)
+        .limit(1)
+        .get();
+      if (!byAccessToken.empty) {
+        targetJobSnap = byAccessToken.docs[0];
+        verifiedByToken = true;
+      }
+    }
+
+    if (!targetJobSnap) {
+      let byId = await adminDb.collection('jobCards').doc(cleanId).get();
+      if (!byId.exists && cleanId.toUpperCase() !== cleanId) {
+        byId = await adminDb.collection('jobCards').doc(cleanId.toUpperCase()).get();
+      }
+      if (byId.exists) {
+        targetJobSnap = byId;
+      }
+    }
+
+    if (!targetJobSnap || !targetJobSnap.exists) {
+      return res.status(404).json({
+        success: false,
+        persistedToCloud: false,
+        localFallbackAllowed: true,
+        error: 'Job record not found in cloud database.',
+      });
+    }
+
+    const existingJob = targetJobSnap.data()!;
+    const jobPhoneLast4 = String(existingJob.customerPhone || '').replace(/\D/g, '').slice(-4);
+    if (!verifiedByToken) {
+      if (!phoneLast4) {
+        return res.status(403).json({
+          success: false,
+          error: 'Phone verification (last 4 digits) is required when responding by Job ID.',
+          requiresPhoneVerification: true,
+        });
+      }
+      if (jobPhoneLast4 && phoneLast4 !== jobPhoneLast4) {
+        return res.status(403).json({
+          success: false,
+          error: 'Phone last 4 digits do not match the service ticket.',
+          invalidPhone: true,
+        });
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const timestampLabel = nowIso.slice(0, 16).replace('T', ' ');
+    const clientLabel = String(existingJob.customerName || 'Client').split(' ')[0].slice(0, 80);
+
+    const responseLog = {
+      id: `msg-client-${Date.now()}`,
+      timestamp: timestampLabel,
+      type: 'Custom',
+      recipientPhone: String(existingJob.customerPhone || ''),
+      text: `[Client Portal · ${responseType}] ${rawMessage}`,
+      channel: 'SMS',
+      status: 'Sent',
+    };
+
+    const existingLogs = Array.isArray(existingJob.messageLogs) ? existingJob.messageLogs : [];
+    const existingAuditLogs = Array.isArray(existingJob.auditLogs) ? existingJob.auditLogs : [];
+    const nextAuditLogs = [
+      ...existingAuditLogs,
+      {
+        id: `aud-client-resp-${Date.now()}`,
+        timestamp: timestampLabel,
+        userName: clientLabel,
+        userRole: 'Client Portal',
+        action: 'CLIENT_PORTAL_RESPONSE',
+        newState: `${responseType}: "${rawMessage.slice(0, 90)}"`,
+      },
+    ].slice(-50);
+
+    await targetJobSnap.ref.update({
+      messageLogs: [responseLog, ...existingLogs].slice(0, 50),
+      auditLogs: nextAuditLogs,
+      updatedAtIso: nowIso,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    const merged = {
+      ...serializeFirestoreDoc(existingJob),
+      id: targetJobSnap.id,
+      messageLogs: [responseLog, ...existingLogs].slice(0, 50),
+      auditLogs: nextAuditLogs,
+      updatedAt: nowIso,
+    };
+    broadcastSyncEvent('job:updated', merged);
+    broadcastDeliveryUpdate(merged);
+
+    return res.json({
+      success: true,
+      persistedToCloud: true,
+      response: responseLog,
+    });
+  } catch (error: any) {
+    console.error('Client response submission error:', error);
+    return res.status(503).json({
+      success: false,
+      persistedToCloud: false,
+      localFallbackAllowed: true,
+      error: 'Cloud response persistence unavailable.',
+      details: error?.message,
+    });
+  }
+});
+
 // Live Sanitized Customer Delivery SSE Stream
 app.get('/api/customer-portal/stream', (req, res) => {
   const tokenKey = typeof req.query.token === 'string' ? req.query.token.trim().toLowerCase() : '';

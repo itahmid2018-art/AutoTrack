@@ -60,6 +60,20 @@ export function buildCustomerFeedbackUrl(
 }
 
 /**
+ * Builds the scannable QR payload URL for a job card.
+ * Includes both the private client token and canonical job ID so external phone cameras
+ * open the tokenized Client View while internal scanners extract jobId + token directly.
+ */
+export function buildJobCardQrPayload(
+  job: Pick<JobCard, 'id' | 'createdAt' | 'publicAccessToken'>,
+  origin?: string
+): string {
+  const basePortalUrl = buildCustomerPortalUrl(job, origin);
+  const jobId = encodeURIComponent(job.id);
+  return `${basePortalUrl}&job=${jobId}`;
+}
+
+/**
  * Synchronously generates a 2D boolean QR module matrix for vector SVG or jsPDF rendering.
  */
 export function buildQrMatrix(text: string): { size: number; rows: boolean[][] } {

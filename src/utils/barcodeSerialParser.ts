@@ -167,6 +167,7 @@ export function parseProductQrPayload(rawValue: string): ParsedProductQrPayload 
   }
 
   // 3. Key-value / labeled barcode payload (e.g. "SKU: BRSH-1002 | SN: 3611B54300 | MODEL: GBH 2-26 DFR")
+  const jobMatch = trimmed.match(/(?:^|[\s;|,])(?:JOB|JOB_ID|JOBID|CARD)\s*[:=#]\s*([A-Z0-9-]{4,32})/i);
   const skuMatch = trimmed.match(/(?:^|[\s;|,])SKU\s*[:=#]\s*([A-Z0-9-]{3,32})/i);
   const barcodeMatch = trimmed.match(/(?:^|[\s;|,])(?:BARCODE|EAN|UPC)\s*[:=#]\s*([A-Z0-9-]{4,32})/i);
   const serialMatch = trimmed.match(
@@ -174,9 +175,10 @@ export function parseProductQrPayload(rawValue: string): ParsedProductQrPayload 
   );
   const modelMatch = trimmed.match(/(?:^|[\s;|,])MODEL\s*[:=#]\s*([A-Z0-9 \-./]{3,40}?)(?=$|[\s]*[;|,\r\n])/i);
 
-  if (skuMatch || barcodeMatch || serialMatch || modelMatch) {
+  if (jobMatch || skuMatch || barcodeMatch || serialMatch || modelMatch) {
     return {
       rawValue: trimmed,
+      jobId: jobMatch?.[1]?.trim().toUpperCase(),
       sku: skuMatch?.[1]?.trim().toUpperCase(),
       barcode: barcodeMatch?.[1]?.trim(),
       serialNumber: serialMatch?.[1]?.trim().toUpperCase(),
@@ -194,7 +196,7 @@ export function parseProductQrPayload(rawValue: string): ParsedProductQrPayload 
   if (/^[A-Z]{2,6}-\d{3,6}$/.test(upper)) {
     return { rawValue: trimmed, sku: upper, serialNumber: upper };
   }
-  if (/^BOSCH-\d{4}-\d{3,6}$/.test(upper)) {
+  if (/^[A-Z]{2,12}-\d{4}-\d{2,6}$/.test(upper)) {
     return { rawValue: trimmed, jobId: upper };
   }
 

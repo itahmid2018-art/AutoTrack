@@ -16,6 +16,10 @@ import {
   computeMonthlyPartConsumptionTrends,
 } from '../utils/inventoryNotifications';
 import { calculateAverageReplenishMetrics } from '../utils/inventoryReplenishment';
+import {
+  calculateCategoryTurnaroundFromStageHistory,
+  CategoryTurnaroundMetric,
+} from '../utils/categoryTurnaround';
 import { AppTheme } from '../utils/theme';
 import { AiReorderRecommendations } from './AiReorderRecommendations';
 import { RevenueForecastModule } from './RevenueForecastModule';
@@ -130,6 +134,44 @@ const VolumeTrendTooltip: React.FC<CustomChartTooltipProps> = ({ active, payload
       <div className="flex items-center justify-between gap-4 text-[11px]">
         <span className="text-zinc-700 dark:text-zinc-400">Total Intakes:</span>
         <span className="text-zinc-800 dark:text-zinc-300 font-semibold">{point?.jobCount ?? 0}</span>
+      </div>
+    </div>
+  );
+};
+
+interface CategoryTurnaroundTooltipProps {
+  active?: boolean;
+  payload?: { payload?: CategoryTurnaroundMetric }[];
+}
+
+const CategoryTurnaroundTooltip: React.FC<CategoryTurnaroundTooltipProps> = ({
+  active,
+  payload,
+}) => {
+  if (!active || !payload || payload.length === 0 || !payload[0]?.payload) return null;
+  const item = payload[0].payload;
+  return (
+    <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-400 dark:border-zinc-700 rounded-xl p-3 shadow-2xl font-mono text-xs space-y-1.5 tabular-nums">
+      <div className="text-zinc-950 dark:text-white font-bold border-b border-zinc-300 dark:border-zinc-800 pb-1">
+        {item.category}
+      </div>
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-zinc-700 dark:text-zinc-400">Avg Turnaround:</span>
+        <span className="text-emerald-700 dark:text-emerald-400 font-bold">
+          {item.avgHours !== null ? `${item.avgHours} hrs (${item.avgDays}d)` : 'Pending'}
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-4 text-[11px]">
+        <span className="text-zinc-700 dark:text-zinc-400">Completed Jobs:</span>
+        <span className="text-zinc-950 dark:text-white font-semibold">{item.completedCount}</span>
+      </div>
+      <div className="flex items-center justify-between gap-4 text-[11px]">
+        <span className="text-zinc-700 dark:text-zinc-400">Min / Max:</span>
+        <span className="text-zinc-800 dark:text-zinc-300">
+          {item.minHours !== null && item.maxHours !== null
+            ? `${item.minHours}h – ${item.maxHours}h`
+            : '—'}
+        </span>
       </div>
     </div>
   );
@@ -332,6 +374,10 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   const replenishMetrics = React.useMemo(
     () => calculateAverageReplenishMetrics(inventory, notifications),
     [inventory, notifications]
+  );
+  const categoryTurnaround = React.useMemo(
+    () => calculateCategoryTurnaroundFromStageHistory(jobCards),
+    [jobCards]
   );
 
   // Today's Appointments Calculation (bench schedule slots + promised completions + due maintenance)
@@ -1835,6 +1881,204 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           jobCards={jobCards}
           onUpdateInventory={onUpdateInventory}
         />
+      )}
+
+      {/* Average Turnaround Time per Tool Category (stageHistory Analysis) */}
+      {(metrics.avgRepairTime || metrics.categoryVolume) && (
+        <section
+          aria-labelledby="category-turnaround-heading"
+          className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-2xl p-6 space-y-5 shadow-xl"
+        >
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-zinc-300 dark:border-zinc-800 pb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
+                <h3
+                  id="category-turnaround-heading"
+                  className="text-base font-bold text-zinc-950 dark:text-white tracking-tight"
+                >
+                  Average Turnaround Time by Tool Category
+                </h3>
+              </div>
+              <p className="text-xs text-zinc-700 dark:text-zinc-400 mt-1">
+                Analyzed from the stageHistory timeline of completed repair job cards across tool categories.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-4 font-mono tabular-nums text-xs">
+              <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3.5 py-2">
+                <span className="text-[10px] text-zinc-700 dark:text-zinc-400 block uppercase">Completed Analyzed</span>
+                <span className="text-lg font-extrabold text-zinc-950 dark:text-white">
+                  {categoryTurnaround.analyzedJobsCount}{' '}
+                  <span className="text-xs font-normal text-zinc-700 dark:text-zinc-400">
+                    / {categoryTurnaround.totalCompletedJobs}
+                  </span>
+                </span>
+              </div>
+              <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl px-3.5 py-2">
+                <span className="text-[10px] text-zinc-700 dark:text-zinc-400 block uppercase">Overall Avg</span>
+                <span className="text-lg font-extrabold text-emerald-700 dark:text-emerald-400">
+                  {categoryTurnaround.overallAvgHours !== null
+                    ? `${categoryTurnaround.overallAvgHours} hrs`
+                    : 'No Data'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Summary Strip */}
+          {categoryTurnaround.categories.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-b border-zinc-300 dark:border-zinc-800 pb-4 font-mono tabular-nums text-xs">
+              <div className="space-y-1">
+                <span className="text-zinc-700 dark:text-zinc-400 block">Overall Cycle Duration</span>
+                <div className="text-lg font-bold text-zinc-950 dark:text-white">
+                  {categoryTurnaround.overallAvgDays !== null ? `${categoryTurnaround.overallAvgDays} days` : '—'}
+                </div>
+                <div className="text-[11px] font-sans text-zinc-600 dark:text-zinc-400">
+                  Across {categoryTurnaround.categories.length} active tool categories
+                </div>
+              </div>
+
+              <div className="space-y-1 sm:border-l sm:border-zinc-300 dark:sm:border-zinc-800 sm:pl-5">
+                <span className="text-zinc-700 dark:text-zinc-400 block">Fastest Category</span>
+                <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400 truncate">
+                  {categoryTurnaround.fastestCategory
+                    ? `${categoryTurnaround.fastestCategory.category} (${categoryTurnaround.fastestCategory.avgHours}h)`
+                    : '—'}
+                </div>
+                <div className="text-[11px] font-sans text-zinc-600 dark:text-zinc-400">
+                  {categoryTurnaround.fastestCategory
+                    ? `${categoryTurnaround.fastestCategory.completedCount} completed job(s)`
+                    : 'No completions'}
+                </div>
+              </div>
+
+              <div className="space-y-1 sm:border-l sm:border-zinc-300 dark:sm:border-zinc-800 sm:pl-5">
+                <span className="text-zinc-700 dark:text-zinc-400 block">Longest Turnaround</span>
+                <div className="text-sm font-bold text-zinc-950 dark:text-white truncate">
+                  {categoryTurnaround.slowestCategory
+                    ? `${categoryTurnaround.slowestCategory.category} (${categoryTurnaround.slowestCategory.avgHours}h)`
+                    : '—'}
+                </div>
+                <div className="text-[11px] font-sans text-zinc-600 dark:text-zinc-400">
+                  {categoryTurnaround.slowestCategory
+                    ? `${categoryTurnaround.slowestCategory.completedCount} completed job(s)`
+                    : 'No completions'}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {categoryTurnaround.categories.length === 0 ? (
+            <div className="h-44 flex items-center justify-center border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl text-xs text-zinc-600 dark:text-zinc-400 font-mono text-center px-4">
+              Complete at least 1 job card to visualize average stageHistory turnaround per tool category.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+              {/* Horizontal Bar Chart */}
+              <div className="xl:col-span-6 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span className="font-bold text-zinc-950 dark:text-white uppercase">
+                    Mean Hours to Complete (stageHistory)
+                  </span>
+                  <span className="text-[11px] text-zinc-700 dark:text-zinc-400">Hours</span>
+                </div>
+
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      layout="vertical"
+                      data={categoryTurnaround.categories}
+                      margin={{ top: 6, right: 18, left: 10, bottom: 4 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} horizontal={false} />
+                      <XAxis
+                        type="number"
+                        stroke={chartAxisStroke}
+                        tick={{ fill: chartAxisStroke, fontSize: 11, fontFamily: 'monospace' }}
+                        axisLine={{ stroke: chartAxisLineStroke }}
+                        tickLine={false}
+                        tickFormatter={(val: number) => `${val}h`}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="category"
+                        width={145}
+                        stroke={chartAxisStroke}
+                        tick={{ fill: chartAxisStroke, fontSize: 10, fontFamily: 'monospace' }}
+                        axisLine={{ stroke: chartAxisLineStroke }}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        cursor={{ fill: chartCursorFill }}
+                        content={<CategoryTurnaroundTooltip />}
+                      />
+                      <Bar
+                        dataKey="avgHours"
+                        name="Avg Turnaround (hrs)"
+                        fill={chartLaborColor}
+                        radius={[0, 4, 4, 0]}
+                        maxBarSize={24}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Structured Table */}
+              <div className="xl:col-span-6 overflow-x-auto bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl">
+                <table className="w-full text-left text-xs font-mono tabular-nums border-collapse">
+                  <thead>
+                    <tr className="border-b border-zinc-300 dark:border-zinc-800 text-zinc-700 dark:text-zinc-400 text-[11px]">
+                      <th className="py-3 px-4 font-semibold">Tool Category</th>
+                      <th className="py-3 px-3 text-right font-semibold">Completed</th>
+                      <th className="py-3 px-3 text-right font-semibold">Avg Turnaround</th>
+                      <th className="py-3 px-4 text-right font-semibold">Range</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-200/80 dark:divide-zinc-800/70">
+                    {categoryTurnaround.categories.map((row) => (
+                      <tr key={row.category} className="hover:bg-zinc-100 dark:hover:bg-zinc-900/70 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="font-sans font-semibold text-zinc-950 dark:text-white text-xs">
+                            {row.category}
+                          </div>
+                          <div className="text-[10px] text-zinc-600 dark:text-zinc-500 font-sans">
+                            {row.multiStageCount > 0
+                              ? `${row.multiStageCount} multi-stage history`
+                              : 'stageHistory + intake'}
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-right font-bold text-zinc-950 dark:text-white">
+                          {row.completedCount}
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          {row.avgHours !== null ? (
+                            <div>
+                              <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                                {row.avgHours} hrs
+                              </span>
+                              <div className="text-[10px] text-zinc-600 dark:text-zinc-500">
+                                {row.avgDays} days
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-zinc-500">—</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-right text-zinc-700 dark:text-zinc-300">
+                          {row.minHours !== null && row.maxHours !== null
+                            ? `${row.minHours}h – ${row.maxHours}h`
+                            : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </section>
       )}
 
       {/* Category & Parts Valuation Grid */}
