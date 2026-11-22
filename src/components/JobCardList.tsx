@@ -4,6 +4,7 @@ import { adjudicateWarranty } from '../utils/warrantyAdjudicator';
 import { SerialBarcodeScannerModal } from './SerialBarcodeScannerModal';
 import { BarcodeScanResult, findMatchingToolHistory, parseProductQrPayload } from '../utils/barcodeSerialParser';
 import { getEffectiveJobBilling } from '../utils/billing';
+import { generateBulkJobCardsPdf } from '../utils/generatePdf';
 import {
   JOB_PRIORITY_LEVELS,
   countJobsByPriority,
@@ -32,6 +33,7 @@ interface JobCardListProps {
   onQuickStatusChange: (jobId: string, newStatus: JobStatus) => void;
   onQuickPriorityChange?: (jobId: string, newPriority: JobPriority) => void;
   onBulkStatusChange?: (jobIds: string[], newStatus: JobStatus) => void;
+  onGenerateBulkPdfReport?: (jobs: JobCard[]) => void;
   onOpenWhatsApp: (job: JobCard) => void;
   onPrintJobCard: (job: JobCard) => void;
   onSendPdfToCustomer: (job: JobCard) => void;
@@ -45,6 +47,7 @@ export const JobCardList: React.FC<JobCardListProps> = ({
   onQuickStatusChange,
   onQuickPriorityChange,
   onBulkStatusChange,
+  onGenerateBulkPdfReport,
   onOpenWhatsApp,
   onPrintJobCard,
   onSendPdfToCustomer,
@@ -174,6 +177,33 @@ export const JobCardList: React.FC<JobCardListProps> = ({
     }
 
     setSelectedIds(new Set());
+  };
+
+  const handleGenerateBulkPdfReport = () => {
+    if (activeSelectedIds.size === 0) return;
+
+    const filteredSelected = filteredJobs.filter((j) => activeSelectedIds.has(j.id));
+    const filteredSelectedIdSet = new Set(filteredSelected.map((j) => j.id));
+    const remainingSelected = jobCards.filter(
+      (j) => activeSelectedIds.has(j.id) && !filteredSelectedIdSet.has(j.id)
+    );
+    const orderedSelectedJobs = [...filteredSelected, ...remainingSelected];
+
+    if (orderedSelectedJobs.length === 0) return;
+
+    if (onGenerateBulkPdfReport) {
+      onGenerateBulkPdfReport(orderedSelectedJobs);
+      setBulkNotice(
+        `Prepared combined printable PDF report for ${orderedSelectedJobs.length} job card${orderedSelectedJobs.length === 1 ? '' : 's'}.`
+      );
+      return;
+    }
+
+    const { doc, filename } = generateBulkJobCardsPdf(orderedSelectedJobs);
+    doc.save(filename);
+    setBulkNotice(
+      `Downloaded combined PDF report (${filename}) for ${orderedSelectedJobs.length} job card${orderedSelectedJobs.length === 1 ? '' : 's'}.`
+    );
   };
 
   const getStatusBadgeClass = (status: JobStatus) => {
@@ -441,6 +471,23 @@ export const JobCardList: React.FC<JobCardListProps> = ({
               <CheckSquare className="w-4 h-4" />
               <span>
                 Bulk Update Status{selectedCount > 0 ? ` (${selectedCount})` : ''}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleGenerateBulkPdfReport}
+              disabled={selectedCount === 0}
+              data-testid="bulk-pdf-report-btn"
+              className={`px-3.5 py-2 text-xs font-bold rounded-xl shadow flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 tabular-nums ${
+                selectedCount > 0
+                  ? 'bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-950 active:scale-95 cursor-pointer'
+                  : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-500 border border-zinc-400 dark:border-zinc-700 cursor-not-allowed'
+              }`}
+            >
+              <Printer className="w-4 h-4" />
+              <span>
+                Combined PDF Report{selectedCount > 0 ? ` (${selectedCount})` : ''}
               </span>
             </button>
           </div>

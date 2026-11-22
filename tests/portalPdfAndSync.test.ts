@@ -4,7 +4,12 @@ import { getApiBaseUrl, resolveApiUrl } from '../src/utils/apiBase';
 import { sanitizeJobForCustomer, lookupCustomerJob } from '../src/utils/customerLookup';
 import { sentStatusFor, isApiConfirmed } from '../src/utils/messagingStatus';
 import { buildPdfBrandMeta } from '../src/utils/pdfBrandMeta';
-import { generateJobCardPdf, generatePurchaseOrderPdf } from '../src/utils/generatePdf';
+import {
+  generateBulkJobCardsPdf,
+  generateJobCardPdf,
+  generatePurchaseOrderPdf,
+} from '../src/utils/generatePdf';
+import { getEffectiveJobBilling } from '../src/utils/billing';
 import {
   sanitizeDocId,
   isBootstrappedAdminUser,
@@ -123,6 +128,39 @@ describe('pdfBrandMeta & generatePdf utilities', () => {
     );
     assert.ok(poPdf.filename.endsWith('_Draft_Purchase_Order.pdf'));
     assert.ok(poPdf.dataUrl.startsWith('data:application/pdf'));
+
+    const jobWithExpenses = {
+      ...INITIAL_JOB_CARDS[2],
+      operationalExpenses: [
+        {
+          id: 'exp-1',
+          category: 'Shipping & Freight' as const,
+          description: 'Site van pickup',
+          vendor: 'Courier Express',
+          amount: 25,
+          date: '2026-11-22',
+        },
+      ],
+    };
+    const batchJobs = [INITIAL_JOB_CARDS[0], INITIAL_JOB_CARDS[1], jobWithExpenses];
+    const bulkPdf = generateBulkJobCardsPdf(batchJobs, meta, INITIAL_CUSTOM_FIELDS);
+    const expectedTotal = batchJobs.reduce(
+      (sum, job) => sum + getEffectiveJobBilling(job).totalAmount,
+      0
+    );
+
+    assert.equal(bulkPdf.jobCount, 3);
+    assert.ok(bulkPdf.pageCount >= 4);
+    assert.ok(bulkPdf.filename.startsWith('AutoTrack_Combined_JobCards_3_'));
+    assert.ok(bulkPdf.filename.endsWith('.pdf'));
+    assert.ok(bulkPdf.dataUrl.startsWith('data:application/pdf'));
+    assert.ok(Math.abs(bulkPdf.totalAmount - expectedTotal) < 0.01);
+
+    const emptyBulkPdf = generateBulkJobCardsPdf([], meta, INITIAL_CUSTOM_FIELDS);
+    assert.equal(emptyBulkPdf.jobCount, 0);
+    assert.equal(emptyBulkPdf.pageCount, 1);
+    assert.equal(emptyBulkPdf.totalAmount, 0);
+    assert.ok(emptyBulkPdf.dataUrl.startsWith('data:application/pdf'));
   });
 });
 

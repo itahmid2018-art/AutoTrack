@@ -32,6 +32,9 @@ import {
   Moon,
   History,
   CloudOff,
+  MoreVertical,
+  Forward,
+  Check,
 } from 'lucide-react';
 import { AppTheme } from '../utils/theme';
 import {
@@ -44,6 +47,7 @@ import {
   recordRecentJobId,
   removeRecentJobId,
 } from '../utils/recentSearches';
+import { buildNotificationForwardText } from '../utils/notificationsCenter';
 
 export type AppTab =
   | 'intake'
@@ -94,6 +98,7 @@ interface HeaderProps {
   inventoryNotifications?: InventoryNotification[];
   unreadInventoryCount?: number;
   onMarkNotificationRead?: (id: string) => void;
+  onToggleNotificationRead?: (id: string) => void;
   onMarkAllNotificationsRead?: () => void;
   onQuickReorderItem?: (itemId: string, qty: number) => void;
   onOpenInventoryAlerts?: () => void;
@@ -135,6 +140,7 @@ export const Header: React.FC<HeaderProps> = ({
   inventoryNotifications = [],
   unreadInventoryCount = 0,
   onMarkNotificationRead,
+  onToggleNotificationRead,
   onMarkAllNotificationsRead,
   onQuickReorderItem,
   onOpenInventoryAlerts,
@@ -154,6 +160,8 @@ export const Header: React.FC<HeaderProps> = ({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'critical'>('all');
+  const [openNotifMenuId, setOpenNotifMenuId] = useState<string | null>(null);
+  const [copiedNotifId, setCopiedNotifId] = useState<string | null>(null);
   const [recentJobIds, setRecentJobIds] = useState<string[]>(() => loadRecentJobIds());
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const notifContainerRef = useRef<HTMLDivElement>(null);
@@ -167,6 +175,7 @@ export const Header: React.FC<HeaderProps> = ({
       }
       if (notifContainerRef.current && !notifContainerRef.current.contains(target)) {
         setIsNotifOpen(false);
+        setOpenNotifMenuId(null);
       }
       if (menuBarRef.current && !menuBarRef.current.contains(target)) {
         setOpenMenu(null);
@@ -178,6 +187,7 @@ export const Header: React.FC<HeaderProps> = ({
         setOpenMenu(null);
         setIsSearchOpen(false);
         setIsNotifOpen(false);
+        setOpenNotifMenuId(null);
       }
     };
 
@@ -596,7 +606,10 @@ export const Header: React.FC<HeaderProps> = ({
                       <button
                         key={tab.id}
                         type="button"
-                        onClick={() => setNotifFilter(tab.id as 'all' | 'unread' | 'critical')}
+                        onClick={() => {
+                          setNotifFilter(tab.id as 'all' | 'unread' | 'critical');
+                          setOpenNotifMenuId(null);
+                        }}
                         className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-bold transition-colors ${
                           notifFilter === tab.id
                             ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950'
@@ -608,6 +621,30 @@ export const Header: React.FC<HeaderProps> = ({
                     ))}
                   </div>
 
+                  {/* Top Navigation Button Under "All" Filter */}
+                  {notifFilter === 'all' && (
+                    <div className="p-2 bg-zinc-50/90 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800">
+                      <button
+                        type="button"
+                        data-testid="open-notifications-page-top-btn"
+                        onClick={() => {
+                          setIsNotifOpen(false);
+                          setOpenNotifMenuId(null);
+                          handleNavClick('notifications');
+                        }}
+                        className="w-full py-2 px-3 bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Bell className="w-3.5 h-3.5" />
+                        <span>Open Notifications Page</span>
+                        {totalNotificationCount > 0 && (
+                          <span className="ml-1 px-1.5 py-0.5 rounded bg-white/20 dark:bg-zinc-950/15 text-[10px] tabular-nums">
+                            {totalNotificationCount}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
                   <div className="max-h-80 overflow-y-auto divide-y divide-zinc-200 dark:divide-zinc-900">
                     {filteredNotifs.length === 0 ? (
                       <div className="p-6 text-center text-zinc-600 dark:text-zinc-500 text-xs font-sans">
@@ -616,16 +653,18 @@ export const Header: React.FC<HeaderProps> = ({
                     ) : (
                       filteredNotifs.slice(0, 12).map((notif) => {
                         const isOut = notif.severity === 'OUT_OF_STOCK';
+                        const isMenuOpen = openNotifMenuId === notif.id;
+                        const wasCopied = copiedNotifId === notif.id;
                         return (
                           <div
                             key={notif.id}
                             onClick={() => onMarkNotificationRead && onMarkNotificationRead(notif.id)}
-                            className={`p-3 space-y-2 hover:bg-zinc-100 dark:hover:bg-zinc-900/70 transition-colors cursor-pointer ${
+                            className={`relative p-3 space-y-2 hover:bg-zinc-100 dark:hover:bg-zinc-900/70 transition-colors cursor-pointer ${
                               !notif.read ? 'bg-zinc-50 dark:bg-zinc-900/40' : ''
                             }`}
                           >
                             <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
+                              <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5">
                                   <span className="font-bold text-zinc-950 dark:text-white truncate">{notif.sku}</span>
                                   <span
@@ -639,19 +678,145 @@ export const Header: React.FC<HeaderProps> = ({
                                   >
                                     {notif.severity.replace(/_/g, ' ')}
                                   </span>
+                                  {!notif.read && (
+                                    <span className="text-[9px] font-bold text-amber-800 dark:text-amber-300">
+                                      Unread
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="text-[11px] text-zinc-800 dark:text-zinc-300 font-sans truncate mt-0.5">
                                   {notif.name}
                                 </div>
                               </div>
 
-                              <div className="text-right shrink-0 tabular-nums">
-                                <div className={`text-xs font-extrabold ${isOut ? 'text-rose-700 dark:text-rose-400' : 'text-amber-800 dark:text-amber-400'}`}>
-                                  {notif.stockQty} / Min {notif.minStockThreshold}
+                              <div className="flex items-start gap-1.5 shrink-0">
+                                <div className="text-right tabular-nums">
+                                  <div className={`text-xs font-extrabold ${isOut ? 'text-rose-700 dark:text-rose-400' : 'text-amber-800 dark:text-amber-400'}`}>
+                                    {notif.stockQty} / Min {notif.minStockThreshold}
+                                  </div>
+                                  <div className="text-[9px] text-zinc-600 dark:text-zinc-500">{notif.binLocation}</div>
                                 </div>
-                                <div className="text-[9px] text-zinc-600 dark:text-zinc-500">{notif.binLocation}</div>
+
+                                <div className="relative">
+                                  <button
+                                    type="button"
+                                    aria-label={`Actions for ${notif.sku}`}
+                                    aria-haspopup="menu"
+                                    aria-expanded={isMenuOpen}
+                                    data-testid={`header-notif-menu-btn-${notif.id}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenNotifMenuId((curr) => (curr === notif.id ? null : notif.id));
+                                    }}
+                                    className="p-1 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
+                                  >
+                                    <MoreVertical className="w-3.5 h-3.5" />
+                                  </button>
+
+                                  {isMenuOpen && (
+                                    <div
+                                      role="menu"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="absolute right-0 top-7 z-50 w-52 bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-xl shadow-2xl p-1 space-y-0.5 text-[11px] font-sans"
+                                    >
+                                      <button
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={() => {
+                                          if (onToggleNotificationRead) {
+                                            onToggleNotificationRead(notif.id);
+                                          } else if (onMarkNotificationRead && !notif.read) {
+                                            onMarkNotificationRead(notif.id);
+                                          }
+                                          setOpenNotifMenuId(null);
+                                        }}
+                                        className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-900 dark:text-zinc-200 flex items-center gap-2"
+                                      >
+                                        <Check className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+                                        <span>{notif.read ? 'Mark as Unread' : 'Mark as Read'}</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={() => {
+                                          const brief = buildNotificationForwardText({
+                                            type: 'inventory',
+                                            notif,
+                                          });
+                                          if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                                            void navigator.clipboard.writeText(brief).catch(() => {});
+                                          }
+                                          if (onMarkNotificationRead && !notif.read) {
+                                            onMarkNotificationRead(notif.id);
+                                          }
+                                          setCopiedNotifId(notif.id);
+                                          setTimeout(() => setCopiedNotifId(null), 2000);
+                                          setOpenNotifMenuId(null);
+                                        }}
+                                        className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-900 dark:text-zinc-200 flex items-center gap-2"
+                                      >
+                                        <Forward className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
+                                        <span>Forward Restock Brief</span>
+                                      </button>
+
+                                      {onQuickReorderItem && (
+                                        <button
+                                          type="button"
+                                          role="menuitem"
+                                          onClick={() => {
+                                            onQuickReorderItem(notif.itemId, notif.suggestedReorderQty);
+                                            setOpenNotifMenuId(null);
+                                          }}
+                                          className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-900 dark:text-zinc-200 flex items-center gap-2"
+                                        >
+                                          <ShoppingCart className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+                                          <span>Quick Reorder (+{notif.suggestedReorderQty})</span>
+                                        </button>
+                                      )}
+
+                                      <button
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={() => {
+                                          setOpenNotifMenuId(null);
+                                          setIsNotifOpen(false);
+                                          handleNavClick('notifications');
+                                        }}
+                                        className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-900 dark:text-zinc-200 flex items-center gap-2"
+                                      >
+                                        <Bell className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
+                                        <span>Reply / Triage in Page</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={() => {
+                                          setOpenNotifMenuId(null);
+                                          setIsNotifOpen(false);
+                                          if (onOpenInventoryAlerts) {
+                                            onOpenInventoryAlerts();
+                                          } else {
+                                            handleNavClick('inventory');
+                                          }
+                                        }}
+                                        className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-900 dark:text-zinc-200 flex items-center gap-2"
+                                      >
+                                        <Package className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" />
+                                        <span>Open in Catalog</span>
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
+
+                            {wasCopied && (
+                              <div className="text-[10px] font-sans font-semibold text-emerald-800 dark:text-emerald-300">
+                                Restock brief copied — ready to forward.
+                              </div>
+                            )}
 
                             <div className="flex items-center justify-between gap-2 pt-0.5">
                               <span className="text-[10px] text-zinc-700 dark:text-zinc-400 tabular-nums">
@@ -686,17 +851,7 @@ export const Header: React.FC<HeaderProps> = ({
                       type="button"
                       onClick={() => {
                         setIsNotifOpen(false);
-                        handleNavClick('notifications');
-                      }}
-                      className="w-full py-1.5 px-3 bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
-                    >
-                      <Bell className="w-3.5 h-3.5" />
-                      <span>Open Notifications Page</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsNotifOpen(false);
+                        setOpenNotifMenuId(null);
                         if (onOpenInventoryAlerts) {
                           onOpenInventoryAlerts();
                         } else {

@@ -16,17 +16,12 @@ export interface PdfBrandMeta {
   portalOrigin?: string;
 }
 
-export function generateJobCardPdf(
+function renderJobCardIntoDoc(
+  doc: jsPDF,
   job: JobCard,
   brandMeta?: PdfBrandMeta,
   customFields: CustomField[] = []
-): { doc: jsPDF; filename: string; dataUrl: string } {
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4',
-  });
-
+): void {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 14;
@@ -458,6 +453,24 @@ export function generateJobCardPdf(
   } else {
     doc.line(120, y + 13, 176, y + 13);
   }
+}
+
+export function generateJobCardPdf(
+  job: JobCard,
+  brandMeta?: PdfBrandMeta,
+  customFields: CustomField[] = []
+): { doc: jsPDF; filename: string; dataUrl: string } {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 14;
+  const centerName = brandMeta?.centerName || 'BOSCH & VENDOR POWER TOOLS SERVICE HUB';
+
+  renderJobCardIntoDoc(doc, job, brandMeta, customFields);
 
   // Footer Disclaimer on each page
   const pageCount = doc.getNumberOfPages();
@@ -478,6 +491,210 @@ export function generateJobCardPdf(
   const dataUrl = doc.output('datauristring');
 
   return { doc, filename, dataUrl };
+}
+
+export function generateBulkJobCardsPdf(
+  jobs: JobCard[],
+  brandMeta?: PdfBrandMeta,
+  customFields: CustomField[] = []
+): {
+  doc: jsPDF;
+  filename: string;
+  dataUrl: string;
+  jobCount: number;
+  pageCount: number;
+  totalAmount: number;
+} {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 14;
+  const contentWidth = pageWidth - margin * 2;
+  const currency = brandMeta?.currencySymbol || '$';
+  const centerName = brandMeta?.centerName || 'BOSCH & VENDOR POWER TOOLS SERVICE HUB';
+  const contactLine = [
+    brandMeta?.address || 'Authorised Industrial Tool Service Center',
+    brandMeta?.phone,
+    brandMeta?.email,
+  ]
+    .filter(Boolean)
+    .join('  |  ');
+
+  const dateStamp = new Date().toISOString().slice(0, 10);
+  const generatedLabel = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  const totalAmount = jobs.reduce((sum, job) => sum + getEffectiveJobBilling(job).totalAmount, 0);
+  const highPriorityCount = jobs.filter(
+    (job) => String(job.priority).trim().toLowerCase() === 'high'
+  ).length;
+  const inWarrantyCount = jobs.filter(
+    (job) => (job.tool.warrantyFlag || job.tool.warrantyStatus) === 'In-Warranty'
+  ).length;
+
+  // Page 1: Batch Summary Cover & Index Sheet
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, pageWidth, 29, 'F');
+  doc.setFillColor(220, 38, 38);
+  doc.rect(0, 29, pageWidth, 1.5, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13.5);
+  doc.text(centerName.toUpperCase(), margin, 11.5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(203, 213, 225);
+  doc.text('COMBINED PRINTABLE JOB CARD REPORT & BATCH SUMMARY', margin, 17.5);
+  doc.setFontSize(7.5);
+  doc.text(contactLine, margin, 23.5);
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('courier', 'bold');
+  doc.setFontSize(13);
+  doc.text(`${jobs.length} JOB CARD${jobs.length === 1 ? '' : 'S'}`, pageWidth - margin, 12, {
+    align: 'right',
+  });
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(52, 211, 153);
+  doc.text(`TOTAL: ${currency}${totalAmount.toFixed(2)}`, pageWidth - margin, 17.5, {
+    align: 'right',
+  });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(203, 213, 225);
+  doc.text(`Generated: ${generatedLabel} UTC`, pageWidth - margin, 23.5, {
+    align: 'right',
+  });
+
+  let y = 37;
+
+  // 4-Metric Batch Summary Box
+  doc.setDrawColor(203, 213, 225);
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(margin, y, contentWidth, 18, 2, 2, 'FD');
+
+  const colW = contentWidth / 4;
+  const metrics = [
+    { label: 'SELECTED JOBS', value: String(jobs.length) },
+    { label: 'HIGH PRIORITY', value: String(highPriorityCount) },
+    { label: 'IN-WARRANTY', value: String(inWarrantyCount) },
+    { label: 'BATCH BILLING', value: `${currency}${totalAmount.toFixed(2)}` },
+  ];
+
+  metrics.forEach((metric, idx) => {
+    const mx = margin + idx * colW + 4;
+    if (idx > 0) {
+      doc.setDrawColor(226, 232, 240);
+      doc.line(margin + idx * colW, y + 3, margin + idx * colW, y + 15);
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text(metric.label, mx, y + 6.5);
+    doc.setFont('courier', 'bold');
+    doc.setFontSize(10.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text(metric.value, mx, y + 13.5);
+  });
+
+  y += 24;
+
+  const drawSummaryTableHeader = (startY: number): number => {
+    doc.setFillColor(226, 232, 240);
+    doc.rect(margin, startY, contentWidth, 7, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text('JOB ID', margin + 2.5, startY + 4.8);
+    doc.text('CLIENT', margin + 35, startY + 4.8);
+    doc.text('TOOL / MODEL', margin + 72, startY + 4.8);
+    doc.text('PRIORITY', margin + 114, startY + 4.8);
+    doc.text('STATUS', margin + 134, startY + 4.8);
+    doc.text('TECH', margin + 162, startY + 4.8);
+    doc.text('TOTAL', pageWidth - margin - 2.5, startY + 4.8, { align: 'right' });
+    return startY + 7;
+  };
+
+  y = drawSummaryTableHeader(y);
+
+  if (jobs.length === 0) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(71, 85, 105);
+    doc.text('No job cards were selected for this batch report.', margin + 3, y + 6);
+  } else {
+    jobs.forEach((job, index) => {
+      if (y + 8 > pageHeight - 20) {
+        doc.addPage();
+        y = drawSummaryTableHeader(18);
+      }
+
+      if (index % 2 === 1) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(margin, y, contentWidth, 6.5, 'F');
+      }
+
+      const effectiveTotal = getEffectiveJobBilling(job).totalAmount;
+      doc.setFont('courier', 'bold');
+      doc.setFontSize(7.2);
+      doc.setTextColor(15, 23, 42);
+      doc.text(job.id.slice(0, 18), margin + 2.5, y + 4.5);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(30, 41, 59);
+      doc.text((job.customerName || 'Client').slice(0, 20), margin + 35, y + 4.5);
+      doc.text(`${job.tool.brand} ${job.tool.modelNumber}`.slice(0, 23), margin + 72, y + 4.5);
+      doc.text(String(job.priority || 'Low').slice(0, 8), margin + 114, y + 4.5);
+      doc.text(job.status.slice(0, 15), margin + 134, y + 4.5);
+      doc.text((job.technician || 'Unassigned').slice(0, 12), margin + 162, y + 4.5);
+
+      doc.setFont('courier', 'bold');
+      doc.text(`${currency}${effectiveTotal.toFixed(2)}`, pageWidth - margin - 2.5, y + 4.5, {
+        align: 'right',
+      });
+
+      y += 6.5;
+    });
+
+    // Render complete full-detail Job Card pages for every selected job
+    jobs.forEach((job) => {
+      doc.addPage();
+      renderJobCardIntoDoc(doc, job, brandMeta, customFields);
+    });
+  }
+
+  const pageCount = doc.getNumberOfPages();
+  for (let p = 1; p <= pageCount; p++) {
+    doc.setPage(p);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text(
+      `Combined Job Card Report · ${centerName} · ${jobs.length} Job${jobs.length === 1 ? '' : 's'}`,
+      margin,
+      pageHeight - 10
+    );
+    doc.text(`Page ${p} of ${pageCount}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+  }
+
+  const filename = `AutoTrack_Combined_JobCards_${jobs.length}_${dateStamp}.pdf`;
+  const dataUrl = doc.output('datauristring');
+
+  return {
+    doc,
+    filename,
+    dataUrl,
+    jobCount: jobs.length,
+    pageCount,
+    totalAmount,
+  };
 }
 
 export function generatePurchaseOrderPdf(

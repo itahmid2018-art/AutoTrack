@@ -20,15 +20,23 @@ import {
   savePendingCloudSyncIds,
 } from './utils/cloudSyncStatus';
 import {
+  ApplyQuickReplyOptions,
+  AssignTechnicianOptions,
   EscalateTaskOptions,
+  ForwardNotificationOptions,
   SyncFailureRecord,
+  applyNotificationForward,
+  applyQuickReplyToJobs,
   applyTaskEscalation,
+  applyTechnicianAssignment,
   buildTaskNotificationItems,
   computeNotificationCounts,
   getPendingOfflineSyncJobs,
   loadDismissedTaskNotifications,
+  loadReadNotificationIds,
   loadSyncFailureMap,
   saveDismissedTaskNotifications,
+  saveReadNotificationIds,
   saveSyncFailureMap,
 } from './utils/notificationsCenter';
 import {
@@ -88,6 +96,7 @@ import { NewJobModal } from './components/NewJobModal';
 import { AddInventoryModal } from './components/AddInventoryModal';
 import { PrintableJobCardModal } from './components/PrintableJobCardModal';
 import { PdfViewModal } from './components/PdfViewModal';
+import { BulkPdfReportModal } from './components/BulkPdfReportModal';
 import { InventoryNotificationToast } from './components/InventoryNotificationToast';
 import { FeedbackSmsToast, FeedbackSmsDispatchNotice } from './components/FeedbackSmsToast';
 import { CustomerView, sanitizeJobForCustomer, CustomerLookupResult } from './components/CustomerView';
@@ -172,6 +181,7 @@ export default function App() {
   // Modals for PDF, Printing & AI Diagnosis
   const [printableJob, setPrintableJob] = useState<JobCard | null>(null);
   const [pdfModalJob, setPdfModalJob] = useState<JobCard | null>(null);
+  const [bulkPdfJobs, setBulkPdfJobs] = useState<JobCard[] | null>(null);
   const [aiDiagnosisJob, setAiDiagnosisJob] = useState<JobCard | null>(null);
   const [isGlobalScannerOpen, setIsGlobalScannerOpen] = useState(false);
   const [globalScanResult, setGlobalScanResult] = useState<BarcodeScanResult | null>(null);
@@ -221,6 +231,9 @@ export default function App() {
   );
   const [dismissedTaskNotifs, setDismissedTaskNotifs] = useState<string[]>(() =>
     loadDismissedTaskNotifications()
+  );
+  const [readNotificationIds, setReadNotificationIds] = useState<string[]>(() =>
+    loadReadNotificationIds()
   );
   const [inFlightCloudSyncIds, setInFlightCloudSyncIds] = useState<string[]>([]);
   const [firestorePendingWritesById, setFirestorePendingWritesById] = useState<Record<string, boolean>>({});
@@ -349,6 +362,10 @@ export default function App() {
   useEffect(() => {
     saveDismissedTaskNotifications(dismissedTaskNotifs);
   }, [dismissedTaskNotifs]);
+
+  useEffect(() => {
+    saveReadNotificationIds(readNotificationIds);
+  }, [readNotificationIds]);
 
   // Multi-client real-time sync subscription for verified operators
   useEffect(() => {
@@ -907,6 +924,100 @@ export default function App() {
     syncJobToCloud(normalizedChanged);
   };
 
+  const handleForwardJobNotification = (
+    jobId: string,
+    options: ForwardNotificationOptions
+  ) => {
+    const actorName =
+      authUser?.displayName || authUser?.email || 'Service Coordinator';
+    const { updatedJobs, changedJob } = applyNotificationForward(jobCards, jobId, {
+      ...options,
+      actorName,
+    });
+    if (!changedJob) return;
+
+    const normalizedUpdated = updatedJobs.map((j) =>
+      j.id === jobId ? normalizeJobCard(j) : j
+    );
+    const normalizedChanged =
+      normalizedUpdated.find((j) => j.id === jobId) || normalizeJobCard(changedJob);
+
+    setJobCards(normalizedUpdated);
+    if (selectedJob && selectedJob.id === jobId) {
+      setSelectedJob(normalizedChanged);
+    }
+    syncJobToCloud(normalizedChanged);
+  };
+
+  const handleApplyQuickReply = (
+    jobId: string,
+    options: Omit<ApplyQuickReplyOptions, 'deductStockOn'>
+  ) => {
+    const activeUser = authUserRef.current;
+    const actorName =
+      activeUser?.displayName || activeUser?.email || 'Workshop Technician';
+    const currentJobs = jobCardsRef.current;
+    const existing = currentJobs.find((j) => j.id === jobId);
+    const { updatedJobs, changedJob, inventoryDeltas } = applyQuickReplyToJobs(
+      currentJobs,
+      jobId,
+      {
+        ...options,
+        deductStockOn: settings.deductStockOn,
+        actorName,
+        actorRole: existing?.technician ? 'Technician' : 'Technician / Counter',
+      }
+    );
+    if (!changedJob) return;
+
+    if (inventoryDeltas.length > 0) {
+      handleApplyInventoryDeltas(inventoryDeltas);
+    }
+
+    const normalizedUpdated = updatedJobs.map((j) =>
+      j.id === jobId ? normalizeJobCard(j) : j
+    );
+    const normalizedChanged =
+      normalizedUpdated.find((j) => j.id === jobId) || normalizeJobCard(changedJob);
+
+    setJobCards(normalizedUpdated);
+    setSelectedJob((curr) =>
+      curr && curr.id === jobId ? normalizedChanged : curr
+    );
+    syncJobToCloud(normalizedChanged);
+  };
+
+  const handleAssignTechnician = (
+    jobId: string,
+    options: AssignTechnicianOptions
+  ) => {
+    const activeUser = authUserRef.current;
+    const actorName =
+      activeUser?.displayName || activeUser?.email || 'Workshop Manager';
+    const { updatedJobs, changedJob } = applyTechnicianAssignment(
+      jobCardsRef.current,
+      jobId,
+      {
+        ...options,
+        actorName,
+        actorRole: 'Manager / Notifications Center',
+      }
+    );
+    if (!changedJob) return;
+
+    const normalizedUpdated = updatedJobs.map((j) =>
+      j.id === jobId ? normalizeJobCard(j) : j
+    );
+    const normalizedChanged =
+      normalizedUpdated.find((j) => j.id === jobId) || normalizeJobCard(changedJob);
+
+    setJobCards(normalizedUpdated);
+    setSelectedJob((curr) =>
+      curr && curr.id === jobId ? normalizedChanged : curr
+    );
+    syncJobToCloud(normalizedChanged);
+  };
+
   const handleBulkStatusChange = (jobIds: string[], newStatus: JobStatus) => {
     const idSet = new Set(jobIds);
     if (idSet.size === 0) return;
@@ -1060,8 +1171,33 @@ export default function App() {
     );
   };
 
+  const handleToggleInventoryRead = (notifId: string) => {
+    setInventoryNotifications((prev) =>
+      prev.map((n) => (n.id === notifId ? { ...n, read: !n.read } : n))
+    );
+  };
+
   const handleMarkAllNotificationsRead = () => {
     setInventoryNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  const handleToggleReadNotification = (notifKey: string) => {
+    setReadNotificationIds((prev) =>
+      prev.includes(notifKey)
+        ? prev.filter((id) => id !== notifKey)
+        : [...prev, notifKey]
+    );
+  };
+
+  const handleMarkAllGeneralNotificationsRead = () => {
+    const allKeys = [
+      ...pendingSyncJobs.map((s) => `sync-${s.job.id}`),
+      ...taskNotifications.map((t) => t.id),
+      ...schedules
+        .filter((s) => s.status === 'Overdue' || s.status === 'Due Soon')
+        .map((s) => `sched-${s.id}`),
+    ];
+    setReadNotificationIds((prev) => Array.from(new Set([...prev, ...allKeys])));
   };
 
   const handleOpenInventoryAlerts = () => {
@@ -1279,6 +1415,7 @@ export default function App() {
         inventoryNotifications={inventoryNotifications}
         unreadInventoryCount={unreadInventoryCount}
         onMarkNotificationRead={handleMarkNotificationRead}
+        onToggleNotificationRead={handleToggleInventoryRead}
         onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
         onQuickReorderItem={handleQuickReorderItem}
         onOpenInventoryAlerts={handleOpenInventoryAlerts}
@@ -1354,6 +1491,7 @@ export default function App() {
                 onQuickStatusChange={handleQuickStatusChange}
                 onQuickPriorityChange={handleQuickPriorityChange}
                 onBulkStatusChange={handleBulkStatusChange}
+                onGenerateBulkPdfReport={(jobsForReport) => setBulkPdfJobs(jobsForReport)}
                 onOpenWhatsApp={handleOpenWhatsAppForJob}
                 onPrintJobCard={(jobToPrint) => setPrintableJob(jobToPrint)}
                 onSendPdfToCustomer={(jobForPdf) => setPdfModalJob(jobForPdf)}
@@ -1463,6 +1601,9 @@ export default function App() {
                 settings={settings}
                 isOnline={isOnline}
                 isAuthenticated={Boolean(authUser?.emailVerified)}
+                readNotificationIds={readNotificationIds}
+                onToggleReadNotification={handleToggleReadNotification}
+                onMarkAllNotificationsRead={handleMarkAllGeneralNotificationsRead}
                 onSignIn={handleOperatorSignIn}
                 onRetryCloudSync={(jobId) => handleRetryCloudSync(jobId)}
                 onSelectJob={(job) => {
@@ -1470,9 +1611,15 @@ export default function App() {
                   setActiveTab('jobs');
                 }}
                 onEscalateJob={handleEscalateJob}
+                onForwardJobNotification={handleForwardJobNotification}
+                onApplyQuickReply={handleApplyQuickReply}
+                onAssignTechnician={handleAssignTechnician}
+                onQuickStatusChange={handleQuickStatusChange}
                 onLogMessageSent={handleLogMessageSent}
+                onLogMaintenanceMessage={handleLogMaintenanceMessage}
                 onOpenWhatsApp={handleOpenWhatsAppForJob}
                 onMarkInventoryRead={handleMarkNotificationRead}
+                onToggleInventoryRead={handleToggleInventoryRead}
                 onMarkAllInventoryRead={handleMarkAllNotificationsRead}
                 onQuickReorderItem={handleQuickReorderItem}
                 onOpenInventoryAlerts={handleOpenInventoryAlerts}
@@ -1583,6 +1730,15 @@ export default function App() {
           customFields={customFields}
           onClose={() => setPdfModalJob(null)}
           onLogMessageSent={handleLogMessageFromPdf}
+        />
+      )}
+
+      {bulkPdfJobs && bulkPdfJobs.length > 0 && (
+        <BulkPdfReportModal
+          jobs={bulkPdfJobs}
+          settings={settings}
+          customFields={customFields}
+          onClose={() => setBulkPdfJobs(null)}
         />
       )}
 
