@@ -1897,12 +1897,22 @@ export default function App() {
       <footer className="border-t border-zinc-300 dark:border-zinc-900 bg-white dark:bg-zinc-950 py-4 text-center text-xs text-zinc-700 dark:text-zinc-500 font-mono no-print transition-colors">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>BOSCH &amp; Vendor Power Tools Service Hub · Technician Efficiency &amp; Kanban Workflow</span>
-          <button
-            onClick={() => setActiveTab('transition')}
-            className="text-zinc-900 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white underline font-semibold"
-          >
-            Setup Questions &amp; Business Rules
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setActiveTab('transition')}
+              className="text-zinc-900 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white underline font-semibold"
+            >
+              Setup Questions &amp; Business Rules
+            </button>
+            <a
+              href="/about.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-emerald-700 dark:text-emerald-400 hover:text-emerald-900 dark:hover:text-emerald-300 underline font-bold"
+            >
+              About &amp; Architecture Guide
+            </a>
+          </div>
         </div>
       </footer>
 

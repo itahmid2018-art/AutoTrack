@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About AutoTrack Pro — System Architecture & Feature Guide</title>
+  <meta name="description" content="Technical architecture, feature breakdown, and user distribution guide for AutoTrack Pro power tool servicing platform." />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.15); }
+      50% { box-shadow: 0 0 30px rgba(16, 185, 129, 0.35); }
+    }
+    .animate-fade-in { animation: fadeIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .animate-pulse-glow { animation: pulseGlow 4s ease-in-out infinite; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; animation: fadeIn 0.4s ease-out forwards; }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen selection:bg-emerald-500 selection:text-zinc-950 antialiased">
+
+  <!-- Navigation Bar -->
+  <header class="sticky top-0 z-50 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-700 flex items-center justify-center text-emerald-400 font-mono font-bold shadow-inner">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </div>
+        <div>
+          <span class="font-mono font-extrabold text-base tracking-tight text-white uppercase">AutoTrack Pro</span>
+          <span class="text-xs text-zinc-400 block font-mono">System Architecture &amp; User Manual</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="/" class="px-3.5 py-2 text-xs font-mono font-bold rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 transition-colors flex items-center gap-2">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+          <span>Return to Workshop App</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="relative overflow-hidden py-16 lg:py-24 border-b border-zinc-900 bg-gradient-to-b from-zinc-900/50 to-zinc-950">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono mb-6 animate-fade-in">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        Production Architecture v4.2 · B2B Power Tool Service Management
+      </div>
+      <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white mb-6 animate-fade-in">
+        Precision Engineering for <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-200">Industrial Workshops</span>
+      </h1>
+      <p class="text-lg sm:text-xl text-zinc-400 max-w-3xl mx-auto mb-10 font-sans leading-relaxed animate-fade-in">
+        AutoTrack Pro unifies tool intake diagnostics, Kanban repair workflows, 1,000-SKU spare parts inventory control, and role-based client portals into a single resilient application.
+      </p>
+
+      <!-- Quick Stats Grid -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto text-left">
+        <div class="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 backdrop-blur">
+          <div class="text-2xl font-extrabold font-mono text-white tabular-nums">1,000+</div>
+          <div class="text-xs text-zinc-400 font-mono mt-1">Bosch &amp; Makita SKU Catalog</div>
+        </div>
+        <div class="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 backdrop-blur">
+          <div class="text-2xl font-extrabold font-mono text-emerald-400 tabular-nums">4.2 hrs</div>
+          <div class="text-xs text-zinc-400 font-mono mt-1">Average Turnaround Time</div>
+        </div>
+        <div class="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 backdrop-blur">
+          <div class="text-2xl font-extrabold font-mono text-white tabular-nums">100%</div>
+          <div class="text-xs text-zinc-400 font-mono mt-1">Offline PWA Resilience</div>
+        </div>
+        <div class="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 backdrop-blur">
+          <div class="text-2xl font-extrabold font-mono text-teal-400 tabular-nums">Role-Based</div>
+          <div class="text-xs text-zinc-400 font-mono mt-1">Secure Client &amp; Admin Portals</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Navigation Tabs -->
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="flex flex-wrap items-center justify-center gap-2 mb-10 border-b border-zinc-800 pb-4">
+      <button onclick="switchTab('features')" id="btn-features" class="px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all bg-emerald-500 text-zinc-950 shadow-lg">
+        Core Features
+      </button>
+      <button onclick="switchTab('architecture')" id="btn-architecture" class="px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800">
+        System Architecture
+      </button>
+      <button onclick="switchTab('users')" id="btn-users" class="px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800">
+        User Distribution &amp; Usage
+      </button>
+    </div>
+
+    {/* TAB 1: FEATURES */}
+    <div id="tab-features" class="tab-content active space-y-12 animate-fade-in">
+      <div class="text-center max-w-2xl mx-auto">
+        <h2 class="text-2xl sm:text-3xl font-bold text-white mb-3">Modular Workshop Capabilities</h2>
+        <p class="text-sm text-zinc-400 font-sans">Every feature is designed specifically for high-throughput industrial repair centers.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 hover:border-emerald-500/50 transition-all group">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-mono font-bold mb-4 group-hover:scale-110 transition-transform">01</div>
+          <h3 class="text-lg font-bold text-white mb-2">Advanced Tool Intake &amp; Warranty Adjudication</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed font-sans">
+            Captures tool serial numbers, brand models, physical condition notes, and automatically adjudicates warranty status using factory date codes and purchase references.
+          </p>
+        </div>
+
+        <div class="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 hover:border-emerald-500/50 transition-all group">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-mono font-bold mb-4 group-hover:scale-110 transition-transform">02</div>
+          <h3 class="text-lg font-bold text-white mb-2">Kanban Repair Stage Pipeline</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed font-sans">
+            Interactive drag-and-drop workflow tracking jobs from Intake through Diagnostics, Parts Waiting, Repair in Progress, Quality Control, and Ready for Dispatch.
+          </p>
+        </div>
+
+        <div class="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 hover:border-emerald-500/50 transition-all group">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-mono font-bold mb-4 group-hover:scale-110 transition-transform">03</div>
+          <h3 class="text-lg font-bold text-white mb-2">1,000-SKU Spare Parts Catalog &amp; Auto-Deduction</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed font-sans">
+            Maintains inventory levels with automatic stock deductions upon stage transitions, low-stock notifications, and intelligent parts suggestions matching job tool brands.
+          </p>
+        </div>
+
+        <div class="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 hover:border-emerald-500/50 transition-all group">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-mono font-bold mb-4 group-hover:scale-110 transition-transform">04</div>
+          <h3 class="text-lg font-bold text-white mb-2">QR Code Payloads &amp; Role-Based Global Scanners</h3>
+          <p class="text-xs text-zinc-400 leading-relaxed font-sans">
+            Generates scannable QR tags embedding secure tokens and job IDs. The global scanner enforces role boundaries: clients get view-only access to their specific job, while admins receive full operational control.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {/* TAB 2: ARCHITECTURE */}
+    <div id="tab-architecture" class="tab-content space-y-12">
+      <div class="text-center max-w-2xl mx-auto">
+        <h2 class="text-2xl sm:text-3xl font-bold text-white mb-3">How the Code Works</h2>
+        <p class="text-sm text-zinc-400 font-sans">Built with a robust, type-safe full-stack architecture ensuring reliability under intermittent workshop network connectivity.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 font-mono">
+        <div class="p-6 rounded-2xl bg-zinc-900 border border-zinc-800">
+          <div class="text-emerald-400 font-bold text-sm mb-2">Frontend Stack</div>
+          <ul class="text-xs text-zinc-400 space-y-2 font-sans">
+            <li>• React 19 + TypeScript (Strict)</li>
+            <li>• Vite 8 Build System &amp; HMR</li>
+            <li>• Tailwind CSS v4 Utility Styling</li>
+            <li>• LocalStorage TransactionalDb Cache</li>
+          </ul>
+        </div>
+
+        <div class="p-6 rounded-2xl bg-zinc-900 border border-zinc-800">
+          <div class="text-teal-400 font-bold text-sm mb-2">Backend &amp; Persistence</div>
+          <ul class="text-xs text-zinc-400 space-y-2 font-sans">
+            <li>• Node 22 + Express 4 Middleware</li>
+            <li>• Cloud Firestore Realtime Sync</li>
+            <li>• PostgreSQL 16 via Drizzle ORM</li>
+            <li>• Service Worker PWA Offline Store</li>
+          </ul>
+        </div>
+
+        <div class="p-6 rounded-2xl bg-zinc-900 border border-zinc-800">
+          <div class="text-amber-400 font-bold text-sm mb-2">Security &amp; Auth</div>
+          <ul class="text-xs text-zinc-400 space-y-2 font-sans">
+            <li>• Firebase Auth &amp; Google Workspace SSO</li>
+            <li>• Server-side JWT Verification</li>
+            <li>• Role-Based Access Control (RBAC)</li>
+            <li>• Tokenized Client Portal URL Lookup</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-4">
+        <h3 class="text-base font-bold text-white">Data Lifecycle &amp; State Management</h3>
+        <p class="text-xs text-zinc-400 leading-relaxed font-sans">
+          State changes are funneled through transactional utility layers (`stockDeduction.ts`, `billing.ts`, `firestoreSync.ts`). When offline, mutations are buffered in local storage queue and automatically synced to Firestore upon reconnection, avoiding data loss in concrete-walled workshops.
+        </p>
+      </div>
+    </div>
+
+    {/* TAB 3: USERS & DISTRIBUTION */}
+    <div id="tab-users" class="tab-content space-y-12">
+      <div class="text-center max-w-2xl mx-auto">
+        <h2 class="text-2xl sm:text-3xl font-bold text-white mb-3">User Distribution &amp; Usage Patterns</h2>
+        <p class="text-sm text-zinc-400 font-sans">Understanding how different personas interact with AutoTrack Pro across daily service operations.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="p-6 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-white">Workshop Technicians</h3>
+            <span class="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-mono font-bold">55% Usage</span>
+          </div>
+          <div class="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
+            <div class="bg-emerald-500 h-full rounded-full" style="width: 55%;"></div>
+          </div>
+          <p class="text-xs text-zinc-400 font-sans leading-relaxed">
+            Primary users for diagnostic check-ins, barcode scanning, part allocations from inventory, time tracking, and updating Kanban repair stages.
+          </p>
+        </div>
+
+        <div class="p-6 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-white">Service Managers</h3>
+            <span class="px-2.5 py-1 rounded-full bg-teal-500/10 text-teal-400 text-xs font-mono font-bold">20% Usage</span>
+          </div>
+          <div class="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
+            <div class="bg-teal-500 h-full rounded-full" style="width: 20%;"></div>
+          </div>
+          <p class="text-xs text-zinc-400 font-sans leading-relaxed">
+            Monitor workshop KPIs, revenue forecasts, staff allocation, scheduling calendars, and review turnaround times by tool category.
+          </p>
+        </div>
+
+        <div class="p-6 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-white">Inventory Supervisors</h3>
+            <span class="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-mono font-bold">15% Usage</span>
+          </div>
+          <div class="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
+            <div class="bg-amber-500 h-full rounded-full" style="width: 15%;"></div>
+          </div>
+          <p class="text-xs text-zinc-400 font-sans leading-relaxed">
+            Manage spare parts catalog across 1,000 SKUs, review low-stock alerts, execute bulk CSV imports, and process quick reorders.
+          </p>
+        </div>
+
+        <div class="p-6 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-white">End-Client Customers</h3>
+            <span class="px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-mono font-bold">10% Usage</span>
+          </div>
+          <div class="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
+            <div class="bg-blue-500 h-full rounded-full" style="width: 10%;"></div>
+          </div>
+          <p class="text-xs text-zinc-400 font-sans leading-relaxed">
+            Access isolated Client Status Portal via tokenized URLs or QR codes to view repair progress, download invoice receipts, and submit feedback.
+          </p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-zinc-900 bg-zinc-950 py-8 text-center text-xs text-zinc-500 font-mono">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <span>AutoTrack Pro v4.2 · Industrial Power Tool Servicing Platform</span>
+      <div class="flex items-center gap-4">
+        <a href="/" class="text-zinc-400 hover:text-white transition-colors">Workshop App</a>
+        <a href="/about.html" class="text-emerald-400 hover:text-emerald-300 font-bold">About &amp; Architecture</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('main button').forEach(btn => {
+        btn.classList.remove('bg-emerald-500', 'text-zinc-950', 'shadow-lg');
+        btn.classList.add('bg-zinc-900', 'text-zinc-400', 'border', 'border-zinc-800');
+      });
+      document.getElementById('tab-' + tabId).classList.add('active');
+      const activeBtn = document.getElementById('btn-' + tabId);
+      activeBtn.classList.remove('bg-zinc-900', 'text-zinc-400', 'border', 'border-zinc-800');
+      activeBtn.classList.add('bg-emerald-500', 'text-zinc-950', 'shadow-lg');
+    }
+  </script>
+</body>
+</html>

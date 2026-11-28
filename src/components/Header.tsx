@@ -474,6 +474,17 @@ export const Header: React.FC<HeaderProps> = ({
           active: activeTab === 'transition',
           onSelect: () => handleNavClick('transition'),
         },
+        {
+          id: 'about-page',
+          label: 'About & System Architecture',
+          description: 'Animated feature walkthrough, system architecture & user metrics',
+          icon: <FileText className="w-4 h-4" />,
+          onSelect: () => {
+            setOpenMenu(null);
+            setMobileMenuOpen(false);
+            window.open('/about.html', '_blank');
+          },
+        },
       ],
     },
   ];
